@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
     View,
+    Text,
     TextInput,
     TouchableOpacity,
     StyleSheet,
@@ -11,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, RADIUS, SPACING, SHADOW } from '../constants/theme';
+import { COLORS, RADIUS, SPACING, SHADOW } from '../../constants/theme';
 
 export default function LoginScreen({ navigation }) {
     const [email, setEmail] = useState('');
@@ -24,7 +25,9 @@ export default function LoginScreen({ navigation }) {
             Alert.alert('Missing Fields', 'Please enter both email and password.');
             return;
         }
-        navigation.replace('Main');
+        if (navigation?.replace) {
+            navigation.replace('Home');
+        }
     };
 
     return (
@@ -136,7 +139,10 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#FFF9F9',
     },
-    scroll: {
+    keyboardContainer: {
+        flex: 1,
+    },
+    scrollContainer: {
         flexGrow: 1,
         alignItems: 'center',
         paddingHorizontal: SPACING.xl,
@@ -226,7 +232,7 @@ const styles = StyleSheet.create({
     checkbox: {
         width: 18,
         height: 18,
-        borderRaidus: 4,
+        borderRadius: 4,
         borderWidth: 1.5,
         borderColor: COLORS.text3,
         alignItems: 'center',
