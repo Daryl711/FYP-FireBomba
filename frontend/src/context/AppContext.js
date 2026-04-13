@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useMemo, useState } from 'react';
 
 const AppContext = createContext(null);
 
@@ -21,7 +21,7 @@ const mockNotifications = [
     {
         id: 'n2',
         room: 'Lobby',
-        description: 'Sensor heartbeat restored',
+        description: 'Flame sensor restored',
         time: '8m ago',
         type: 'success',
     },
@@ -35,12 +35,40 @@ const mockNotifications = [
 ];
 
 export function AppProvider({ children }) {
+    const [user, setUser] = useState({ name: 'FireBomba Admin' });
+    const [notifications, setNotifications] = useState(
+        mockNotifications.map((item, index) => ({
+            ...item,
+            title: item.type === 'warning' ? 'Warning Alert' : item.type === 'success' ? 'System Update' : 'Information',
+            unread: index < 2,
+        }))
+    );
+
+    const login = (_email, name) => {
+        setUser({ name: name || 'FireBomba Admin' });
+    };
+
+    const markAllRead = () => {
+        setNotifications((prev) => prev.map((item) => ({ ...item, unread: false })));
+    };
+
+    const markNotificationRead = (id) => {
+        setNotifications((prev) =>
+            prev.map((item) => (item.id === id ? { ...item, unread: false } : item))
+        );
+    };
+
     const value = useMemo(() => {
         const warningCount = mockRooms.filter((room) => room.status === 'warning').length;
+        const unreadCount = notifications.filter((item) => item.unread).length;
         return {
-            user: { name: 'FireBomba Admin' },
+            user,
+            login,
             rooms: mockRooms,
-            notifications: mockNotifications,
+            notifications,
+            unreadCount,
+            markAllRead,
+            markNotificationRead,
             realtimeError: null,
             systemStatus: {
                 allOperational: warningCount === 0,
@@ -49,7 +77,7 @@ export function AppProvider({ children }) {
                 fireEvents: warningCount,
             },
         };
-    }, []);
+    }, [notifications, user]);
 
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

@@ -7,15 +7,20 @@ export default function LoginRoute() {
   const navigation = {
     replace: (routeName: string) => {
       if (routeName === 'Home') {
-        router.replace('/home');
+        router.replace('/(tabs)/home');
+        return;
+      }
+      if (routeName === 'Main') {
+        router.replace('/(tabs)/home');
       }
     },
     navigate: (routeName: string) => {
-      if (routeName === 'Signup') {
+      if (routeName === 'Signup' || routeName === 'SignUp') {
+        router.push('/signup');
         return;
       }
       if (routeName === 'Home') {
-        router.push('/home');
+        router.push('/(tabs)/home');
       }
     },
   };

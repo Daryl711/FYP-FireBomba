@@ -40,25 +40,27 @@ export default function HomeScreen({ navigation }){
                     <View style={styles.headerLogo}>
                         <Ionicons name="flame" size={22} color={COLORS.white} />
                     </View>
+
+                    {/* Stat cards */}
+                    <View style={styles.statGrid}>
+                        <View style={styles.statCard}>
+                            <View style={styles.statCardTop}>
+                                <Ionicons name="checkmark-circle-outline" size={14} color={COLORS.white} />
+                                <Text style={styles.statCardTitle}> Active Rooms</Text>
+                            </View>
+                            <Text style={styles.statCardVal}>{rooms.length}</Text>
+                        </View>
+                        <View style={styles.statCard}>
+                            <View style={styles.statCardTop}>
+                                <Ionicons name="warning-outline" size={14} color={COLORS.white} />
+                                <Text style={styles.statCardTitle}> Warnings</Text>
+                            </View>
+                            <Text style={styles.statCardVal}>{warningRooms.length}</Text>
+                        </View>
+                    </View>
                 </View>
 
-                {/* Stat cards */}
-                <View style={styles.statGrid}>
-                    <View style={styles.statCard}>
-                        <View style={styles.statCardTop}>
-                            <Ionicons name="checkmark-circle-outline" size={14} color={COLORS.white} />
-                            <Text style={styles.statCardTitle}> Active Rooms</Text>
-                        </View>
-                        <Text style={styles.statCardVal}>{rooms.length}</Text>
-                    </View>
-                    <View style={styles.statCard}>
-                        <View style={styles.statCardTop}>
-                            <Ionicons name="warning-outline" size={14} color={COLORS.white} />
-                            <Text style={styles.statCardTitle}> Warnings</Text>
-                        </View>
-                        <Text style={styles.statCardVal}>{warningRooms.length}</Text>
-                    </View>
-                </View>
+                
 
                 {/* System Status */}
                 <View style={styles.statusCard}>

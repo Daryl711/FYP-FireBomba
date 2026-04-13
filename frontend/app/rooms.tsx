@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
-import HomeScreen from '../src/screens/HomeScreen';
+import RoomsScreen from '../src/screens/RoomsScreen';
 
-export default function HomeRoute() {
+export default function RoomsRoute() {
   const router = useRouter();
 
   const navigation = {
@@ -10,10 +10,10 @@ export default function HomeRoute() {
         router.push('/rooms');
       }
     },
-    replace: () => {
-      router.replace('/');
+    goBack: () => {
+      router.back();
     },
   };
 
-  return <HomeScreen navigation={navigation} />;
+  return <RoomsScreen navigation={navigation} />;
 }
