@@ -9,24 +9,52 @@ import {
     KeyboardAvoidingView,
     Platform, 
     Alert,
+    ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING, SHADOW } from '../../constants/theme';
+
+// Import your API function (Make sure this path is correct!)
+import { loginUser } from '../api'; 
 
 export default function LoginScreen({ navigation }) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
+    
+    // Added a loading state so the button can show a spinner while connecting
+    const [isLoading, setIsLoading] = useState(false);
 
-    const handleLogin = () => {
+    const handleLogin = async () => {
+        // 1. Validation
         if (!email.trim() || !password.trim()) {
             Alert.alert('Missing Fields', 'Please enter both email and password.');
             return;
         }
-        if (navigation?.replace) {
-            navigation.replace('Home');
+
+        // 2. Start Loading
+        setIsLoading(true);
+
+        try {
+            // 3. Call your Express Backend API
+            const result = await loginUser(email.trim(), password);
+
+            // 4. Check for errors from the server (e.g. "Wrong password")
+            if (result.error) {
+                Alert.alert('Login Failed', result.error);
+            } else {
+                // 5. Success! Navigate to Home
+                if (navigation?.replace) {
+                    navigation.replace('Home');
+                }
+            }
+        } catch (error) {
+            Alert.alert('Error', 'Could not connect to the server. Is your backend running?');
+        } finally {
+            // Stop Loading
+            setIsLoading(false);
         }
     };
 
@@ -67,6 +95,7 @@ export default function LoginScreen({ navigation }) {
                                     autoCapitalize="none"
                                     value={email}
                                     onChangeText={setEmail}
+                                    editable={!isLoading} // Disable input while loading
                                 />
                             </View>
                         </View>
@@ -83,10 +112,12 @@ export default function LoginScreen({ navigation }) {
                                     secureTextEntry={!showPassword}
                                     value={password}
                                     onChangeText={setPassword}
+                                    editable={!isLoading} // Disable input while loading
                                 />
                                 <TouchableOpacity
                                     style={styles.eyeBtn}
                                     onPress={() => setShowPassword(!showPassword)}
+                                    disabled={isLoading}
                                 >
                                     <Ionicons
                                         name={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -103,27 +134,37 @@ export default function LoginScreen({ navigation }) {
                                 style={styles.rememberLeft}
                                 onPress={() => setRememberMe(!rememberMe)}
                                 activeOpacity={0.7}
+                                disabled={isLoading}
                             >
                                 <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
                                     {rememberMe && <Ionicons name="checkmark" size={12} color="#fff" />}
                                 </View>
                                 <Text style={styles.rememberText}>Remember me</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity>
+                            <TouchableOpacity disabled={isLoading}>
                                 <Text style={styles.forgotText}>Forgot password?</Text>
                             </TouchableOpacity>
                         </View>
 
                         {/* Sign in button */}
-                        <TouchableOpacity style={styles.signInBtn} onPress={handleLogin} activeOpacity={0.85}>
-                            <Text style={styles.signInText}>Sign In</Text>
+                        <TouchableOpacity 
+                            style={[styles.signInBtn, isLoading && { opacity: 0.7 }]} 
+                            onPress={handleLogin} 
+                            activeOpacity={0.85}
+                            disabled={isLoading} // Prevent double clicking
+                        >
+                            {isLoading ? (
+                                <ActivityIndicator color={COLORS.white} />
+                            ) : (
+                                <Text style={styles.signInText}>Sign In</Text>
+                            )}
                         </TouchableOpacity>
                     </View>
 
                     {/* Sign up link */}
                     <Text style={styles.signupRow}>
                         Don't have an account?{' '}
-                        <Text style={styles.signupLink} onPress={() => navigation.navigate('Signup')}>
+                        <Text style={styles.signupLink} onPress={() => !isLoading && navigation.navigate('Signup')}>
                             Sign Up
                         </Text>
                     </Text>
@@ -210,7 +251,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         fontSize: 14,
         color: COLORS.text,
-        // fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
         fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
     },
     eyeBtn: {
@@ -272,4 +312,4 @@ const styles = StyleSheet.create({
         color: COLORS.primary,
         fontWeight: '700',
     },
-})
+});
