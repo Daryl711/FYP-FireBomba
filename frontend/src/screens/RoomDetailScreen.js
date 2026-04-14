@@ -11,8 +11,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING, SHADOW } from '../../constants/theme';
-import SensorChart from '../components/SensorChart';
 import { useApp } from '../context/AppContext';
+import SensorChart from '../../components/SensorChart';
 
 function SensorCard({ icon,label, value, unit, fillPct, fillColor }) {
     return (
@@ -84,8 +84,9 @@ const sStyles = StyleSheet.create({
 
 export default function RoomDetailScreen({ route, navigation }) {
     const { rooms } = useApp();
-    const { room: iniitialRoom, roomId } = route.params;
-    const room = rooms.find((item) => item.id === String(roomId)) || iniitialRoom;
+    const { room: initialRoom, roomId } = route?.params || {};
+    const resolvedRoomId = roomId ? String(roomId) : undefined;
+    const room = rooms.find((item) => item.id === resolvedRoomId) || initialRoom;
 
     if (!room) {
         return(
@@ -100,7 +101,14 @@ export default function RoomDetailScreen({ route, navigation }) {
         );
     }
 
-    const { sensors, sensorHistory, name } = room;
+    const sensors = room.sensors || {
+        temperature: room.temperature ?? 0,
+        smoke: 0,
+        gas: 0,
+        flame: false,
+    };
+    const sensorHistory = Array.isArray(room.sensorHistory) ? room.sensorHistory : [];
+    const name = room.name || 'Room';
 
     const [pumpActive, setPumpActive] = useState(false);
     const [lastUpdated, setLastUpdated] = useState(new Date());
@@ -130,7 +138,7 @@ export default function RoomDetailScreen({ route, navigation }) {
             Animated.loop(
                 Animated.sequence([
                     Animated.timing(pumpPulse, { toValue: 1.03, duration: 600, useNativeDriver: true }),
-                    Animated.timing(pumpPulse, { toValue: 1, duration: 600, useNativeDriver: ture }),
+                    Animated.timing(pumpPulse, { toValue: 1, duration: 600, useNativeDriver: true }),
                 ])
             ).start();
         } else {
@@ -153,7 +161,6 @@ export default function RoomDetailScreen({ route, navigation }) {
                 [
                     { text: 'Cancel', style: 'cancel' },
                     {
-                        text: 'Activate',
                         text: 'Activate',
                         style: 'destructive',
                         onPress: () => {
@@ -252,7 +259,13 @@ export default function RoomDetailScreen({ route, navigation }) {
                 {/* Sensor History */}
                 <View style={styles.historyCard}>
                     <Text style={styles.cardTitle}>Sensor History</Text>
-                    <SensorChart data={sensorHistory} />
+                    {sensorHistory.length > 0 ? (
+                        <SensorChart data={sensorHistory} />
+                    ) : (
+                        <View style={styles.chartEmpty}>
+                            <Text style={styles.chartEmptyText}>No sensor data yet.</Text>
+                        </View>
+                    )}
                 </View>
 
                 {/* Water Pump System */}
@@ -446,6 +459,20 @@ const styles = StyleSheet.create({
         marginHorizontal: SPACING.lg,
         marginBottom: SPACING.md,
         ...SHADOW.small,
+    },
+    chartEmpty: {
+        height: 140,
+        borderRadius: RADIUS.md,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        backgroundColor: COLORS.bg,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    chartEmptyText: {
+        fontSize: 12,
+        color: COLORS.text2,
+        fontWeight: '500',
     },
     cardTitle: {
         fontSize: 15,
