@@ -14,11 +14,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING, SHADOW } from '../../constants/theme';
+import { useApp } from '../context/AppContext';
 
 // Import your API function (Make sure this path is correct!)
 import { loginUser } from '../api'; 
 
 export default function LoginScreen({ navigation }) {
+    const { login } = useApp();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -45,7 +47,10 @@ export default function LoginScreen({ navigation }) {
             if (result.error) {
                 Alert.alert('Login Failed', result.error);
             } else {
-                // 5. Success! Navigate to Home
+                // 5. Save user to context so HomeScreen can show the real name
+                login(result.user);
+                
+                // 6. Navigate to Home
                 if (navigation?.replace) {
                     navigation.replace('Home');
                 }
@@ -95,7 +100,7 @@ export default function LoginScreen({ navigation }) {
                                     autoCapitalize="none"
                                     value={email}
                                     onChangeText={setEmail}
-                                    editable={!isLoading} // Disable input while loading
+                                    editable={!isLoading}
                                 />
                             </View>
                         </View>
@@ -112,7 +117,7 @@ export default function LoginScreen({ navigation }) {
                                     secureTextEntry={!showPassword}
                                     value={password}
                                     onChangeText={setPassword}
-                                    editable={!isLoading} // Disable input while loading
+                                    editable={!isLoading}
                                 />
                                 <TouchableOpacity
                                     style={styles.eyeBtn}
@@ -151,7 +156,7 @@ export default function LoginScreen({ navigation }) {
                             style={[styles.signInBtn, isLoading && { opacity: 0.7 }]} 
                             onPress={handleLogin} 
                             activeOpacity={0.85}
-                            disabled={isLoading} // Prevent double clicking
+                            disabled={isLoading}
                         >
                             {isLoading ? (
                                 <ActivityIndicator color={COLORS.white} />

@@ -34,11 +34,13 @@ export default function HomeScreen({ navigation }){
                 {/* Header */}
                 <View style={styles.header}>
                     <View style={styles.headerTop}>
-                        <Text style={styles.greet}>Welcome Back,</Text>
-                        <Text style={styles.name}>{user?.name || 'User'}</Text>
-                    </View>
-                    <View style={styles.headerLogo}>
-                        <Ionicons name="flame" size={22} color={COLORS.white} />
+                        <View style={styles.headerTextWrap}>
+                            <Text style={styles.greet}>Welcome Back,</Text>
+                            <Text style={styles.name}>{user?.name || 'User'}</Text>
+                        </View>
+                        <View style={styles.headerLogo}>
+                            <Ionicons name="flame" size={22} color={COLORS.white} />
+                        </View>
                     </View>
 
                     {/* Stat cards */}
@@ -172,7 +174,10 @@ const styles = StyleSheet.create({
     headerTop: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
+        alignItems: 'center',
+    },
+    headerTextWrap: {
+        flex: 1,
     },
     greet: {
         fontSize: 13,
@@ -182,6 +187,7 @@ const styles = StyleSheet.create({
         fontSize: 22,
         fontWeight: '700',
         color: COLORS.white,
+        marginTop: 2,
     },
     headerLogo: {
         width: 38,

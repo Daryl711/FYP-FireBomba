@@ -35,7 +35,7 @@ const mockNotifications = [
 ];
 
 export function AppProvider({ children }) {
-    const [user, setUser] = useState({ name: 'FireBomba Admin' });
+    const [user, setUser] = useState(null);
     const [notifications, setNotifications] = useState(
         mockNotifications.map((item, index) => ({
             ...item,
@@ -44,8 +44,13 @@ export function AppProvider({ children }) {
         }))
     );
 
-    const login = (_email, name) => {
-        setUser({ name: name || 'FireBomba Admin' });
+    // Accepts the user object returned from your backend login API
+    const login = (userData) => {
+        setUser({
+            id: userData.id,
+            name: userData.fullName,
+            email: userData.email,
+        });
     };
 
     const markAllRead = () => {
