@@ -1,7 +1,7 @@
 // frontend/src/api.js
 
 // Since you are testing on the web browser, we use localhost
-const API_URL = 'http://192.168.0.247:3000/api'; 
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 export async function registerUser(fullName, email, password) {
     try {
