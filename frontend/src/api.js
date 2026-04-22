@@ -1,7 +1,20 @@
-// frontend/src/api.js
+import Constants from 'expo-constants';
 
-// Since you are testing on the web browser, we use localhost
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+// Auto-detect LAN IP for Expo Go on physical device
+// Falls back to localhost for web/emulator
+const getAPIUrl = () => {
+  const devHost = Constants.expoConfig?.hostUri?.split(':')[0];
+  
+  if (devHost && devHost !== 'localhost') {
+    // Physical device running Expo Go - use LAN IP
+    return `http://${devHost}:3000/api`;
+  }
+  
+  // Fallback localhost (web browser)
+  return process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+};
+
+const API_URL = getAPIUrl();
 
 export async function registerUser(fullName, email, password) {
     try {
