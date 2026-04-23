@@ -32,13 +32,45 @@ export default function SignUpScreen({ navigation }) {
         return emailRegex.test(emailText);
     };
 
+    // Password strength validator — matches backend requirements exactly
+    const validatePassword = (pwd) => {
+        if (pwd.length < 8) return 'Password must be at least 8 characters.';
+        if (pwd.length > 72) return 'Password must be no more than 72 characters.';
+        if (!/[A-Z]/.test(pwd)) return 'Password must contain at least one uppercase letter (A-Z).';
+        if (!/[a-z]/.test(pwd)) return 'Password must contain at least one lowercase letter (a-z).';
+        if (!/[0-9]/.test(pwd)) return 'Password must contain at least one number (0-9).';
+        return null; // valid
+    };
+
+    // Live password strength indicator (optional but nice UX)
+    const getPasswordStrength = () => {
+        if (!password) return null;
+        const checks = [
+            password.length >= 8,
+            /[A-Z]/.test(password),
+            /[a-z]/.test(password),
+            /[0-9]/.test(password),
+        ];
+        const passed = checks.filter(Boolean).length;
+        if (passed <= 1) return { label: 'Weak', color: '#E53935' };
+        if (passed <= 2) return { label: 'Fair', color: '#FB8C00' };
+        if (passed <= 3) return { label: 'Good', color: '#FDD835' };
+        return { label: 'Strong', color: '#43A047' };
+    };
+
     const handleSignUp = async () => {
-        // 1. Validation Checks (Using standard web alert to prevent silent browser crashes)
+        // 1. Validation Checks — all rules match the backend so users get helpful messages
         if (!fullName.trim()) { alert('Please enter your full name.'); return; }
+        if (fullName.trim().length < 2) { alert('Name must be at least 2 characters.'); return; }
+        if (!/^[a-zA-Z\s'-]+$/.test(fullName.trim())) { alert('Name contains invalid characters. Use only letters, spaces, hyphens, and apostrophes.'); return; }
         if (!email.trim()) { alert('Please enter your email address.'); return; }
         if (!validateEmail(email.trim())) { alert('Please enter a valid email address.'); return; }
         if (!password.trim()) { alert('Please enter a password.'); return; }
-        if (password.length < 6) { alert('Password must be at least 6 characters.'); return; }
+
+        // Password strength check
+        const passwordError = validatePassword(password);
+        if (passwordError) { alert(passwordError); return; }
+
         if (password !== confirmPassword) { alert('Passwords do not match.'); return; }
         if (!agreedToTerms) { alert('You must agree to the Terms of Service to sign up.'); return; }
 
@@ -57,6 +89,8 @@ export default function SignUpScreen({ navigation }) {
             alert('Error: Could not connect to the server. Make sure your backend is running!');
         }
     };
+
+    const passwordStrength = getPasswordStrength();
 
     return (
         <SafeAreaView style={styles.container}>
@@ -144,7 +178,7 @@ export default function SignUpScreen({ navigation }) {
                             />
                             <TextInput
                                 style={[styles.input, { paddingRight: 44 }]}
-                                placeholder="Enter your password"
+                                placeholder="8+ chars, upper, lower, number"
                                 placeholderTextColor={COLORS.text3}
                                 secureTextEntry={!showPassword}
                                 value={password}
@@ -161,6 +195,12 @@ export default function SignUpScreen({ navigation }) {
                                 />
                             </TouchableOpacity>
                         </View>
+                        {/* Live password strength indicator */}
+                        {passwordStrength && (
+                            <Text style={[styles.strengthText, { color: passwordStrength.color }]}>
+                                Strength: {passwordStrength.label}
+                            </Text>
+                        )}
                     </View>
 
                     {/* Confirm Password */}
@@ -252,6 +292,7 @@ const styles = StyleSheet.create({
     inputIcon: { marginLeft: 12, marginRight: 4 },
     input: { flex: 1, paddingVertical: 13, paddingHorizontal: 8, fontSize: 14, color: COLORS.text, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
     eyeBtn: { padding: 12, position: 'absolute', right: 0 },
+    strengthText: { fontSize: 12, fontWeight: '600', marginTop: 4, marginLeft: 4 },
     termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
     checkbox: { width: 18, height: 18, borderRadius: 4, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', marginTop: 2, flexShrink: 0 },
     checkboxChecked: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
