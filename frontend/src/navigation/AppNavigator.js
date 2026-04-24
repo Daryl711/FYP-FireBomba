@@ -11,11 +11,17 @@ import SignUpScreen from '../screens/SignUpScreen';
 import HomeScreen from '../screens/HomeScreen';
 import RoomsScreen from '../screens/RoomsScreen';
 import RoomDetailScreen from '../screens/RoomDetailScreen';
+import AlertsScreen from '../screens/AlertsScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 import { useApp } from '../context/AppContext';
 import { COLORS } from '../constants/theme';
 
-const Stack = createNativeStackNavigator();
+const RootStack = createNativeStackNavigator();
+const HomeStackNav = createNativeStackNavigator();
+const RoomsStackNav = createNativeStackNavigator();
+const ProfileStackNav = createNativeStackNavigator();
+
 const Tab = createBottomTabNavigator();
 
 function TabBadge({ count }) {
@@ -29,43 +35,53 @@ function TabBadge({ count }) {
 
 const badge = StyleSheet.create({
     wrap: {
-        position: 'absolute', top: -4, right: -8,
-        backgroundColor: COLORS.primary, minWidth: 16, height: 16,
-        borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
+        position: 'absolute', 
+        top: -4, 
+        right: -8,
+        backgroundColor: COLORS.primary, 
+        minWidth: 16, 
+        height: 16,
+        borderRadius: 8, 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        paddingHorizontal: 3,
     },
-    text: { color: '#fff', fontSize: 9, fontWeight: '700' },
+    text: { color: '#fff', 
+        fontSize: 9, 
+        fontWeight: '700' 
+    },
 });
 
 // Rooms stack
 function RoomsStack() {
     return (
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="RoomsList" component={RoomsScreen} />
-        <Stack.Screen name="RoomDetail" component={RoomDetailScreen} />
-        </Stack.Navigator>
+        <RoomsStackNav.Navigator screenOptions={{ headerShown: false }}>
+            <RoomsStackNav.Screen name="RoomsList" component={RoomsScreen} />
+            <RoomsStackNav.Screen name="RoomDetail" component={RoomDetailScreen} />
+        </RoomsStackNav.Navigator>
     );
 }
 
 // Home stack
 function HomeStack() {
     return (
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="HomeMain" component={HomeScreen} />
-        <Stack.Screen name="RoomDetail" component={RoomDetailScreen} />
-        </Stack.Navigator>
+        <HomeStackNav.Navigator screenOptions={{ headerShown: false }}>
+            <HomeStackNav.Screen name="HomeMain" component={HomeScreen} />
+            <HomeStackNav.Screen name="RoomDetail" component={RoomDetailScreen} />
+        </HomeStackNav.Navigator>
     );
 }
 
 // Profile stack (with sub-screens)
 function ProfileStack() {
     return (
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="ProfileMain" component={ProfileScreen} />
-        <Stack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
-        <Stack.Screen name="Security" component={SecurityScreen} />
-        <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
-        <Stack.Screen name="SystemSettings" component={SystemSettingsScreen} />
-        </Stack.Navigator>
+        <ProfileStackNav.Navigator screenOptions={{ headerShown: false }}>
+            <ProfileStackNav.Screen name="ProfileMain" component={ProfileScreen} />
+            <ProfileStackNav.Screen name="PersonalInfo" component={PersonalInfoScreen} />
+            <ProfileStackNav.Screen name="Security" component={SecurityScreen} />
+            <ProfileStackNav.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
+            <ProfileStackNav.Screen name="SystemSettings" component={SystemSettingsScreen} />
+        </ProfileStackNav.Navigator>
     );
 }
 
@@ -75,39 +91,39 @@ function MainTabs() {
 
     return (
         <Tab.Navigator
-        screenOptions={({ route }) => ({
-            headerShown: false,
-            tabBarActiveTintColor: COLORS.primary,
-            tabBarInactiveTintColor: COLORS.text3,
-            tabBarStyle: {
-            backgroundColor: '#fff',
-            borderTopColor: 'rgba(0,0,0,0.08)',
-            borderTopWidth: 1,
-            paddingTop: 6,
-            paddingBottom: 16,
-            height: 72,
-            },
-            tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginTop: 2 },
-            tabBarIcon: ({ focused, color }) => {
-            let iconName;
-            if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
-            else if (route.name === 'Rooms') iconName = focused ? 'grid' : 'grid-outline';
-            else if (route.name === 'Notifications') iconName = focused ? 'notifications' : 'notifications-outline';
-            else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
+            screenOptions={({ route }) => ({
+                headerShown: false,
+                tabBarActiveTintColor: COLORS.primary,
+                tabBarInactiveTintColor: COLORS.text3,
+                tabBarStyle: {
+                backgroundColor: '#fff',
+                borderTopColor: 'rgba(0,0,0,0.08)',
+                borderTopWidth: 1,
+                paddingTop: 6,
+                paddingBottom: 16,
+                height: 72,
+                },
+                tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginTop: 2 },
+                tabBarIcon: ({ focused, color }) => {
+                let iconName;
+                if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
+                else if (route.name === 'Rooms') iconName = focused ? 'grid' : 'grid-outline';
+                else if (route.name === 'Notifications') iconName = focused ? 'notifications' : 'notifications-outline';
+                else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
 
-            return (
-                <View style={{ position: 'relative' }}>
-                <Ionicons name={iconName} size={22} color={color} />
-                {route.name === 'Notifications' && <TabBadge count={unreadCount} />}
-                </View>
-            );
-            },
-        })}
-        >
-        <Tab.Screen name="Home" component={HomeStack} />
-        <Tab.Screen name="Rooms" component={RoomsStack} />
-        <Tab.Screen name="Notifications" component={AlertsScreen} />
-        <Tab.Screen name="Profile" component={ProfileStack} />
+                return (
+                    <View style={{ position: 'relative' }}>
+                        <Ionicons name={iconName} size={22} color={color} />
+                        {route.name === 'Notifications' && <TabBadge count={unreadCount} />}
+                    </View>
+                );
+                },
+            })}
+            >
+            <Tab.Screen name="Home" component={HomeStack} />
+            <Tab.Screen name="Rooms" component={RoomsStack} />
+            <Tab.Screen name="Notifications" component={AlertsScreen} />
+            <Tab.Screen name="Profile" component={ProfileStack} />
         </Tab.Navigator>
     );
 }

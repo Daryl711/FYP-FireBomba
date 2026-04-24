@@ -20,6 +20,37 @@ export default function HomeScreen({ navigation }){
         }
     };
 
+    //Robust room detail navigation (stack-first, then tab fallback)
+    const navigateToRoomDetail = (room) => {
+        if (!room) return;
+
+        const params = { roomId: String(room.id), room };
+
+        const currentRoutes = navigation?.getState?.()?.routeNames || [];
+        if (currentRoutes.includes('RoomDetail')) {
+            navigation.navigate('RoomDetail', params);
+            return;
+        }
+
+        // If RoomDetail is in the Home stack nested under the "Home" tab
+        const parent = navigation?.getParent?.();
+        const parentRoutes = parent?.getState?.()?.routeNames || [];
+
+        if (parent && parentRoutes.includes('Home')) {
+            parent.navigate('Home', { screen: 'RoomDetail', params });
+            return;
+        }
+
+        // Fallback: if RoomDetail exists under "Rooms" tab stack
+        if (parent && parentRoutes.includes('Rooms')) {
+            parent.navigate('Rooms', { screen: 'RoomDetail', params });
+            return;
+        }
+
+        // Last resort (helps you see the real route names in Metro logs)
+        console.warn('RoomDetail navigation failed. currentRoutes=', currentRoutes, 'parentRoutes=', parentRoutes);
+    };
+
     const recentAlerts = notifications.slice(0, 2).map((n) => ({
         id: n.id,
         room: n.room,
@@ -133,11 +164,11 @@ export default function HomeScreen({ navigation }){
                     </TouchableOpacity>
                 </View>
                 <View style={styles.roomGrid}>
-                    {rooms.slice(0, 4).map((room) => (
+                    {rooms.slice(0, 6).map((room) => (
                     <TouchableOpacity
                         key={room.id}
                         style={styles.roomMini}
-                        onPress={() => navigateTo('RoomDetail', { roomId: room.id, room })}
+                        onPress={() => navigateToRoomDetail(room)}
                         activeOpacity={0.75}
                     >
                         <View style={styles.roomMiniTop}>

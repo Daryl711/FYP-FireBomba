@@ -85,8 +85,9 @@ const sStyles = StyleSheet.create({
 export default function RoomDetailScreen({ route, navigation }) {
     const { rooms } = useApp();
     const { room: initialRoom, roomId } = route?.params || {};
-    const resolvedRoomId = roomId ? String(roomId) : undefined;
-    const room = rooms.find((item) => item.id === resolvedRoomId) || initialRoom;
+
+    const resolvedRoomId = roomId ? String(roomId) : (initialRoom?.id != null ? String(initialRoom.id) : undefined);
+    const room = (resolvedRoomId ? rooms.find((item) => String(item.id) === resolvedRoomId) : undefined) || initialRoom;
 
     if (!room) {
         return(
@@ -321,6 +322,7 @@ export default function RoomDetailScreen({ route, navigation }) {
         </SafeAreaView>
     );
 }
+
 
 const styles = StyleSheet.create({
     container: {
