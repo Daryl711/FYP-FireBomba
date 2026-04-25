@@ -30,7 +30,7 @@ export default function RoomsScreen({ navigation }) {
                     <TouchableOpacity
                     key={room.id}
                     style={styles.roomRow}
-                    onPress={() => navigation.navigate('RoomDetail', { roomId: room.id, room })}
+                    onPress={() => navigation.navigate('ListRoomDetail', { roomId: room.id, room })}
                     activeOpacity={0.75}
                     >
                     <View style={{ flex: 1 }}>

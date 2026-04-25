@@ -52,7 +52,7 @@ export default function LoginScreen({ navigation }) {
                 
                 // 6. Navigate to Home
                 if (navigation?.replace) {
-                    navigation.replace('Home');
+                    navigation.replace('Main');
                 }
             }
         } catch (error) {
