@@ -1,24 +1,75 @@
-import React from 'raect';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS, RADIUS, SPACING, SHADOW } from '../constants/theme';
-import { useApp } from '../context/AppContext';
+import React from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
+import { useApp } from "../context/AppContext";
 
 const ACCOUNT_ITEMS = [
-    { id: 'personal', icon: 'person-outline', iconBg: COLORS.blueLight, iconColor: COLORS.blue, title: 'Personal Information', subtitle: 'Update your details', screen: 'PersonalInfo' },
-    { id: 'email', icon: 'mail-outline', iconBg: COLORS.greenLight, iconColor: COLORS.green, title: 'Email & Contact', subtitle: 'Manage contact info', screen: null },
-    { id: 'security', icon: 'shield-outline', iconBg: '#F3F0FF', iconColor: '#7C3AED', title: 'Security', subtitle: 'Password & 2FA', screen: 'Security' },
+  {
+    id: "personal",
+    icon: "person-outline",
+    iconBg: COLORS.blueLight,
+    iconColor: COLORS.blue,
+    title: "Personal Information",
+    subtitle: "Update your details",
+    screen: "PersonalInfo",
+  },
+  {
+    id: "email",
+    icon: "mail-outline",
+    iconBg: COLORS.greenLight,
+    iconColor: COLORS.green,
+    title: "Email & Contact",
+    subtitle: "Manage contact info",
+    screen: null,
+  },
+  {
+    id: "security",
+    icon: "shield-outline",
+    iconBg: "#F3F0FF",
+    iconColor: "#7C3AED",
+    title: "Security",
+    subtitle: "Password & 2FA",
+    screen: "Security",
+  },
 ];
 
 const PREF_ITEMS = [
-  { id: 'notif', icon: 'notifications-outline', iconBg: '#FFFBEB', iconColor: COLORS.amber, title: 'Notifications', subtitle: 'Alert preferences', screen: 'NotificationSettings' },
-  { id: 'settings', icon: 'settings-outline', iconBg: COLORS.bg, iconColor: COLORS.text2, title: 'System Settings', subtitle: 'Configure sensors', screen: 'SystemSettings' },
+  {
+    id: "notif",
+    icon: "notifications-outline",
+    iconBg: "#FFFBEB",
+    iconColor: COLORS.amber,
+    title: "Notifications",
+    subtitle: "Alert preferences",
+    screen: "NotificationSettings",
+  },
+  {
+    id: "settings",
+    icon: "settings-outline",
+    iconBg: COLORS.bg,
+    iconColor: COLORS.text2,
+    title: "System Settings",
+    subtitle: "Configure sensors",
+    screen: "SystemSettings",
+  },
 ];
 
 function PrefRow({ item, onPress }) {
   return (
-    <TouchableOpacity style={styles.prefRow} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={styles.prefRow}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
       <View style={[styles.prefIcon, { backgroundColor: item.iconBg }]}>
         <Ionicons name={item.icon} size={20} color={item.iconColor} />
       </View>
@@ -35,22 +86,33 @@ export default function ProfileScreen({ navigation }) {
   const { user, logout, unreadCount, rooms, systemStatus } = useApp();
 
   const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: () => { logout(); navigation.replace('Login'); } },
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Sign Out",
+        style: "destructive",
+        onPress: () => {
+          logout();
+          navigation.replace("Login");
+        },
+      },
     ]);
   };
 
   const handleNav = (screen) => {
     if (screen) navigation.navigate(screen);
-    else Alert.alert('Coming Soon', 'This feature will be available in a future update.');
+    else
+      Alert.alert(
+        "Coming Soon",
+        "This feature will be available in a future update.",
+      );
   };
 
-  const displayName = user?.name || 'User';
-  const displayEmail = user?.email || 'user@example.com';
+  const displayName = user?.name || "User";
+  const displayEmail = user?.email || "user@example.com";
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.profileHeader}>
           <View style={styles.avatarWrap}>
@@ -63,10 +125,7 @@ export default function ProfileScreen({ navigation }) {
           </View>
           <Text style={styles.profileName}>{displayName}</Text>
           <Text style={styles.profileEmail}>{displayEmail}</Text>
-          <View style={styles.premiumBadge}>
-            <Ionicons name="star" size={11} color="rgba(255,255,255,0.9)" />
-            <Text style={styles.premiumText}>Premium User</Text>
-          </View>
+
           <View style={styles.quickStats}>
             <View style={styles.quickStat}>
               <Text style={styles.quickStatVal}>{rooms.length}</Text>
@@ -74,12 +133,21 @@ export default function ProfileScreen({ navigation }) {
             </View>
             <View style={styles.quickStatDivider} />
             <View style={styles.quickStat}>
-              <Text style={styles.quickStatVal}>{systemStatus.sensorsOnline}</Text>
+              <Text style={styles.quickStatVal}>
+                {systemStatus.sensorsOnline}
+              </Text>
               <Text style={styles.quickStatLbl}>Sensors</Text>
             </View>
             <View style={styles.quickStatDivider} />
             <View style={styles.quickStat}>
-              <Text style={[styles.quickStatVal, unreadCount > 0 && { color: '#FFD0CE' }]}>{unreadCount}</Text>
+              <Text
+                style={[
+                  styles.quickStatVal,
+                  unreadCount > 0 && { color: "#FFD0CE" },
+                ]}
+              >
+                {unreadCount}
+              </Text>
               <Text style={styles.quickStatLbl}>Alerts</Text>
             </View>
           </View>
@@ -91,7 +159,9 @@ export default function ProfileScreen({ navigation }) {
             {ACCOUNT_ITEMS.map((item, i) => (
               <React.Fragment key={item.id}>
                 <PrefRow item={item} onPress={() => handleNav(item.screen)} />
-                {i < ACCOUNT_ITEMS.length - 1 && <View style={styles.divider} />}
+                {i < ACCOUNT_ITEMS.length - 1 && (
+                  <View style={styles.divider} />
+                )}
               </React.Fragment>
             ))}
           </View>
@@ -113,18 +183,27 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.sectionLabel}>ABOUT</Text>
           <View style={styles.prefCard}>
             <View style={styles.prefRow}>
-              <View style={[styles.prefIcon, { backgroundColor: COLORS.primaryLight }]}>
+              <View
+                style={[
+                  styles.prefIcon,
+                  { backgroundColor: COLORS.primaryLight },
+                ]}
+              >
                 <Ionicons name="flame" size={20} color={COLORS.primary} />
               </View>
               <View style={styles.prefText}>
-                <Text style={styles.prefName}>FireGuard</Text>
+                <Text style={styles.prefName}>FireBomba</Text>
                 <Text style={styles.prefDesc}>Version 1.0.0</Text>
               </View>
             </View>
           </View>
         </View>
 
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.logoutBtn}
+          onPress={handleLogout}
+          activeOpacity={0.8}
+        >
           <Ionicons name="log-out-outline" size={18} color={COLORS.primary} />
           <Text style={styles.logoutText}>Sign Out</Text>
         </TouchableOpacity>
@@ -136,159 +215,143 @@ export default function ProfileScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-    container: { 
-        flex: 1, 
-        backgroundColor: 
-        COLORS.bg 
-    },
-    profileHeader: {
-        backgroundColor: COLORS.primary, 
-        paddingHorizontal: SPACING.xl,
-        paddingTop: SPACING.lg, 
-        paddingBottom: SPACING.xxl, 
-        alignItems: 'flex-start',
-    },
-    avatarWrap: { 
-        position: 'relative', 
-        marginBottom: SPACING.md 
-    },
-    avatar: {
-        width: 70, 
-        height: 70, 
-        backgroundColor: 'rgba(255,255,255,0.25)',
-        borderRadius: 35, 
-        alignItems: 'center', 
-        justifyContent: 'center',
-    },
-    avatarCam: {
-        position: 'absolute', 
-        bottom: 0, 
-        right: -2, 
-        backgroundColor: COLORS.white,
-        width: 22, 
-        height: 22, 
-        borderRadius: 11, 
-        alignItems: 'center', 
-        justifyContent: 'center',
-    },
-    profileName: { 
-        fontSize: 20, 
-        fontWeight: '700', 
-        color: COLORS.white 
-    },
-    profileEmail: { 
-        fontSize: 13, 
-        color: 'rgba(255,255,255,0.8)', 
-        marginTop: 3 
-    },
-    premiumBadge: {
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        gap: 5, 
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.4)', 
-        backgroundColor: 'rgba(255,255,255,0.15)',
-        borderRadius: RADIUS.full, 
-        paddingHorizontal: SPACING.md, 
-        paddingVertical: 5, 
-        marginTop: SPACING.sm,
-    },
-    premiumText: { 
-        color: COLORS.white, 
-        fontSize: 12, 
-        fontWeight: '600' 
-    },
-    quickStats: {
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        backgroundColor: 'rgba(255,255,255,0.15)',
-        borderRadius: RADIUS.lg, 
-        marginTop: SPACING.lg, 
-        paddingVertical: SPACING.md, 
-        width: '100%',
-    },
-    quickStat: { 
-        flex: 1, 
-        alignItems: 'center' 
-    },
-    quickStatVal: { 
-        fontSize: 20, 
-        fontWeight: '700', 
-        color: COLORS.white 
-    },
-    quickStatLbl: { 
-        fontSize: 11, 
-        color: 'rgba(255,255,255,0.7)', 
-        marginTop: 2 
-    },
-    quickStatDivider: { 
-        width: 1, 
-        height: 30, 
-        backgroundColor: 'rgba(255,255,255,0.2)' 
-    },
-    section: { 
-        paddingHorizontal: SPACING.lg, 
-        marginTop: SPACING.lg 
-    },
-    sectionLabel: {
-        fontSize: 11, 
-        fontWeight: '600', 
-        color: COLORS.text3,
-        letterSpacing: 0.8, 
-        marginBottom: SPACING.sm, 
-        textTransform: 'uppercase',
-    },
-    prefCard: { 
-        backgroundColor: COLORS.white, 
-        borderRadius: RADIUS.lg, 
-        overflow: 'hidden', ...SHADOW.small 
-    },
-    prefRow: { 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        gap: SPACING.md, 
-        padding: SPACING.md 
-    },
-    prefIcon: { 
-        width: 36, 
-        height: 36, 
-        borderRadius: 10, 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        flexShrink: 0 
-    },
-    prefText: { 
-        flex: 1 
-    },
-    prefName: { 
-        fontSize: 14, 
-        fontWeight: '600', 
-        color: COLORS.text 
-    },
-    prefDesc: { 
-        fontSize: 12, 
-        color: COLORS.text2, 
-        marginTop: 1 
-    },
-    divider: { 
-        height: 1, 
-        backgroundColor: COLORS.border, 
-        marginLeft: 68 
-    },
-    logoutBtn: {
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        gap: SPACING.sm,
-        backgroundColor: COLORS.primaryLight, 
-        borderRadius: RADIUS.lg,
-        marginHorizontal: SPACING.lg, 
-        marginTop: SPACING.lg, 
-        paddingVertical: 14,
-    },
-    logoutText: { 
-        color: COLORS.primary, 
-        fontSize: 15, 
-        fontWeight: '700' 
-    },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.bg,
+  },
+  profileHeader: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.xxl,
+    alignItems: "flex-start",
+  },
+  avatarWrap: {
+    position: "relative",
+    marginBottom: SPACING.md,
+  },
+  avatar: {
+    width: 70,
+    height: 70,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderRadius: 35,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarCam: {
+    position: "absolute",
+    bottom: 0,
+    right: -2,
+    backgroundColor: COLORS.white,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileName: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: COLORS.white,
+  },
+  profileEmail: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.8)",
+    marginTop: 3,
+  },
+
+  quickStats: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: RADIUS.lg,
+    marginTop: SPACING.lg,
+    paddingVertical: SPACING.md,
+    width: "100%",
+  },
+  quickStat: {
+    flex: 1,
+    alignItems: "center",
+  },
+  quickStatVal: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: COLORS.white,
+  },
+  quickStatLbl: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.7)",
+    marginTop: 2,
+  },
+  quickStatDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  section: {
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING.lg,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: COLORS.text3,
+    letterSpacing: 0.8,
+    marginBottom: SPACING.sm,
+    textTransform: "uppercase",
+  },
+  prefCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.lg,
+    overflow: "hidden",
+    ...SHADOW.small,
+  },
+  prefRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.md,
+    padding: SPACING.md,
+  },
+  prefIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  prefText: {
+    flex: 1,
+  },
+  prefName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.text,
+  },
+  prefDesc: {
+    fontSize: 12,
+    color: COLORS.text2,
+    marginTop: 1,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginLeft: 68,
+  },
+  logoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.sm,
+    backgroundColor: COLORS.primaryLight,
+    borderRadius: RADIUS.lg,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.lg,
+    paddingVertical: 14,
+  },
+  logoutText: {
+    color: COLORS.primary,
+    fontSize: 15,
+    fontWeight: "700",
+  },
 });

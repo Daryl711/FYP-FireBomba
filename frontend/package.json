@@ -1,6 +1,6 @@
 {
   "name": "firebomba",
-  "main": "expo-router/entry",
+  "main": "index.js",
   "license": "0BSD",
   "version": "1.0.0",
   "scripts": {
@@ -16,7 +16,6 @@
     "expo-constants": "~18.0.13",
     "expo-font": "~14.0.11",
     "expo-linking": "~8.0.11",
-    "expo-router": "~6.0.23",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
     "expo-web-browser": "~15.0.10",
