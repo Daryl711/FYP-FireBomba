@@ -72,6 +72,11 @@ app.post('/api/login', (req, res) => {
     });
 });
 
+// --- LOGOUT ROUTE ---
+app.post('/api/logout', (req, res) => {
+    res.json({ message: 'Logged out successfully' });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Backend server running on http://localhost:${PORT}`);

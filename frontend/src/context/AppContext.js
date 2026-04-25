@@ -53,6 +53,13 @@ export function AppProvider({ children }) {
         });
     };
 
+    const logout = async () => {
+        try {
+            await fetch('http://192.168.1.100:3000/api/logout', { method: 'POST' });
+        } catch (_) {}
+        setUser(null);
+    };
+
     const markAllRead = () => {
         setNotifications((prev) => prev.map((item) => ({ ...item, unread: false })));
     };
@@ -69,6 +76,7 @@ export function AppProvider({ children }) {
         return {
             user,
             login,
+            logout,
             rooms: mockRooms,
             notifications,
             unreadCount,
