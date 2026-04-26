@@ -4,12 +4,12 @@ import Constants from 'expo-constants';
 // Falls back to localhost for web/emulator
 const getAPIUrl = () => {
   const devHost = Constants.expoConfig?.hostUri?.split(':')[0];
-  
+
   if (devHost && devHost !== 'localhost') {
     // Physical device running Expo Go - use LAN IP
     return `http://${devHost}:3000/api`;
   }
-  
+
   // Fallback localhost (web browser)
   return process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 };

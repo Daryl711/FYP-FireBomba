@@ -17,7 +17,7 @@ import { COLORS, RADIUS, SPACING, SHADOW } from '../../constants/theme';
 import { useApp } from '../context/AppContext';
 
 // Import your API function (Make sure this path is correct!)
-import { loginUser } from '../api'; 
+import { loginUser } from '../services/api';
 
 export default function LoginScreen({ navigation }) {
     const { login } = useApp();

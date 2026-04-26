@@ -1,0 +1,16 @@
+{
+  "name": "firebomba-tests",
+  "version": "1.0.0",
+  "description": "Test suite for FYP-FireBomba",
+  "scripts": {
+    "test": "jest",
+    "test:auth": "jest auth/",
+    "test:sensors": "jest sensors/",
+    "test:alerts": "jest alerts/",
+    "test:rooms": "jest rooms/"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0",
+    "supertest": "^7.0.0"
+  }
+}

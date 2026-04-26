@@ -15,7 +15,7 @@ import { COLORS, RADIUS, SPACING, SHADOW } from '../../constants/theme';
 import { useApp } from '../context/AppContext';
 
 // IMPORTING THE API HELPER
-import { registerUser } from '../api'; 
+import { registerUser } from '../services/api';
 
 export default function SignUpScreen({ navigation }) {
     const { login } = useApp();
