@@ -3,6 +3,9 @@ const jwt = require("jsonwebtoken");
 const db = require("../config/database");
 const User = require("../models/User");
 
+const JWT_SECRET = process.env.JWT_SECRET || "dev_jwt_secret_change_me";
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "1d";
+
 exports.signup = async (req, res) => {
   const { fullName, email, password } = req.body;
 
@@ -31,6 +34,10 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
+
     const doesEmailExist = await User.checkEmail(email);
 
     if (!doesEmailExist) {
@@ -46,8 +53,8 @@ exports.login = async (req, res) => {
 
     const token = jwt.sign(
       { userId: userDetails.userId, email: userDetails.email },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN },
     );
 
     return res.status(200).json({
@@ -55,7 +62,7 @@ exports.login = async (req, res) => {
       token,
       user: {
         userId: userDetails.userId,
-        fullName: userDetails.full_name,
+        fullName: userDetails.fullName,
         email: userDetails.email,
       },
     });

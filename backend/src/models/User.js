@@ -32,11 +32,13 @@ exports.getUserDetails = async (email) => {
 
   const userId = result[0].id;
   const hashedPassword = result[0].password;
+  const fullName = result[0].full_name;
 
   return {
     userId,
     hashedPassword,
-    email
+    fullName,
+    email,
   };
 
 }
