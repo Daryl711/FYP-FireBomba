@@ -96,7 +96,7 @@ function ProfileStack() {
 
 // Bottom Tab Navigator
 function MainTabs() {
-  const { unreadCount } = useApp();
+  const { unreadCount, t } = useApp();
 
   return (
     <Tab.Navigator
@@ -135,10 +135,26 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeStack} />
-      <Tab.Screen name="Rooms" component={RoomsStack} />
-      <Tab.Screen name="Notifications" component={AlertsScreen} />
-      <Tab.Screen name="Profile" component={ProfileStack} />
+      <Tab.Screen
+        name="Home"
+        component={HomeStack}
+        options={{ tabBarLabel: t("nav.home") }}
+      />
+      <Tab.Screen
+        name="Rooms"
+        component={RoomsStack}
+        options={{ tabBarLabel: t("nav.rooms") }}
+      />
+      <Tab.Screen
+        name="Notifications"
+        component={AlertsScreen}
+        options={{ tabBarLabel: t("nav.notifications") }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileStack}
+        options={{ tabBarLabel: t("nav.profile") }}
+      />
     </Tab.Navigator>
   );
 }

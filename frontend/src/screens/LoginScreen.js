@@ -20,7 +20,7 @@ import { useApp } from '../context/AppContext';
 import { loginUser } from '../services/api';
 
 export default function LoginScreen({ navigation }) {
-    const { login } = useApp();
+    const { login, t } = useApp();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -32,7 +32,7 @@ export default function LoginScreen({ navigation }) {
     const handleLogin = async () => {
         // 1. Validation
         if (!email.trim() || !password.trim()) {
-            Alert.alert('Missing Fields', 'Please enter both email and password.');
+            Alert.alert(t('login.missingFieldsTitle'), t('login.missingFieldsMessage'));
             return;
         }
 
@@ -45,7 +45,7 @@ export default function LoginScreen({ navigation }) {
 
             // 4. Check for errors from the server (e.g. "Wrong password")
             if (result.error) {
-                Alert.alert('Login Failed', result.error);
+                Alert.alert(t('login.loginFailed'), result.error);
             } else {
                 // 5. Save user to context so HomeScreen can show the real name
                 login(result.user);
@@ -56,7 +56,7 @@ export default function LoginScreen({ navigation }) {
                 }
             }
         } catch (error) {
-            Alert.alert('Error', 'Could not connect to the server. Is your backend running?');
+            Alert.alert(t('login.errorTitle'), t('login.connectError'));
         } finally {
             // Stop Loading
             setIsLoading(false);
@@ -82,19 +82,19 @@ export default function LoginScreen({ navigation }) {
                     </View>
 
                     {/* Heading */}
-                    <Text style={styles.title}>Welcome Back</Text>
-                    <Text style={styles.subtitle}>Sign in to your account</Text>
+                    <Text style={styles.title}>{t('login.title')}</Text>
+                    <Text style={styles.subtitle}>{t('login.subtitle')}</Text>
 
                     {/* Sign in email and password fields */}
                     <View style={styles.card}>
                         {/* Email */}
                         <View style={styles.fieldGroup}>
-                            <Text style={styles.fieldLabel}>Email</Text>
+                            <Text style={styles.fieldLabel}>{t('login.email')}</Text>
                             <View style={styles.inputWrap}>
                                 <Ionicons name="mail-outline" size={18} color={COLORS.text3} style={styles.inputIcon} />
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="Enter your email"
+                                    placeholder={t('login.emailPlaceholder')}
                                     placeholderTextColor={COLORS.text3}
                                     keyboardType="email-address"
                                     autoCapitalize="none"
@@ -107,12 +107,12 @@ export default function LoginScreen({ navigation }) {
 
                         {/* Password */}
                         <View style={styles.fieldGroup}>
-                            <Text style={styles.fieldLabel}>Password</Text>
+                            <Text style={styles.fieldLabel}>{t('login.password')}</Text>
                             <View style={styles.inputWrap}>
                                 <Ionicons name="lock-closed-outline" size={18} color={COLORS.text3} style={styles.inputIcon} />
                                 <TextInput
                                     style={[styles.input, { paddingRight: 44 }]}
-                                    placeholder="Enter your password"
+                                    placeholder={t('login.passwordPlaceholder')}
                                     placeholderTextColor={COLORS.text3}
                                     secureTextEntry={!showPassword}
                                     value={password}
@@ -144,10 +144,10 @@ export default function LoginScreen({ navigation }) {
                                 <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
                                     {rememberMe && <Ionicons name="checkmark" size={12} color="#fff" />}
                                 </View>
-                                <Text style={styles.rememberText}>Remember me</Text>
+                                <Text style={styles.rememberText}>{t('login.rememberMe')}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity disabled={isLoading}>
-                                <Text style={styles.forgotText}>Forgot password?</Text>
+                                <Text style={styles.forgotText}>{t('login.forgotPassword')}</Text>
                             </TouchableOpacity>
                         </View>
 
@@ -161,16 +161,16 @@ export default function LoginScreen({ navigation }) {
                             {isLoading ? (
                                 <ActivityIndicator color={COLORS.white} />
                             ) : (
-                                <Text style={styles.signInText}>Sign In</Text>
+                                <Text style={styles.signInText}>{t('login.signIn')}</Text>
                             )}
                         </TouchableOpacity>
                     </View>
 
                     {/* Sign up link */}
                     <Text style={styles.signupRow}>
-                        Don't have an account?{' '}
+                        {t('login.noAccount')}{' '}
                         <Text style={styles.signupLink} onPress={() => !isLoading && navigation.navigate('SignUp')}>
-                            Sign Up
+                            {t('login.signUp')}
                         </Text>
                     </Text>
 

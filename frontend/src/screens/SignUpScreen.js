@@ -18,7 +18,7 @@ import { useApp } from '../context/AppContext';
 import { registerUser } from '../services/api';
 
 export default function SignUpScreen({ navigation }) {
-    const { login } = useApp();
+    const { t } = useApp();
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -34,27 +34,27 @@ export default function SignUpScreen({ navigation }) {
 
     const handleSignUp = async () => {
         // 1. Validation Checks (Using standard web alert to prevent silent browser crashes)
-        if (!fullName.trim()) { alert('Please enter your full name.'); return; }
-        if (!email.trim()) { alert('Please enter your email address.'); return; }
-        if (!validateEmail(email.trim())) { alert('Please enter a valid email address.'); return; }
-        if (!password.trim()) { alert('Please enter a password.'); return; }
-        if (password.length < 6) { alert('Password must be at least 6 characters.'); return; }
-        if (password !== confirmPassword) { alert('Passwords do not match.'); return; }
-        if (!agreedToTerms) { alert('You must agree to the Terms of Service to sign up.'); return; }
+        if (!fullName.trim()) { alert(t('signup.enterFullName')); return; }
+        if (!email.trim()) { alert(t('signup.enterEmail')); return; }
+        if (!validateEmail(email.trim())) { alert(t('signup.invalidEmail')); return; }
+        if (!password.trim()) { alert(t('signup.enterPassword')); return; }
+        if (password.length < 6) { alert(t('signup.passwordMin')); return; }
+        if (password !== confirmPassword) { alert(t('signup.passwordMismatch')); return; }
+        if (!agreedToTerms) { alert(t('signup.mustAgreeTerms')); return; }
 
         // 2. The API Call to your Express Backend
         try {
             const result = await registerUser(fullName.trim(), email.trim(), password);
             
             if (result.error) {
-                alert('Sign Up Failed: ' + result.error);
+                alert(t('signup.signupFailed', { error: result.error }));
             } else {
                 // 3. Success! Show a simple alert and navigate back
-                alert('Success! Account created. You can now log in.');
+                alert(t('signup.signupSuccess'));
                 navigation.goBack();
             }
         } catch (error) {
-            alert('Error: Could not connect to the server. Make sure your backend is running!');
+            alert(t('signup.connectError'));
         }
     };
 
@@ -82,16 +82,16 @@ export default function SignUpScreen({ navigation }) {
                 </View>
 
                 {/* Heading */}
-                <Text style={styles.title}>Create Account</Text>
+                <Text style={styles.title}>{t('signup.title')}</Text>
                 <Text style={styles.subtitle}>
-                    Sign up for FireGuard to monitor your home
+                    {t('signup.subtitle')}
                 </Text>
 
                 {/* Card */}
                 <View style={styles.card}>
                     {/* Full Name */}
                     <View style={styles.fieldGroup}>
-                        <Text style={styles.fieldLabel}>Full Name</Text>
+                        <Text style={styles.fieldLabel}>{t('signup.fullName')}</Text>
                         <View style={styles.inputWrap}>
                             <Ionicons
                                 name="person-outline"
@@ -101,7 +101,7 @@ export default function SignUpScreen({ navigation }) {
                             />
                             <TextInput
                                 style={styles.input}
-                                placeholder="John Doe"
+                                placeholder={t('signup.fullNamePlaceholder')}
                                 placeholderTextColor={COLORS.text3}
                                 autoCapitalize="words"
                                 value={fullName}
@@ -112,7 +112,7 @@ export default function SignUpScreen({ navigation }) {
 
                     {/* Email */}
                     <View style={styles.fieldGroup}>
-                        <Text style={styles.fieldLabel}>Email Address</Text>
+                        <Text style={styles.fieldLabel}>{t('signup.email')}</Text>
                         <View style={styles.inputWrap}>
                             <Ionicons
                                 name="mail-outline"
@@ -122,7 +122,7 @@ export default function SignUpScreen({ navigation }) {
                             />
                             <TextInput
                                 style={styles.input}
-                                placeholder="you@example.com"
+                                placeholder={t('signup.emailPlaceholder')}
                                 placeholderTextColor={COLORS.text3}
                                 keyboardType="email-address"
                                 autoCapitalize="none"
@@ -134,7 +134,7 @@ export default function SignUpScreen({ navigation }) {
 
                     {/* Password */}
                     <View style={styles.fieldGroup}>
-                        <Text style={styles.fieldLabel}>Password</Text>
+                        <Text style={styles.fieldLabel}>{t('signup.password')}</Text>
                         <View style={styles.inputWrap}>
                             <Ionicons
                                 name="lock-closed-outline"
@@ -144,7 +144,7 @@ export default function SignUpScreen({ navigation }) {
                             />
                             <TextInput
                                 style={[styles.input, { paddingRight: 44 }]}
-                                placeholder="Enter your password"
+                                placeholder={t('signup.passwordPlaceholder')}
                                 placeholderTextColor={COLORS.text3}
                                 secureTextEntry={!showPassword}
                                 value={password}
@@ -165,7 +165,7 @@ export default function SignUpScreen({ navigation }) {
 
                     {/* Confirm Password */}
                     <View style={styles.fieldGroup}>
-                        <Text style={styles.fieldLabel}>Confirm Password</Text>
+                        <Text style={styles.fieldLabel}>{t('signup.confirmPassword')}</Text>
                         <View style={styles.inputWrap}>
                             <Ionicons
                                 name="lock-closed-outline"
@@ -175,7 +175,7 @@ export default function SignUpScreen({ navigation }) {
                             />
                             <TextInput
                                 style={[styles.input, { paddingRight: 44 }]}
-                                placeholder="Confirm your password"
+                                placeholder={t('signup.confirmPasswordPlaceholder')}
                                 placeholderTextColor={COLORS.text3}
                                 secureTextEntry={!showConfirmPassword}
                                 value={confirmPassword}
@@ -204,10 +204,10 @@ export default function SignUpScreen({ navigation }) {
                             {agreedToTerms && <Ionicons name="checkmark" size={12} color="#fff" />}
                         </View>
                         <Text style={styles.termsText}>
-                            I agree to the{' '}
-                            <Text style={styles.termsLink}>Terms of Service</Text>
-                            {' '}and{' '}
-                            <Text style={styles.termsLink}>Privacy Policy</Text>
+                            {t('signup.terms')}{' '}
+                            <Text style={styles.termsLink}>{t('signup.termsOfService')}</Text>
+                            {' '}{t('signup.and')}{' '}
+                            <Text style={styles.termsLink}>{t('signup.privacyPolicy')}</Text>
                         </Text>
                     </TouchableOpacity>
 
@@ -217,18 +217,18 @@ export default function SignUpScreen({ navigation }) {
                         onPress={handleSignUp}
                         activeOpacity={0.85}
                     >
-                        <Text style={styles.signUpText}>Create Account</Text>
+                        <Text style={styles.signUpText}>{t('signup.createAccount')}</Text>
                     </TouchableOpacity>
                 </View>
 
                     {/* Sign In Link */}
                     <Text style={styles.signinRow}>
-                        Already have an account?{' '}
+                        {t('signup.alreadyHaveAccount')}{' '}
                         <Text
                             style={styles.signinLink}
                             onPress={() => navigation.goBack()}
                         >
-                            Sign In
+                            {t('signup.signIn')}
                         </Text>
                     </Text>
                 </ScrollView>

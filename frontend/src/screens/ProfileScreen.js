@@ -18,8 +18,6 @@ const ACCOUNT_ITEMS = [
     icon: "person-outline",
     iconBg: COLORS.blueLight,
     iconColor: COLORS.blue,
-    title: "Personal Information",
-    subtitle: "Update your details",
     screen: "PersonalInfo",
   },
   {
@@ -27,8 +25,6 @@ const ACCOUNT_ITEMS = [
     icon: "mail-outline",
     iconBg: COLORS.greenLight,
     iconColor: COLORS.green,
-    title: "Email & Contact",
-    subtitle: "Manage contact info",
     screen: null,
   },
   {
@@ -36,8 +32,6 @@ const ACCOUNT_ITEMS = [
     icon: "shield-outline",
     iconBg: "#F3F0FF",
     iconColor: "#7C3AED",
-    title: "Security",
-    subtitle: "Password & 2FA",
     screen: "Security",
   },
 ];
@@ -48,8 +42,6 @@ const PREF_ITEMS = [
     icon: "notifications-outline",
     iconBg: "#FFFBEB",
     iconColor: COLORS.amber,
-    title: "Notifications",
-    subtitle: "Alert preferences",
     screen: "NotificationSettings",
   },
   {
@@ -57,8 +49,6 @@ const PREF_ITEMS = [
     icon: "settings-outline",
     iconBg: COLORS.bg,
     iconColor: COLORS.text2,
-    title: "System Settings",
-    subtitle: "Configure sensors",
     screen: "SystemSettings",
   },
 ];
@@ -83,13 +73,13 @@ function PrefRow({ item, onPress }) {
 }
 
 export default function ProfileScreen({ navigation }) {
-  const { user, logout, unreadCount, rooms, systemStatus } = useApp();
+  const { user, logout, unreadCount, rooms, systemStatus, language, setLanguage, t } = useApp();
 
   const handleLogout = () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert(t("profile.signOutTitle"), t("profile.signOutConfirm"), [
+      { text: t("common.cancel"), style: "cancel" },
       {
-        text: "Sign Out",
+        text: t("profile.signOut"),
         style: "destructive",
         onPress: () => {
           logout();
@@ -103,12 +93,12 @@ export default function ProfileScreen({ navigation }) {
     if (screen) navigation.navigate(screen);
     else
       Alert.alert(
-        "Coming Soon",
-        "This feature will be available in a future update.",
+        t("common.comingSoon"),
+        t("profile.comingSoonMessage"),
       );
   };
 
-  const displayName = user?.name || "User";
+  const displayName = user?.name || t("profile.userFallback");
   const displayEmail = user?.email || "user@example.com";
 
   return (
@@ -129,14 +119,14 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.quickStats}>
             <View style={styles.quickStat}>
               <Text style={styles.quickStatVal}>{rooms.length}</Text>
-              <Text style={styles.quickStatLbl}>Rooms</Text>
+              <Text style={styles.quickStatLbl}>{t("profile.rooms")}</Text>
             </View>
             <View style={styles.quickStatDivider} />
             <View style={styles.quickStat}>
               <Text style={styles.quickStatVal}>
                 {systemStatus.sensorsOnline}
               </Text>
-              <Text style={styles.quickStatLbl}>Sensors</Text>
+              <Text style={styles.quickStatLbl}>{t("profile.sensors")}</Text>
             </View>
             <View style={styles.quickStatDivider} />
             <View style={styles.quickStat}>
@@ -148,17 +138,24 @@ export default function ProfileScreen({ navigation }) {
               >
                 {unreadCount}
               </Text>
-              <Text style={styles.quickStatLbl}>Alerts</Text>
+              <Text style={styles.quickStatLbl}>{t("profile.alerts")}</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>ACCOUNT</Text>
+          <Text style={styles.sectionLabel}>{t("profile.account")}</Text>
           <View style={styles.prefCard}>
             {ACCOUNT_ITEMS.map((item, i) => (
               <React.Fragment key={item.id}>
-                <PrefRow item={item} onPress={() => handleNav(item.screen)} />
+                <PrefRow
+                  item={{
+                    ...item,
+                    title: t(`profile.accountItems.${item.id}.title`),
+                    subtitle: t(`profile.accountItems.${item.id}.subtitle`),
+                  }}
+                  onPress={() => handleNav(item.screen)}
+                />
                 {i < ACCOUNT_ITEMS.length - 1 && (
                   <View style={styles.divider} />
                 )}
@@ -168,19 +165,71 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>PREFERENCES</Text>
+          <Text style={styles.sectionLabel}>{t("profile.preferences")}</Text>
           <View style={styles.prefCard}>
             {PREF_ITEMS.map((item, i) => (
               <React.Fragment key={item.id}>
-                <PrefRow item={item} onPress={() => handleNav(item.screen)} />
-                {i < PREF_ITEMS.length - 1 && <View style={styles.divider} />}
+                <PrefRow
+                  item={{
+                    ...item,
+                    title: t(`profile.prefItems.${item.id}.title`),
+                    subtitle: t(`profile.prefItems.${item.id}.subtitle`),
+                  }}
+                  onPress={() => handleNav(item.screen)}
+                />
+                <View style={styles.divider} />
               </React.Fragment>
             ))}
+            <View style={styles.prefRow}>
+              <View style={[styles.prefIcon, { backgroundColor: "#EAF8F4" }]}>
+                <Ionicons name="language-outline" size={20} color={COLORS.green} />
+              </View>
+              <View style={styles.prefText}>
+                <Text style={styles.prefName}>{t("profile.language")}</Text>
+                <Text style={styles.prefDesc}>{t("profile.languageSubtitle")}</Text>
+              </View>
+              <View style={styles.languageSwitch}>
+                <TouchableOpacity
+                  style={[
+                    styles.languageOption,
+                    language === "en" && styles.languageOptionActive,
+                  ]}
+                  onPress={() => setLanguage("en")}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[
+                      styles.languageOptionText,
+                      language === "en" && styles.languageOptionTextActive,
+                    ]}
+                  >
+                    {t("profile.english")}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.languageOption,
+                    language === "ms" && styles.languageOptionActive,
+                  ]}
+                  onPress={() => setLanguage("ms")}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[
+                      styles.languageOptionText,
+                      language === "ms" && styles.languageOptionTextActive,
+                    ]}
+                  >
+                    {t("profile.bahasaMalaysia")}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>ABOUT</Text>
+          <Text style={styles.sectionLabel}>{t("profile.about")}</Text>
           <View style={styles.prefCard}>
             <View style={styles.prefRow}>
               <View
@@ -205,7 +254,7 @@ export default function ProfileScreen({ navigation }) {
           activeOpacity={0.8}
         >
           <Ionicons name="log-out-outline" size={18} color={COLORS.primary} />
-          <Text style={styles.logoutText}>Sign Out</Text>
+          <Text style={styles.logoutText}>{t("profile.signOut")}</Text>
         </TouchableOpacity>
 
         <View style={{ height: SPACING.xxl }} />
@@ -337,6 +386,29 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: COLORS.border,
     marginLeft: 68,
+  },
+  languageSwitch: {
+    flexDirection: "row",
+    backgroundColor: COLORS.bg,
+    borderRadius: RADIUS.full,
+    padding: 3,
+    gap: 4,
+  },
+  languageOption: {
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 6,
+  },
+  languageOptionActive: {
+    backgroundColor: COLORS.primary,
+  },
+  languageOptionText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: COLORS.text2,
+  },
+  languageOptionTextActive: {
+    color: COLORS.white,
   },
   logoutBtn: {
     flexDirection: "row",

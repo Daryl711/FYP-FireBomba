@@ -15,9 +15,19 @@ import { useNavigation } from "@react-navigation/native";
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const { rooms, notifications, systemStatus, user, realtimeError } = useApp();
+  const { rooms, notifications, systemStatus, user, realtimeError, t } = useApp();
   const warningRooms = rooms.filter((r) => r.status === "warning");
+  const parentNavigation = navigation?.getParent?.();
+
   const navigateTo = (route, params) => {
+    if (
+      (route === "Rooms" || route === "Notifications") &&
+      parentNavigation?.navigate
+    ) {
+      parentNavigation.navigate(route, params);
+      return;
+    }
+
     if (navigation?.navigate) {
       navigation.navigate(route, params);
     }
@@ -52,8 +62,8 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <View style={styles.headerTextWrap}>
-              <Text style={styles.greet}>Welcome Back,</Text>
-              <Text style={styles.name}>{user?.name || "User"}</Text>
+              <Text style={styles.greet}>{t("home.welcomeBack")}</Text>
+              <Text style={styles.name}>{user?.name || t("home.userFallback")}</Text>
             </View>
             <View style={styles.headerLogo}>
               <Ionicons name="flame" size={22} color={COLORS.white} />
@@ -62,40 +72,48 @@ export default function HomeScreen() {
 
           {/* Stat cards */}
           <View style={styles.statGrid}>
-            <View style={styles.statCard}>
+            <TouchableOpacity
+              style={styles.statCard}
+              onPress={() => navigateTo("Rooms", { screen: "RoomsList" })}
+              activeOpacity={0.8}
+            >
               <View style={styles.statCardTop}>
                 <Ionicons
                   name="checkmark-circle-outline"
                   size={14}
                   color={COLORS.white}
                 />
-                <Text style={styles.statCardTitle}> Active Rooms</Text>
+                <Text style={styles.statCardTitle}> {t("home.activeRooms")}</Text>
               </View>
               <Text style={styles.statCardVal}>{rooms.length}</Text>
-            </View>
-            <View style={styles.statCard}>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.statCard}
+              onPress={() => navigateTo("Notifications")}
+              activeOpacity={0.8}
+            >
               <View style={styles.statCardTop}>
                 <Ionicons
                   name="warning-outline"
                   size={14}
                   color={COLORS.white}
                 />
-                <Text style={styles.statCardTitle}> Warnings</Text>
+                <Text style={styles.statCardTitle}> {t("home.warnings")}</Text>
               </View>
               <Text style={styles.statCardVal}>{warningRooms.length}</Text>
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
 
         {/* System Status */}
         <View style={styles.statusCard}>
           <View style={styles.statusCardTop}>
-            <Text style={styles.sectionTitle}>System Status</Text>
+            <Text style={styles.sectionTitle}>{t("home.systemStatus")}</Text>
             <View style={styles.operationalBadge}>
               <Text style={styles.operationalText}>
                 {systemStatus.allOperational
-                  ? "All Systems Operational"
-                  : "Warning Detected"}
+                  ? t("home.allOperational")
+                  : t("home.warningDetected")}
               </Text>
             </View>
           </View>
@@ -105,19 +123,19 @@ export default function HomeScreen() {
               <Text style={[styles.statusVal, { color: COLORS.blue }]}>
                 📶 {systemStatus.sensorsOnline}
               </Text>
-              <Text style={styles.statusLbl}>Sensors Online</Text>
+              <Text style={styles.statusLbl}>{t("home.sensorsOnline")}</Text>
             </View>
             <View style={styles.statusItem}>
               <Text style={[styles.statusVal, { color: COLORS.green }]}>
                 ↑ {systemStatus.uptime}%
               </Text>
-              <Text style={styles.statusLbl}>Uptime</Text>
+              <Text style={styles.statusLbl}>{t("home.uptime")}</Text>
             </View>
             <View style={styles.statusItem}>
               <Text style={[styles.statusVal, { color: COLORS.primary }]}>
                 🔥 {systemStatus.fireEvents}
               </Text>
-              <Text style={styles.statusLbl}>Fire Events</Text>
+              <Text style={styles.statusLbl}>{t("home.fireEvents")}</Text>
             </View>
           </View>
         </View>
@@ -125,7 +143,7 @@ export default function HomeScreen() {
         {realtimeError ? (
           <View style={styles.errorCard}>
             <Text style={styles.errorText}>
-              Realtime API unavailable: {realtimeError}
+              {t("home.realtimeUnavailable", { error: realtimeError })}
             </Text>
           </View>
         ) : null}
@@ -133,12 +151,13 @@ export default function HomeScreen() {
         {/* Recent Alerts */}
         <View style={styles.section}>
           <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>Recent Alerts</Text>
-            <TouchableOpacity onPress={() => navigateTo("Alerts")}>
-              <Text style={styles.sectionLink}>View all</Text>
+            <Text style={styles.sectionTitle}>{t("home.recentAlerts")}</Text>
+            <TouchableOpacity onPress={() => navigateTo("Notifications")}>
+              <Text style={styles.sectionLink}>{t("home.viewAll")}</Text>
             </TouchableOpacity>
           </View>
           {recentAlerts.map((alert) => (
+            <TouchableOpacity key={alert.id} onPress={() => navigateTo("Notifications")} activeOpacity={0.75}>
             <View key={alert.id} style={styles.alertCard}>
               <View
                 style={[styles.alertDot, { backgroundColor: alert.color }]}
@@ -149,18 +168,19 @@ export default function HomeScreen() {
               </View>
               <Text style={styles.alertTime}>{alert.time}</Text>
             </View>
+            </TouchableOpacity>
           ))}
           {recentAlerts.length === 0 ? (
-            <Text style={styles.emptyText}>No alerts yet</Text>
+            <Text style={styles.emptyText}>{t("home.noAlerts")}</Text>
           ) : null}
         </View>
 
         {/* Room Overview */}
         <View style={styles.section}>
           <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>Room Overview</Text>
+            <Text style={styles.sectionTitle}>{t("home.roomOverview")}</Text>
             <TouchableOpacity onPress={() => navigateTo("Rooms")}>
-              <Text style={styles.sectionLink}>View all</Text>
+              <Text style={styles.sectionLink}>{t("home.viewAll")}</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.roomGrid}>
@@ -184,7 +204,7 @@ export default function HomeScreen() {
                   />
                 </View>
                 <Text style={styles.roomMiniTemp}>
-                  Temp: {room.temperature}°C
+                  {t("home.temp")}: {room.temperature}°C
                 </Text>
               </TouchableOpacity>
             ))}

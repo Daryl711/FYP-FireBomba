@@ -12,7 +12,7 @@ import { COLORS, RADIUS, SPACING, SHADOW } from '../../constants/theme';
 import { useApp } from '../context/AppContext';
 
 export default function RoomsScreen({ navigation }) {
-    const { rooms } = useApp();
+    const { rooms, t } = useApp();
     const safeCount = rooms.filter((r) => r.status === 'safe').length;
     const warnCount = rooms.filter((r) => r.status === 'warning').length;
 
@@ -20,8 +20,8 @@ export default function RoomsScreen({ navigation }) {
         <SafeAreaView style={styles.container} edges={['top']}>
             {/* Header */}
             <View style={styles.header}>
-                <Text style={styles.title}>Room Monitor</Text>
-                <Text style={styles.subtitle}>Select a room to view details</Text>
+                <Text style={styles.title}>{t('rooms.title')}</Text>
+                <Text style={styles.subtitle}>{t('rooms.subtitle')}</Text>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -36,10 +36,10 @@ export default function RoomsScreen({ navigation }) {
                     <View style={{ flex: 1 }}>
                         <Text style={styles.roomName}>{room.name}</Text>
                         <View style={styles.roomBottom}>
-                        <Text style={styles.roomTemp}>Temperature: {room.temperature}°C</Text>
+                        <Text style={styles.roomTemp}>{t('rooms.temperature')}: {room.temperature}°C</Text>
                         {room.alertCount > 0 && (
                             <Text style={styles.roomAlert}>
-                            {room.alertCount} Alert{room.alertCount > 1 ? 's' : ''}
+                            {room.alertCount} {room.alertCount > 1 ? t('rooms.alerts') : t('rooms.alert')}
                             </Text>
                         )}
                         </View>
@@ -57,17 +57,17 @@ export default function RoomsScreen({ navigation }) {
                 <View style={styles.footer}>
                 <View style={styles.footerStat}>
                     <Text style={[styles.footerVal, { color: COLORS.blue }]}>{rooms.length}</Text>
-                    <Text style={styles.footerLbl}>Total Rooms</Text>
+                    <Text style={styles.footerLbl}>{t('rooms.totalRooms')}</Text>
                 </View>
                 <View style={styles.footerDivider} />
                 <View style={styles.footerStat}>
                     <Text style={[styles.footerVal, { color: COLORS.green }]}>{safeCount}</Text>
-                    <Text style={styles.footerLbl}>Safe</Text>
+                    <Text style={styles.footerLbl}>{t('rooms.safe')}</Text>
                 </View>
                 <View style={styles.footerDivider} />
                 <View style={styles.footerStat}>
                     <Text style={[styles.footerVal, { color: COLORS.amber }]}>{warnCount}</Text>
-                    <Text style={styles.footerLbl}>Warnings</Text>
+                    <Text style={styles.footerLbl}>{t('rooms.warnings')}</Text>
                 </View>
                 </View>
 

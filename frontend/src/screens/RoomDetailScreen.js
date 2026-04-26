@@ -83,7 +83,7 @@ const sStyles = StyleSheet.create({
 });
 
 export default function RoomDetailScreen({ route, navigation }) {
-    const { rooms } = useApp();
+    const { rooms, t } = useApp();
     const { room: initialRoom, roomId } = route?.params || {};
 
     const resolvedRoomId = roomId ? String(roomId) : (initialRoom?.id != null ? String(initialRoom.id) : undefined);
@@ -93,9 +93,9 @@ export default function RoomDetailScreen({ route, navigation }) {
         return(
             <SafeAreaView style={styles.container} edges={['top']}>
                 <View style={styles.unavailableWrap}>
-                    <Text style={styles.unavailableText}>Room data is currently unavailable.</Text>
+                    <Text style={styles.unavailableText}>{t('roomDetail.unavailable')}</Text>
                     <TouchableOpacity style={styles.unavailableBtn} onPress={() => navigation.goBack()}>
-                        <Text style={styles.unavailableBtnText}>Go Back</Text>
+                        <Text style={styles.unavailableBtnText}>{t('roomDetail.goBack')}</Text>
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
@@ -157,12 +157,12 @@ export default function RoomDetailScreen({ route, navigation }) {
     const handlePumpToggle = () => {
         if (!pumpActive) {
             Alert.alert(
-                'Activate Water Pump',
-                `Are you sure you want to activate the water pump in ${name}?`,
+                t('roomDetail.activateTitle'),
+                t('roomDetail.activateConfirm', { room: name }),
                 [
-                    { text: 'Cancel', style: 'cancel' },
+                    { text: t('common.cancel'), style: 'cancel' },
                     {
-                        text: 'Activate',
+                        text: t('roomDetail.activate'),
                         style: 'destructive',
                         onPress: () => {
                             setPumpActive(true);
@@ -190,7 +190,7 @@ export default function RoomDetailScreen({ route, navigation }) {
                 </TouchableOpacity>
                 <View>
                     <Text style={styles.headerTitle}>{name}</Text>
-                    <Text style={styles.headerSub}>Real-time monitoring</Text>
+                    <Text style={styles.headerSub}>{t('roomDetail.realtimeMonitoring')}</Text>
                 </View>
                 <View style={[styles.statusDot, { backgroundColor: room.status === 'warning' ? COLORS.amber : COLORS.green }]} />
             </View>
@@ -201,7 +201,7 @@ export default function RoomDetailScreen({ route, navigation }) {
                 <View style={styles.cameraBlock}>
                     <View style={styles.cameraInner}>
                         <Animated.View style={[styles.spinner, { transform: [{ rotate: spin }] }]} />
-                        <Text style={styles.camLabel}>Live Camera Feed</Text>
+                        <Text style={styles.camLabel}>{t('roomDetail.liveCameraFeed')}</Text>
                         <Text style={styles.camRoom}>{name}</Text>
                     </View>
                     {/* REC badge */}
@@ -218,7 +218,7 @@ export default function RoomDetailScreen({ route, navigation }) {
                     <View style={styles.sensorRow}>
                         <SensorCard
                         icon="thermometer-outline"
-                        label="Temperature"
+                        label={t('roomDetail.temperature')}
                         value={sensors.temperature}
                         unit="°C"
                         fillPct={tempPct}
@@ -226,7 +226,7 @@ export default function RoomDetailScreen({ route, navigation }) {
                         />
                         <SensorCard
                         icon="cloud-outline"
-                        label="Smoke"
+                        label={t('roomDetail.smoke')}
                         value={sensors.smoke}
                         unit="%"
                         fillPct={smokePct}
@@ -236,7 +236,7 @@ export default function RoomDetailScreen({ route, navigation }) {
                     <View style={styles.sensorRow}>
                         <SensorCard
                         icon="wind-outline"
-                        label="Gas"
+                        label={t('roomDetail.gas')}
                         value={sensors.gas}
                         unit="ppm"
                         fillPct={gasPct}
@@ -246,12 +246,12 @@ export default function RoomDetailScreen({ route, navigation }) {
                         <View style={sStyles.iconWrap}>
                             <Ionicons name="flame-outline" size={20} color={COLORS.green} />
                         </View>
-                        <Text style={sStyles.label}>Flame</Text>
+                        <Text style={sStyles.label}>{t('roomDetail.flame')}</Text>
                         <Text style={[sStyles.value, { color: sensors.flame ? COLORS.primary : COLORS.green, fontSize: 18 }]}>
-                            {sensors.flame ? 'DETECTED' : 'Clear'}
+                            {sensors.flame ? t('roomDetail.detected') : t('roomDetail.clear')}
                         </Text>
                         <Text style={{ fontSize: 11, color: sensors.flame ? COLORS.primary : COLORS.green, marginTop: 8 }}>
-                            {sensors.flame ? '⚠ Flame detected!' : 'No flame detected'}
+                            {sensors.flame ? `⚠ ${t('roomDetail.flameDetected')}` : t('roomDetail.noFlameDetected')}
                         </Text>
                         </View>
                     </View>
@@ -259,12 +259,12 @@ export default function RoomDetailScreen({ route, navigation }) {
 
                 {/* Sensor History */}
                 <View style={styles.historyCard}>
-                    <Text style={styles.cardTitle}>Sensor History</Text>
+                    <Text style={styles.cardTitle}>{t('roomDetail.sensorHistory')}</Text>
                     {sensorHistory.length > 0 ? (
                         <SensorChart data={sensorHistory} />
                     ) : (
                         <View style={styles.chartEmpty}>
-                            <Text style={styles.chartEmptyText}>No sensor data yet.</Text>
+                            <Text style={styles.chartEmptyText}>{t('roomDetail.noSensorData')}</Text>
                         </View>
                     )}
                 </View>
@@ -273,18 +273,18 @@ export default function RoomDetailScreen({ route, navigation }) {
                 <Animated.View style={[styles.pumpCard, { transform: [{ scale: pumpPulse }] }]}>
                     <View style={styles.pumpTop}>
                         <View>
-                            <Text style={styles.cardTitle}>Water Pump System</Text>
-                            <Text style={styles.pumpSub}>Manual fire suppression control</Text>
+                            <Text style={styles.cardTitle}>{t('roomDetail.waterPumpSystem')}</Text>
+                            <Text style={styles.pumpSub}>{t('roomDetail.manualSuppression')}</Text>
                         </View>
                         <Ionicons name="water-outline" size={24} color={COLORS.text3} />
                     </View>
 
                     {/* Status row */}
                     <View style={styles.pumpStatusRow}>
-                        <Text style={styles.pumpStatusLbl}>Status:</Text>
+                        <Text style={styles.pumpStatusLbl}>{t('roomDetail.status')}</Text>
                         <View style={[styles.pumpBadge, pumpActive ? styles.badgeActive : styles.badgeStandby]}>
                             <Text style={[styles.pumpBadgeText, { color: pumpActive ? COLORS.green : COLORS.text2 }]}>
-                                {pumpActive ? 'Active' : 'Standby'}
+                                {pumpActive ? t('roomDetail.active') : t('roomDetail.standby')}
                             </Text>
                         </View>
                     </View>
@@ -297,21 +297,21 @@ export default function RoomDetailScreen({ route, navigation }) {
                     >
                         <Ionicons name="power" size={18} color={COLORS.white} />
                         <Text style={styles.pumpBtnText}>
-                            {pumpActive ? 'Deactivate Pump' : 'Activate Pump'}
+                            {pumpActive ? t('roomDetail.deactivatePump') : t('roomDetail.activatePump')}
                         </Text>
                     </TouchableOpacity>
 
                     {/* Meta row */}
                     <View style={styles.pumpMeta}>
                         <View>
-                            <Text style={styles.pumpMetaLbl}>Last Update</Text>
+                            <Text style={styles.pumpMetaLbl}>{t('roomDetail.lastUpdate')}</Text>
                             <Text style={styles.pumpMetaVal}>{formatTime(lastUpdated)}</Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
-                            <Text style={styles.pumpMetaLbl}>Connection</Text>
+                            <Text style={styles.pumpMetaLbl}>{t('roomDetail.connection')}</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
                                 <View style={styles.onlineDot} />
-                                <Text style={styles.pumpMetaVal}>Online</Text>
+                                <Text style={styles.pumpMetaVal}>{t('roomDetail.online')}</Text>
                             </View>
                         </View>
                     </View>

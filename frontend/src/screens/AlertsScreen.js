@@ -30,16 +30,18 @@ const TYPE_CONFIG = {
 };
 
 export default function AlertsScreen(){
-    const { notifications, unreadCount, markAllRead, markNotificationRead } = useApp();
+    const { notifications, unreadCount, markAllRead, markNotificationRead, t } = useApp();
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             {/* Header */}
             <View style={styles.header}>
                 <View>
-                    <Text style={styles.title}>Notifications</Text>
+                    <Text style={styles.title}>{t('alerts.title')}</Text>
                     <Text style={styles.subtitle}>
-                        {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'All caught up!'}
+                        {unreadCount > 0
+                            ? t('alerts.unreadSubtitle', { count: unreadCount, suffix: unreadCount > 1 ? 's' : '' })
+                            : t('alerts.allCaughtUp')}
                     </Text>
                 </View>
                 <TouchableOpacity style={styles.bellWrap} onPress={markAllRead}>
@@ -54,7 +56,7 @@ export default function AlertsScreen(){
 
             {unreadCount > 0 && (
                 <TouchableOpacity style={styles.markAllBtn} onPress={markAllRead}>
-                    <Text style={styles.markAllText}>Mark all as read</Text>
+                    <Text style={styles.markAllText}>{t('alerts.markAllRead')}</Text>
                 </TouchableOpacity>
             )}
 
@@ -76,7 +78,13 @@ export default function AlertsScreen(){
                                     <Ionicons name={cfg.icon} size={20} color={cfg.iconColor} />
                                 </View>
                                 <View style={styles.notifContent}>
-                                    <Text style={styles.notifTitle}>{notif.title}</Text>
+                                    <Text style={styles.notifTitle}>
+                                        {notif.type === 'warning'
+                                            ? t('alerts.warningTitle')
+                                            : notif.type === 'success'
+                                                ? t('alerts.successTitle')
+                                                : t('alerts.infoTitle')}
+                                    </Text>
                                     <Text style={styles.notifDesc}>{notif.description}</Text>
                                     <View style={styles.notifMeta}>
                                         <View style={styles.notifTag}>
@@ -92,7 +100,7 @@ export default function AlertsScreen(){
                             </TouchableOpacity>
                         );
                     })}
-                    {notifications.length === 0 ? <Text style={styles.emptyText}> No notifications yet</Text> : null}
+                    {notifications.length === 0 ? <Text style={styles.emptyText}>{t('alerts.empty')}</Text> : null}
                 </View>
                 <View style={{ height: SPACING.xxl }} />
             </ScrollView>
