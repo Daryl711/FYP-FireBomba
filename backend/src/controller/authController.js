@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const db = require('../config/database');
 
 exports.signup = async (req, res) => {
@@ -35,8 +36,15 @@ exports.login = (req, res) => {
         const passwordMatch = await bcrypt.compare(password, user.password);
         if (!passwordMatch) return res.status(400).json({ error: 'Incorrect password' });
 
+        const token = jwt.sign(
+            { id: user.id, email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: process.env.JWT_EXPIRES_IN }
+        );
+
         res.json({
             message: 'Login successful!',
+            token,
             user: { id: user.id, fullName: user.full_name, email: user.email }
         });
     });

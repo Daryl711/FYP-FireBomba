@@ -169,7 +169,7 @@ export default function LoginScreen({ navigation }) {
                     {/* Sign up link */}
                     <Text style={styles.signupRow}>
                         Don't have an account?{' '}
-                        <Text style={styles.signupLink} onPress={() => !isLoading && navigation.navigate('Signup')}>
+                        <Text style={styles.signupLink} onPress={() => !isLoading && navigation.navigate('SignUp')}>
                             Sign Up
                         </Text>
                     </Text>
