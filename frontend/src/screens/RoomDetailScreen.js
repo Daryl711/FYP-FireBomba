@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { RTCPeerConnection, RTCView } from "react-native-webrtc";
 import {
   View,
   Text,
@@ -14,6 +15,8 @@ import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
 import SensorChart from "../../components/SensorChart";
 import { getSensorReading } from "../services/api";
+
+const PI_IP = process.env.EXPO_PUBLIC_RASPBERRY_PI_URL;
 
 function SensorCard({ icon, label, value, unit, fillPct, fillColor }) {
   return (
@@ -114,9 +117,40 @@ export default function RoomDetailScreen({ route, navigation }) {
   const [pumpActive, setPumpActive] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [camTime, setCamTime] = useState(new Date());
+  const [stream, setStream] = useState(null);
 
   const spinAnim = useRef(new Animated.Value(0)).current;
   const pumpPulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const pc = new RTCPeerConnection();
+    pc.addTransceiver('video', { direction: 'recvonly' });
+    pc.ontrack = (event) => {
+      setStream(event.streams[0]);
+    };
+
+    async function start() {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      
+      const res = await fetch(`${PI_IP}/mystream/whep`, {
+        method: "POST",
+        headers: { "Content-Type": "application/sdp" },
+        body: offer.sdp,
+      });
+
+
+      const answer = await res.text();
+
+      await pc.setRemoteDescription({
+        type: "answer",
+        sdp: answer,
+      });
+    }
+
+    start();
+  }, []);
 
   useEffect(() => {
     if (!room) {
@@ -186,8 +220,7 @@ export default function RoomDetailScreen({ route, navigation }) {
     }
   }, [sensorData]);
 
-  const sensors =
-    sensorData ||
+  const sensors = sensorData ||
     room?.sensors || {
       temperature: room?.temperature ?? 0,
       smoke: 0,
@@ -245,12 +278,16 @@ export default function RoomDetailScreen({ route, navigation }) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.unavailableWrap}>
-          <Text style={styles.unavailableText}>{t("roomDetail.unavailable")}</Text>
+          <Text style={styles.unavailableText}>
+            {t("roomDetail.unavailable")}
+          </Text>
           <TouchableOpacity
             style={styles.unavailableBtn}
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.unavailableBtnText}>{t("roomDetail.goBack")}</Text>
+            <Text style={styles.unavailableBtnText}>
+              {t("roomDetail.goBack")}
+            </Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -268,7 +305,9 @@ export default function RoomDetailScreen({ route, navigation }) {
         </TouchableOpacity>
         <View>
           <Text style={styles.headerTitle}>{name}</Text>
-          <Text style={styles.headerSub}>{t("roomDetail.realtimeMonitoring")}</Text>
+          <Text style={styles.headerSub}>
+            {t("roomDetail.realtimeMonitoring")}
+          </Text>
         </View>
         <View
           style={[
@@ -283,13 +322,24 @@ export default function RoomDetailScreen({ route, navigation }) {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.cameraBlock}>
-          <View style={styles.cameraInner}>
-            <Animated.View
-              style={[styles.spinner, { transform: [{ rotate: spin }] }]}
+          {stream ? (
+            <RTCView
+              streamURL={stream.toURL()}
+              style={styles.rtcView}
+              objectFit="cover"
+              mirror={false}
             />
-            <Text style={styles.camLabel}>{t("roomDetail.liveCameraFeed")}</Text>
-            <Text style={styles.camRoom}>{name}</Text>
-          </View>
+          ) : (
+            <View style={styles.cameraInner}>
+              <Animated.View
+                style={[styles.spinner, { transform: [{ rotate: spin }] }]}
+              />
+              <Text style={styles.camLabel}>
+                {t("roomDetail.liveCameraFeed")}
+              </Text>
+              <Text style={styles.camRoom}>{name}</Text>
+            </View>
+          )}
           <View style={styles.recBadge}>
             <View style={styles.recDot} />
             <Text style={styles.recText}>REC</Text>
@@ -347,7 +397,7 @@ export default function RoomDetailScreen({ route, navigation }) {
 
           <View style={styles.sensorRow}>
             <SensorCard
-              icon="wind-outline"
+              icon="flask-outline"
               label={t("roomDetail.gas")}
               value={sensors.gas}
               unit="ppm"
@@ -406,7 +456,9 @@ export default function RoomDetailScreen({ route, navigation }) {
             <SensorChart data={sensorHistory} />
           ) : (
             <View style={styles.chartEmpty}>
-              <Text style={styles.chartEmptyText}>{t("roomDetail.noSensorData")}</Text>
+              <Text style={styles.chartEmptyText}>
+                {t("roomDetail.noSensorData")}
+              </Text>
             </View>
           )}
         </View>
@@ -416,8 +468,12 @@ export default function RoomDetailScreen({ route, navigation }) {
         >
           <View style={styles.pumpTop}>
             <View>
-              <Text style={styles.cardTitle}>{t("roomDetail.waterPumpSystem")}</Text>
-              <Text style={styles.pumpSub}>{t("roomDetail.manualSuppression")}</Text>
+              <Text style={styles.cardTitle}>
+                {t("roomDetail.waterPumpSystem")}
+              </Text>
+              <Text style={styles.pumpSub}>
+                {t("roomDetail.manualSuppression")}
+              </Text>
             </View>
             <Ionicons name="water-outline" size={24} color={COLORS.text3} />
           </View>
@@ -456,11 +512,15 @@ export default function RoomDetailScreen({ route, navigation }) {
 
           <View style={styles.pumpMeta}>
             <View>
-              <Text style={styles.pumpMetaLbl}>{t("roomDetail.lastUpdate")}</Text>
+              <Text style={styles.pumpMetaLbl}>
+                {t("roomDetail.lastUpdate")}
+              </Text>
               <Text style={styles.pumpMetaVal}>{formatTime(lastUpdated)}</Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={styles.pumpMetaLbl}>{t("roomDetail.connection")}</Text>
+              <Text style={styles.pumpMetaLbl}>
+                {t("roomDetail.connection")}
+              </Text>
               <View
                 style={{
                   flexDirection: "row",
@@ -611,6 +671,12 @@ const styles = StyleSheet.create({
   sensorRow: {
     flexDirection: "row",
     gap: SPACING.md,
+  },
+
+  rtcView: {
+    width: "100%",
+    height: "100%",
+    position: "absolute",
   },
   historyCard: {
     backgroundColor: COLORS.white,
