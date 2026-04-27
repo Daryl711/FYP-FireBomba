@@ -102,7 +102,6 @@ export default function RoomDetailScreen({ route, navigation }) {
     setSensorLoading(true);
     setSensorError(null);
     try {
-      console.log("Called");
       const data = await getSensorReading();
       setSensorData(data);
     } catch (error) {
