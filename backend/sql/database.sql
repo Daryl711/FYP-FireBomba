@@ -97,3 +97,16 @@ CREATE TABLE IF NOT EXISTS pump_log (
     executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (pump_id) REFERENCES water_pump(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS alerts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    room_id INT,
+    sensor_type VARCHAR(50),
+    type ENUM('warning', 'info', 'success') NOT NULL DEFAULT 'info',
+    description TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE SET NULL
+);

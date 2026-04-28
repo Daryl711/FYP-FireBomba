@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Audio } from 'expo-av';
+import { getAlerts, markAlertRead as apiMarkAlertRead, markAllAlertsRead as apiMarkAllRead } from '../services/api';
 
 const AppContext = createContext(null);
 
@@ -339,70 +341,85 @@ const mockRooms = [
     { id: 'r5', name: 'Office A', status: 'warning', temperature: 41 },
 ];
 
-const mockNotifications = [
-    {
-        id: 'n1',
-        room: 'Server Room',
-        description: 'Temperature crossed threshold',
-        time: '2m ago',
-        type: 'warning',
-    },
-    {
-        id: 'n2',
-        room: 'Lobby',
-        description: 'Flame sensor restored',
-        time: '8m ago',
-        type: 'success',
-    },
-    {
-        id: 'n3',
-        room: 'Office A',
-        description: 'Smoke level normalized',
-        time: '14m ago',
-        type: 'info',
-    },
-];
-
 export function AppProvider({ children }) {
     const [user, setUser] = useState(null);
+    const [token, setToken] = useState(null);
     const [language, setLanguage] = useState('en');
-    const [notifications, setNotifications] = useState(
-        mockNotifications.map((item, index) => ({
-            ...item,
-            title: item.type === 'warning' ? 'Warning Alert' : item.type === 'success' ? 'System Update' : 'Information',
-            unread: index < 2,
-        }))
-    );
+    const [notifications, setNotifications] = useState([]);
+    const pollRef = useRef(null);
+    const soundRef = useRef(null);
+    const prevUnreadRef = useRef(0);
 
-    // Accepts the user object returned from your backend login API
-    const login = (userData) => {
+    // Load alarm sound once on mount
+    useEffect(() => {
+        Audio.setAudioModeAsync({ playsInSilentModeIOS: true, shouldDuckAndroid: false }).catch(() => {});
+        Audio.Sound.createAsync(require('../../assets/sounds/alarm.wav'), { isLooping: true })
+            .then(({ sound }) => { soundRef.current = sound; })
+            .catch((e) => { console.warn('Alarm sound failed to load:', e); });
+        return () => { soundRef.current?.unloadAsync(); };
+    }, []);
+
+    const fetchAlerts = async (authToken) => {
+        const result = await getAlerts(authToken);
+        if (!result.error && Array.isArray(result)) {
+            const newUnreadCount = result.filter(a => a.unread).length;
+            if (newUnreadCount > prevUnreadRef.current && soundRef.current) {
+                soundRef.current.playFromPositionAsync(0).catch((e) => console.warn('Alarm play failed:', e));
+            }
+            prevUnreadRef.current = newUnreadCount;
+            setNotifications(result);
+        }
+    };
+
+    // Start polling when the user logs in
+    useEffect(() => {
+        if (token) {
+            fetchAlerts(token);
+            pollRef.current = setInterval(() => fetchAlerts(token), 10000);
+        }
+        return () => clearInterval(pollRef.current);
+    }, [token]);
+
+    // Accepts { userId, fullName, email } from login response + the JWT token
+    const login = (userData, authToken) => {
         setUser({
-            id: userData.id,
+            id: userData.userId,
             name: userData.fullName,
             email: userData.email,
         });
+        setToken(authToken);
     };
 
     const logout = async () => {
-        try {
-            await fetch('http://192.168.1.100:3000/api/logout', { method: 'POST' });
-        } catch (_) {}
+        clearInterval(pollRef.current);
+        prevUnreadRef.current = 0;
         setUser(null);
+        setToken(null);
+        setNotifications([]);
     };
 
-    const markAllRead = () => {
+    const stopAlarm = () => {
+        soundRef.current?.stopAsync().catch(() => {});
+    };
+
+    const markAllRead = async () => {
+        stopAlarm();
         setNotifications((prev) => prev.map((item) => ({ ...item, unread: false })));
+        if (token) await apiMarkAllRead(token);
     };
 
-    const markNotificationRead = (id) => {
+    const markNotificationRead = async (id) => {
+        stopAlarm();
         setNotifications((prev) =>
             prev.map((item) => (item.id === id ? { ...item, unread: false } : item))
         );
+        if (token) await apiMarkAlertRead(id, token);
     };
 
     const value = useMemo(() => {
         const warningCount = mockRooms.filter((room) => room.status === 'warning').length;
         const unreadCount = notifications.filter((item) => item.unread).length;
+        // expose so components can manually refresh (e.g. after pump activation)
         const t = (key, params) => {
             const dictionary = translations[language] || translations.en;
             const fallback = translations.en;
@@ -415,6 +432,7 @@ export function AppProvider({ children }) {
 
         return {
             user,
+            token,
             language,
             setLanguage,
             t,
@@ -425,6 +443,7 @@ export function AppProvider({ children }) {
             unreadCount,
             markAllRead,
             markNotificationRead,
+            refreshAlerts: () => token && fetchAlerts(token),
             realtimeError: null,
             systemStatus: {
                 allOperational: warningCount === 0,
@@ -433,7 +452,7 @@ export function AppProvider({ children }) {
                 fireEvents: warningCount,
             },
         };
-    }, [language, notifications, user]);
+    }, [language, notifications, user, token]);
 
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

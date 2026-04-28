@@ -62,3 +62,63 @@ export async function getSensorReading() {
     return { error: "Network error. Cannot connect to server." };
   }
 }
+
+export async function getAlerts(token) {
+  try {
+    const response = await fetch(`${API_ROOT}/alerts`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+export async function markAlertRead(id, token) {
+  try {
+    const response = await fetch(`${API_ROOT}/alerts/${id}/read`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+export async function markAllAlertsRead(token) {
+  try {
+    const response = await fetch(`${API_ROOT}/alerts/read-all`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+export async function deleteAlert(id, token) {
+  try {
+    const response = await fetch(`${API_ROOT}/alerts/${id}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
