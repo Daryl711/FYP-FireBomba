@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS pump_log (
     FOREIGN KEY (pump_id) REFERENCES water_pump(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS alerts (
+CREATE TABLE IF NOT EXISTS alert_notification (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     room_id INT,

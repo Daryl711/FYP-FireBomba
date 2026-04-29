@@ -221,7 +221,7 @@ const translations = {
             clear: 'Normal',
             flameDetected: 'Api dikesan!',
             noFlameDetected: 'Tiada api dikesan',
-            sensorHistory: 'Sejarah Sensor',
+            sensorHistory: 'Rekod Sensor',
             noSensorData: 'Belum ada data sensor.',
             waterPumpSystem: 'Sistem Pam Air',
             manualSuppression: 'Kawalan pemadaman kebakaran manual',
@@ -283,7 +283,7 @@ const translations = {
         },
         signup: {
             title: 'Cipta Akaun',
-            subtitle: 'Daftar FireGuard untuk memantau rumah anda',
+            subtitle: 'Daftar FireBomba untuk memantau rumah anda',
             fullName: 'Nama Penuh',
             fullNamePlaceholder: 'Ali Ahmad',
             email: 'Alamat E-mel',
