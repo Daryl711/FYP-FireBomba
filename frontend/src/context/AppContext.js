@@ -62,7 +62,7 @@ const translations = {
             liveCameraFeed: 'Live Camera Feed',
             temperature: 'Temperature',
             smoke: 'Smoke',
-            gas: 'Gas',
+            co: 'Carbon monoxide',
             flame: 'Flame',
             detected: 'DETECTED',
             clear: 'Clear',

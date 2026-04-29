@@ -121,21 +121,9 @@ export default function RoomDetailScreen({ route, navigation }) {
     return () => clearInterval(interval);
   }, []);
 
-  const sensors = sensorData ||
-    room?.sensors || {
-      temperature: room?.temperature ?? 0,
-      smoke: 0,
-      gas: 0,
-      flame: false,
-      humidity: 0,
-      co: 0,
-    };
+ 
 
-  const resolvedRoomId = roomId
-    ? String(roomId)
-    : initialRoom?.id != null
-      ? String(initialRoom.id)
-      : undefined;
+
   const room =
     (resolvedRoomId
       ? rooms.find((item) => String(item.id) === resolvedRoomId)
@@ -382,9 +370,9 @@ export default function RoomDetailScreen({ route, navigation }) {
 
           <View style={styles.sensorRow}>
             <SensorCard
-              icon="wind-outline"
-              label={t("roomDetail.gas")}
-              value={sensors.gas}
+              icon="flask-outline"
+              label={t("roomDetail.co")}
+              value={sensors.co}
               unit="ppm"
               fillPct={gasPct}
               fillColor={COLORS.amber}

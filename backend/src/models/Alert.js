@@ -3,7 +3,7 @@ const db = require("../config/database");
 exports.getAlertsByUser = async (userId) => {
   const sql = `
     SELECT a.*, r.name AS room_name
-    FROM alerts a
+    FROM Alerts a
     LEFT JOIN rooms r ON a.room_id = r.id
     WHERE a.user_id = ?
     ORDER BY a.created_at DESC

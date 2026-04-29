@@ -15,9 +15,9 @@ exports.checkEmail = async (email) => {
 }
 
 exports.addUser = async(fullName, email, hashedPassword) => {
-  const sql = "INSERT INTO Users (full_name, email, password) VALUES (?, ?, ?)";
+  const sql = "INSERT INTO Users (room_id, full_name, email, password) VALUES (?, ?, ?, ?)";
   const [result] = await db.query(
-    sql, [fullName, email, hashedPassword],
+    sql, [1, fullName, email, hashedPassword],
   );
 
   return result.insertId;
