@@ -60,5 +60,13 @@ Then run by using:
 ```npm run start```
 
 
+## Testing:
+
+To test the alert, please run the following command:
+
+```cd testing```
+
+```node simulate.js --login [your_registered_email] [your_password]```
+
 
 
