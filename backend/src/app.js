@@ -12,6 +12,6 @@ app.use(express.json());
 
 app.use('/api', authRoutes);
 app.use('/room-detail', roomDetailRoutes);
-app.use('/api', alertRoutes);
+app.use('/alerts', alertRoutes);
 
 module.exports = app;

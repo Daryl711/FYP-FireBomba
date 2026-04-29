@@ -30,8 +30,8 @@ export async function registerUser(fullName, email, password) {
     });
     return await safeParseResponse(response);
   } catch (error) {
-    console.error(error);
     return { error: "Network error. Cannot connect to server." };
+    
   }
 }
 

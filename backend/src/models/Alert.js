@@ -1,14 +1,14 @@
 const db = require("../config/database");
 
-exports.getAlertsByUser = async (userId) => {
+exports.getAlertsByRoom = async (roomId) => {
   const sql = `
-    SELECT a.*, r.name AS room_name
-    FROM Alerts a
-    LEFT JOIN rooms r ON a.room_id = r.id
-    WHERE a.user_id = ?
-    ORDER BY a.created_at DESC
+    SELECT an.*, r.name AS room_name
+    FROM AlertNotification an
+    LEFT JOIN Rooms r ON an.room_id = r.id
+    WHERE an.room_id = ?
+    ORDER BY an.timestamp DESC
   `;
-  const [rows] = await db.query(sql, [userId]);
+  const [rows] = await db.query(sql, [roomId]);
   return rows;
 };
 
@@ -22,14 +22,14 @@ exports.createAlert = async (userId, roomId, sensorType, type, description) => {
 };
 
 exports.markRead = async (id, userId) => {
-  const sql = "UPDATE alerts SET is_read = TRUE WHERE id = ? AND user_id = ?";
-  const [result] = await db.query(sql, [id, userId]);
+  const sql = "UPDATE alerts SET is_read = TRUE WHERE id = ? AND room_id = ?";
+  const [result] = await db.query(sql, [id, roomId]);
   return result.affectedRows;
 };
 
-exports.markAllRead = async (userId) => {
-  const sql = "UPDATE alerts SET is_read = TRUE WHERE user_id = ?";
-  const [result] = await db.query(sql, [userId]);
+exports.markAllRead = async (roomId) => {
+  const sql = "UPDATE alerts SET is_read = TRUE WHERE room_id = ?";
+  const [result] = await db.query(sql, [roomId]);
   return result.affectedRows;
 };
 

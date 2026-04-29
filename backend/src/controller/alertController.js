@@ -10,18 +10,16 @@ const THRESHOLDS = {
 
 exports.getAlerts = async (req, res) => {
   try {
-    const userId = req.user.userId;
-    const alerts = await Alert.getAlertsByUser(userId);
+    const roomId = req.user.roomId;
+    const alerts = await Alert.getAlertsByRoom(roomId);
 
     const formatted = alerts.map((a) => ({
       id: a.id,
       room: a.room_name || "Unknown Room",
       roomId: a.room_id,
-      sensorType: a.sensor_type,
-      description: a.description,
-      type: a.type,
+      warningTitle: a.warning_title,
       unread: !a.is_read,
-      time: formatRelativeTime(a.created_at),
+      time: formatRelativeTime(a.timestamp),
     }));
 
     return res.status(200).json(formatted);
@@ -34,8 +32,8 @@ exports.getAlerts = async (req, res) => {
 exports.markAlertRead = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.userId;
-    const affected = await Alert.markRead(id, userId);
+    const roomId = req.user.roomId;
+    const affected = await Alert.markRead(id, roomId);
 
     if (affected === 0) return res.status(404).json({ error: "Alert not found" });
     return res.status(200).json({ message: "Alert marked as read" });
@@ -47,8 +45,8 @@ exports.markAlertRead = async (req, res) => {
 
 exports.markAllAlertsRead = async (req, res) => {
   try {
-    const userId = req.user.userId;
-    await Alert.markAllRead(userId);
+    const roomId = req.user.roomId;
+    await Alert.markAllRead(roomId);
     return res.status(200).json({ message: "All alerts marked as read" });
   } catch (error) {
     console.error(error);

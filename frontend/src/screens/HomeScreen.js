@@ -12,10 +12,10 @@ import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
 import { useNavigation } from "@react-navigation/native";
 
-
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const { rooms, notifications, systemStatus, user, realtimeError, t } = useApp();
+  const { rooms, notifications, systemStatus, user, realtimeError, t } =
+    useApp();
   const warningRooms = rooms.filter((r) => r.status === "warning");
   const parentNavigation = navigation?.getParent?.();
 
@@ -45,14 +45,9 @@ export default function HomeScreen() {
   const recentAlerts = notifications.slice(0, 2).map((n) => ({
     id: n.id,
     room: n.room,
-    desc: n.description,
+    warningTitle: n.warningTitle,
     time: n.time,
-    color:
-      n.type === "warning"
-        ? COLORS.amber
-        : n.type === "success"
-          ? COLORS.green
-          : COLORS.blue,
+    color: COLORS.amber,
   }));
 
   return (
@@ -63,7 +58,9 @@ export default function HomeScreen() {
           <View style={styles.headerTop}>
             <View style={styles.headerTextWrap}>
               <Text style={styles.greet}>{t("home.welcomeBack")}</Text>
-              <Text style={styles.name}>{user?.name || t("home.userFallback")}</Text>
+              <Text style={styles.name}>
+                {user?.name || t("home.userFallback")}
+              </Text>
             </View>
             <View style={styles.headerLogo}>
               <Ionicons name="flame" size={22} color={COLORS.white} />
@@ -83,7 +80,10 @@ export default function HomeScreen() {
                   size={14}
                   color={COLORS.white}
                 />
-                <Text style={styles.statCardTitle}> {t("home.activeRooms")}</Text>
+                <Text style={styles.statCardTitle}>
+                  {" "}
+                  {t("home.activeRooms")}
+                </Text>
               </View>
               <Text style={styles.statCardVal}>{rooms.length}</Text>
             </TouchableOpacity>
@@ -157,17 +157,21 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           {recentAlerts.map((alert) => (
-            <TouchableOpacity key={alert.id} onPress={() => navigateTo("Notifications")} activeOpacity={0.75}>
-            <View key={alert.id} style={styles.alertCard}>
-              <View
-                style={[styles.alertDot, { backgroundColor: alert.color }]}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.alertName}>{alert.room}</Text>
-                <Text style={styles.alertDesc}>{alert.desc}</Text>
+            <TouchableOpacity
+              key={alert.id}
+              onPress={() => navigateTo("Notifications")}
+              activeOpacity={0.75}
+            >
+              <View key={alert.id} style={styles.alertCard}>
+                <View
+                  style={[styles.alertDot, { backgroundColor: alert.color }]}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.alertName}>{alert.room}</Text>
+                  <Text style={styles.alertDesc}>{alert.warningTitle}</Text>
+                </View>
+                <Text style={styles.alertTime}>{alert.time}</Text>
               </View>
-              <Text style={styles.alertTime}>{alert.time}</Text>
-            </View>
             </TouchableOpacity>
           ))}
           {recentAlerts.length === 0 ? (
