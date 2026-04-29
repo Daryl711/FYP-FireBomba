@@ -22,13 +22,13 @@ exports.createAlert = async (userId, roomId, sensorType, type, description) => {
 };
 
 exports.markRead = async (id, userId) => {
-  const sql = "UPDATE alerts SET is_read = TRUE WHERE id = ? AND room_id = ?";
+  const sql = "UPDATE AlertNotifications SET is_read = TRUE WHERE id = ? AND room_id = ?";
   const [result] = await db.query(sql, [id, roomId]);
   return result.affectedRows;
 };
 
 exports.markAllRead = async (roomId) => {
-  const sql = "UPDATE alerts SET is_read = TRUE WHERE room_id = ?";
+  const sql = "UPDATE AlertNotifications SET is_read = TRUE WHERE room_id = ?";
   const [result] = await db.query(sql, [roomId]);
   return result.affectedRows;
 };

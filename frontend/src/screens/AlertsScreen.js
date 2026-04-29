@@ -59,14 +59,7 @@ export default function AlertsScreen() {
                 onPress={() => markNotificationRead(notif.id)}
               >
                 {notif.unread && <View style={styles.unreadStripe} />}
-                <View
-                  style={[
-                    styles.notification,
-                    { backgroundColor: warning.bgColor },
-                  ]}
-                >
-                  <Ionicons name={warning.icon} size={20} color={warning.iconColor} />
-                </View>
+                
                 <View style={styles.notifContent}>
                   <Text style={styles.notifTitle}>
                     {t("alerts.warningTitle")}

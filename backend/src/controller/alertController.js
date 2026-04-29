@@ -14,7 +14,7 @@ exports.getAlerts = async (req, res) => {
     const alerts = await Alert.getAlertsByRoom(roomId);
 
     const formatted = alerts.map((a) => ({
-      id: a.id,
+      id: a.alert_id,
       room: a.room_name || "Unknown Room",
       roomId: a.room_id,
       warningTitle: a.warning_title,
