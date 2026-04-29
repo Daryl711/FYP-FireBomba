@@ -101,6 +101,41 @@ export default function RoomDetailScreen({ route, navigation }) {
         ? String(initialRoom.id)
         : undefined;
 
+  const fetchSensorData = async () => {
+    setSensorLoading(true);
+    setSensorError(null);
+    try {
+      const data = await getSensorReading();
+      setSensorData(data);
+    } catch (error) {
+      setSensorError("Could not get sensor data.");
+      Alert.alert("Error", "Could not get sensor data.");
+    } finally {
+      setSensorLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSensorData();
+    const interval = setInterval(fetchSensorData, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const sensors = sensorData ||
+    room?.sensors || {
+      temperature: room?.temperature ?? 0,
+      smoke: 0,
+      gas: 0,
+      flame: false,
+      humidity: 0,
+      co: 0,
+    };
+
+  const resolvedRoomId = roomId
+    ? String(roomId)
+    : initialRoom?.id != null
+      ? String(initialRoom.id)
+      : undefined;
   const room =
     (resolvedRoomId
       ? rooms.find((item) => String(item.id) === resolvedRoomId)
