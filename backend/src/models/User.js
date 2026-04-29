@@ -30,7 +30,7 @@ exports.getUserDetails = async (email) => {
     sql, [email],
   );
 
-  const userId = result[0].id;
+  const userId = result[0].user_id;
   const hashedPassword = result[0].password;
   const fullName = result[0].full_name;
 

@@ -1,7 +1,7 @@
 const db = require("../config/database");
 
 exports.getLatestReading = async () => {
-  const sql = "SELECT * FROM SensorReadings ORDER BY created_at DESC LIMIT 1";
+  const sql = "SELECT * FROM SensorReadings ORDER BY timestamp DESC LIMIT 1";
   const [result] = await db.query(sql);
 
   const roomId = result[0].room_id;
