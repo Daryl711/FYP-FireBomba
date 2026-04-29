@@ -2,7 +2,7 @@ const db = require("../config/database");
 
 
 exports.checkEmail = async (email) => {
-  const sql = "SELECT * FROM users WHERE email = ?";
+  const sql = "SELECT * FROM Users WHERE email = ?";
   const [result] = await db.query(
     sql, [email],
   );
@@ -15,7 +15,7 @@ exports.checkEmail = async (email) => {
 }
 
 exports.addUser = async(fullName, email, hashedPassword) => {
-  const sql = "INSERT INTO users (full_name, email, password) VALUES (?, ?, ?)";
+  const sql = "INSERT INTO Users (full_name, email, password) VALUES (?, ?, ?)";
   const [result] = await db.query(
     sql, [fullName, email, hashedPassword],
   );
@@ -25,7 +25,7 @@ exports.addUser = async(fullName, email, hashedPassword) => {
 
 
 exports.getUserDetails = async (email) => {
-  const sql = "SELECT * FROM users WHERE email = ?";
+  const sql = "SELECT * FROM Users WHERE email = ?";
   const [result] = await db.query(
     sql, [email],
   );
