@@ -4,7 +4,7 @@ exports.getAlertsByRoom = async (roomId) => {
   const sql = `
     SELECT an.*, r.name AS room_name
     FROM AlertNotification an
-    LEFT JOIN Rooms r ON an.room_id = r.id
+    LEFT JOIN Rooms r ON an.room_id = r.room_id
     WHERE an.room_id = ?
     ORDER BY an.timestamp DESC
   `;
