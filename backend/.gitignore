@@ -3,3 +3,5 @@ package.json
 /node_modules
 
 .env
+
+ca.crt

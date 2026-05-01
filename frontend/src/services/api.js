@@ -1,7 +1,9 @@
 const RAW_API_URL = (process.env.EXPO_PUBLIC_API_URL || "").trim();
 const API_BASE = RAW_API_URL.replace(/\/+$/, "");
 const API_ROOT = API_BASE.endsWith("/api") ? API_BASE : `${API_BASE}/api`;
-const SERVER_ROOT = API_BASE.endsWith("/api") ? API_BASE.slice(0, -4) : API_BASE;
+const SERVER_ROOT = API_BASE.endsWith("/api")
+  ? API_BASE.slice(0, -4)
+  : API_BASE;
 
 async function safeParseResponse(response) {
   const contentType = response.headers.get("content-type") || "";
@@ -31,14 +33,12 @@ export async function registerUser(fullName, email, password) {
     return await safeParseResponse(response);
   } catch (error) {
     return { error: "Network error. Cannot connect to server." };
-    
   }
 }
 
 export async function loginUser(email, password) {
   try {
     const response = await fetch(`${API_ROOT}/login`, {
-
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -50,15 +50,24 @@ export async function loginUser(email, password) {
   }
 }
 
-export async function getSensorReading() {
+export async function getSensorReading(token) {
   try {
-    const response = await fetch(`${SERVER_ROOT}/room-detail/get-latest-readings`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" }
-    });
+
+    const response = await fetch(
+      `${API_ROOT}/room-detail/get-latest-readings`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+
 
     return await safeParseResponse(response);
   } catch (error) {
+    console.error(error);
     return { error: "Network error. Cannot connect to server." };
   }
 }
@@ -72,6 +81,7 @@ export async function getAlerts(token) {
         Authorization: `Bearer ${token}`,
       },
     });
+    
     return await safeParseResponse(response);
   } catch (error) {
     return { error: "Network error. Cannot connect to server." };
