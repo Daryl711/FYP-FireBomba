@@ -21,7 +21,6 @@ client.on("connect", () => {
 
 client.on("message", (topic, message) => {
 
-    console.log("Topic:", topic);
 
     try {
         const data = JSON.parse(message.toString());

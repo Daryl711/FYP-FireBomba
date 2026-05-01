@@ -1,112 +1,112 @@
-CREATE DATABASE IF NOT EXISTS firebomba_db;
+DROP DATABASE firebomba_db;
+
+CREATE DATABASE firebomba_db;
+
 USE firebomba_db;
 
-CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    full_name VARCHAR(100) NOT NULL,
-    email VARCHAR(100) NOT NULL UNIQUE,
+
+
+-- 2. Rooms Table
+-- Associated with Users (1..1 relationship based on the diagram line)
+CREATE TABLE IF NOT EXISTS Rooms (
+    room_id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(50) NOT NULL,
+    status VARCHAR(50),
+    last_update DATETIME
+);
+
+INSERT INTO Rooms (name, status, last_update) VALUES ("Room 1", "Active", NOW())
+
+
+CREATE TABLE IF NOT EXISTS Users(
+    user_id INT PRIMARY KEY AUTO_INCREMENT,
+    room_id INT NOT NULL,
+    email VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    full_name VARCHAR(50) NOT NULL,
+    FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS rooms (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    status VARCHAR(50) DEFAULT 'normal',
-    last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS temperature_sensor (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+-- 3. SensorReadings Table
+CREATE TABLE IF NOT EXISTS SensorReadings (
+    reading_id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,
-    warning_threshold FLOAT NOT NULL DEFAULT 60.0,
-    status VARCHAR(50) DEFAULT 'normal',
-    is_online BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    flame_detected BOOLEAN,
+    temperature FLOAT,
+    humidity FLOAT,
+    smoke FLOAT,
+    co FLOAT,
+    FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS smoke_sensor (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+-- 4. Actuators Table
+CREATE TABLE IF NOT EXISTS Actuators (
+    actuator_id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,
-    warning_threshold FLOAT NOT NULL DEFAULT 300.0,
-    status VARCHAR(50) DEFAULT 'normal',
-    is_online BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    name VARCHAR(50),
+    activated_status BOOLEAN,
+    FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS gas_sensor (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+-- 5. Camera Table
+CREATE TABLE IF NOT EXISTS Camera (
+    camera_id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,
-    warning_threshold FLOAT NOT NULL DEFAULT 500.0,
-    status VARCHAR(50) DEFAULT 'normal',
-    is_online BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
+    stream_url VARCHAR(50),
+    status VARCHAR(50),
+    is_online BOOLEAN,
+    FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS flame_sensor (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    room_id INT NOT NULL,
-    status VARCHAR(50) DEFAULT 'normal',
-    is_online BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS camera (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    room_id INT NOT NULL,
-    stream_url VARCHAR(255),
-    status VARCHAR(50) DEFAULT 'normal',
-    is_online BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS water_pump (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    room_id INT NOT NULL,
-    status VARCHAR(50) DEFAULT 'off',
-    is_online BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
-);
-
--- sensor_type tells which sensor table the sensor_id refers to
-CREATE TABLE IF NOT EXISTS sensor_reading (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    sensor_id INT NOT NULL,
-    sensor_type ENUM('temperature', 'smoke', 'gas') NOT NULL,
-    value FLOAT NOT NULL,
-    unit VARCHAR(20),
-    recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS camera_logs (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+-- 6. CameraLogs Table
+CREATE TABLE IF NOT EXISTS CameraLogs (
+    log_id INT PRIMARY KEY AUTO_INCREMENT,
     camera_id INT NOT NULL,
-    label VARCHAR(100),
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    label VARCHAR(50),
     confidence FLOAT,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (camera_id) REFERENCES camera(id) ON DELETE CASCADE
+    FOREIGN KEY (camera_id) REFERENCES Camera(camera_id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS pump_log (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    pump_id INT NOT NULL,
-    action VARCHAR(50) NOT NULL,
-    triggered_by VARCHAR(100),
-    executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (pump_id) REFERENCES water_pump(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS alert_notification (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    room_id INT,
-    sensor_type VARCHAR(50),
-    type ENUM('warning', 'info', 'success') NOT NULL DEFAULT 'info',
-    description TEXT NOT NULL,
+-- 7. AlertNotification Table
+CREATE TABLE IF NOT EXISTS AlertNotification (
+    alert_id INT PRIMARY KEY AUTO_INCREMENT,
+    room_id INT NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    warning_title VARCHAR(50), -- Example Enum values
     is_read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE SET NULL
+    FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
+);
+
+CREATE TABLE SensorAggregates IF NOT EXISTS (
+
+    aggregate_id INT PRIMARY KEY AUTO_INCREMENT,
+
+    room_id INT NOT NULL,
+
+    window_start DATETIME,
+    window_end DATETIME,
+
+    avg_temperature FLOAT,
+    max_temperature FLOAT,
+
+    avg_humidity FLOAT,
+
+    avg_smoke FLOAT,
+    max_smoke FLOAT,
+
+    avg_co FLOAT,
+    max_co FLOAT,
+
+    flame_trigger_count INT,
+
+    total_readings INT,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (room_id)
+    REFERENCES Rooms(room_id)
+    ON DELETE CASCADE
 );

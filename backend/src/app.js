@@ -14,10 +14,6 @@ app.use('/api', authRoutes);
 app.use('/api/room-detail', roomDetailRoutes);
 app.use('/api/alerts', alertRoutes);
 
-app.use((err, req, res, next) => {
-  console.error("!!! GLOBAL ERROR CAUGHT !!!");
-  console.error(err.stack); // This WILL print to your terminal
-  res.status(500).send('Something broke!');
-});
+
 
 module.exports = app;
