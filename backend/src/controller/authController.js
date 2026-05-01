@@ -15,7 +15,6 @@ exports.signup = async (req, res) => {
     if (doesEmailExist) {
       return res.status(400).json({ error: "Email already registered" });
     }
-
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const userId = await User.addUser(fullName, email, hashedPassword);
@@ -52,7 +51,7 @@ exports.login = async (req, res) => {
       return res.status(401).json({ error: "Incorrect password" });
 
     const token = jwt.sign(
-      { userId: userDetails.userId, email: userDetails.email },
+      { userId: userDetails.userId, email: userDetails.email, roomId: userDetails.roomId },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN },
     );

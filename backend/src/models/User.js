@@ -15,9 +15,9 @@ exports.checkEmail = async (email) => {
 }
 
 exports.addUser = async(fullName, email, hashedPassword) => {
-  const sql = "INSERT INTO Users (full_name, email, password) VALUES (?, ?, ?)";
+  const sql = "INSERT INTO Users (room_id, full_name, email, password) VALUES (?, ?, ?, ?)";
   const [result] = await db.query(
-    sql, [fullName, email, hashedPassword],
+    sql, [1, fullName, email, hashedPassword],
   );
 
   return result.insertId;
@@ -33,12 +33,14 @@ exports.getUserDetails = async (email) => {
   const userId = result[0].user_id;
   const hashedPassword = result[0].password;
   const fullName = result[0].full_name;
-
+  const roomId = result[0].room_id;
+  
   return {
     userId,
     hashedPassword,
     fullName,
     email,
+    roomId
   };
 
 }
