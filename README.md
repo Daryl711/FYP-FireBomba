@@ -1,14 +1,17 @@
 # Fire Detection and Early Warning for Sarawak Longhouse
 
-
-## To run this project, please do the following:
+## To run this project, please do the following instructions:
+```git init```
 
 ```git clone https://github.com/Daryl711/FYP-FireBomba```
 
 Locate to the directory that contains the repository that you have downloaded.
 
-### Frontend:
+#### Reminder:
+please do ```git pull``` everytimes before you start to develop.
 
+
+### Frontend:
 #### Prerequisite: 
 Must download EXPO GO in your phone.
 
@@ -18,7 +21,7 @@ Install dependencies:
 
 ```npm install```
 
-**IMPORTANT:** 
+**❗IMPORTANT:** 
 Please create an .env file that contains the following:
 
 ```EXPO_PUBLIC_API_URL=http://[your_ip_address]:3000```
@@ -26,13 +29,12 @@ Please create an .env file that contains the following:
 The laptop must be in the same network as your phone.
 
 #### To run:
-
 ```npm run start```
 
 Then scan the QR code using EXPO GO that is shown in the terminal.
 
-### Backend:
 
+### Backend:
 #### Prerequiste:
 Must download XAMPP in your laptop.
 
@@ -41,14 +43,15 @@ Must download XAMPP in your laptop.
 2. Open the admin page by using localhost/phpmyadmin
 3. Go to the IMPORT tab, and import the sql file that is contained in backend > sql > database.sql.
 
-Then navigate to your backend using
-```cd backend```.
+Then navigate to your backend using:
+
+```cd backend```
 
 Install dependencies:
 
 ```npm install```
 
-**IMPORTANT:** 
+**❗IMPORTANT:** 
 Please create an .env file that contains the following:
 
 ```JWT_SECRET = [some random string]```
@@ -59,14 +62,10 @@ Then run by using:
 
 ```npm run start```
 
-
 ## Testing:
-
 To test the alert, please run the following command:
 
 ```cd testing```
 
 ```node simulate.js --login [your_registered_email] [your_password]```
-
-
 
