@@ -172,7 +172,6 @@ export default function RoomDetailScreen({ route, navigation }) {
     room?.sensors || {
       temperature: room?.temperature ?? 0,
       smoke: 0,
-      gas: 0,
       flame: false,
       co: 0,
       humidity: 0,
@@ -219,7 +218,7 @@ export default function RoomDetailScreen({ route, navigation }) {
 
   const tempPct = Math.min((sensors.temperature / 60) * 100, 100);
   const smokePct = Math.min(sensors.smoke, 100);
-  const gasPct = Math.min((sensors.gas / 100) * 100, 100);
+  const coPct = Math.min((sensors.co / 100) * 100, 100);
   const humidityPct = Math.min(sensors.humidity ?? 0, 100);
 
   if (!room) {
@@ -340,7 +339,7 @@ export default function RoomDetailScreen({ route, navigation }) {
               label={t("roomDetail.co")}
               value={sensors.co}
               unit="ppm"
-              fillPct={gasPct}
+              fillPct={coPct}
               fillColor={COLORS.amber}
             />
             <View style={[sStyles.card, { justifyContent: "center" }]}>

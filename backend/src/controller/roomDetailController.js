@@ -1,14 +1,26 @@
 const { mqttEvents } = require("../services/mqttService");
+const SensorReading = require("../models/SensorReading");
 
 const roomPattern = /^home\/room-(\d+)\/sensor-data$/;
 
 let latestRoomData = {};
 
-mqttEvents.on("new-reading", ({ topic, data }) => {
+mqttEvents.on("new-reading", async ({ topic, data }) => {
   const match = topic.match(roomPattern);
   if (match) {
     const roomNumber = match[1];
     latestRoomData[roomNumber] = data;
+
+    try {
+      const insertDbData = {
+        ...data,
+        roomId: roomNumber,
+      };
+
+      await SensorReading.insertSensorReading(insertDbData);
+    } catch (error) {
+      console.log(error);
+    }
   }
 });
 
