@@ -1,0 +1,26 @@
+const cron = require("node-cron");
+const db = require("../config/database");
+
+// Every day at midnight
+cron.schedule("0 0 * * *", async () => {
+
+    console.log("Cleaning old raw data...");
+
+    try {
+
+        await db.execute(`
+
+            DELETE FROM SensorReadings
+            WHERE timestamp < NOW() - INTERVAL 7 DAY
+
+        `);
+
+        console.log("Old raw data deleted");
+
+    } catch (err) {
+
+        console.error(err);
+
+    }
+
+});
