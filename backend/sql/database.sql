@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS SensorReadings (
 CREATE TABLE IF NOT EXISTS Actuators (
     actuator_id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
     name VARCHAR(50),
     activated_status BOOLEAN,
     FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE

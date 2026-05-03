@@ -2,7 +2,6 @@ const cron = require("node-cron");
 const db = require("../config/database");
 
 cron.schedule("* * * * *", async () => {
-  console.log("Running aggregation job...");
 
   try {
     const [rows] = await db.execute(`
@@ -78,7 +77,6 @@ cron.schedule("* * * * *", async () => {
       );
     }
 
-    console.log("Aggregation complete");
   } catch (err) {
     console.error(err);
   }

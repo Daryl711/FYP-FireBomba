@@ -4,7 +4,6 @@ const db = require("../config/database");
 // Every day at midnight
 cron.schedule("0 0 * * *", async () => {
 
-    console.log("Cleaning old raw data...");
 
     try {
 
@@ -15,7 +14,6 @@ cron.schedule("0 0 * * *", async () => {
 
         `);
 
-        console.log("Old raw data deleted");
 
     } catch (err) {
 

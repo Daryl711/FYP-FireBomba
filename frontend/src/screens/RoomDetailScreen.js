@@ -13,7 +13,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
 import SensorChart from "../../components/SensorChart";
-import { getSensorReading } from "../services/api";
+import {
+  getSensorReading,
+  getPumpStatus,
+  controlWaterPumpStatus,
+} from "../services/api";
 
 function SensorCard({ icon, label, value, unit, fillPct, fillColor }) {
   return (
@@ -91,7 +95,7 @@ const sStyles = StyleSheet.create({
 });
 
 export default function RoomDetailScreen({ route, navigation }) {
-  const { rooms, t, sensorReading } = useApp();
+  const { rooms, t, sensorReading, token } = useApp();
   const { room: initialRoom, roomId } = route?.params || {};
 
   const resolvedRoomId =
@@ -123,7 +127,18 @@ export default function RoomDetailScreen({ route, navigation }) {
     }
   }, [room]);
 
-  
+  useEffect(() => {
+    const fetchPumpStatus = async () => {
+      try {
+        const status = await getPumpStatus(token);
+        console.log(status);
+        setPumpActive(status);
+      } catch (err) {
+        console.error("Failed to fetch pump status:", err);
+      }
+    };
+    fetchPumpStatus();
+  }, [token]);
 
   useEffect(() => {
     Animated.loop(
@@ -193,7 +208,7 @@ export default function RoomDetailScreen({ route, navigation }) {
       second: "2-digit",
     });
 
-  const handlePumpToggle = () => {
+  const handlePumpToggle = async () => {
     if (!pumpActive) {
       Alert.alert(
         t("roomDetail.activateTitle"),
@@ -203,7 +218,8 @@ export default function RoomDetailScreen({ route, navigation }) {
           {
             text: t("roomDetail.activate"),
             style: "destructive",
-            onPress: () => {
+            onPress: async () => {
+              await controlWaterPumpStatus(token, 1);
               setPumpActive(true);
               setLastUpdated(new Date());
             },
@@ -211,6 +227,7 @@ export default function RoomDetailScreen({ route, navigation }) {
         ],
       );
     } else {
+      await controlWaterPumpStatus(token, 0);
       setPumpActive(false);
       setLastUpdated(new Date());
     }
