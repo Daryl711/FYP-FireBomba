@@ -7,8 +7,8 @@
 #define TXD2 43
 
 // WiFi Setup
-const char* ssid = "Henry's WiFi";
-const char* password = "szh030405";
+const char* ssid = "";
+const char* password = "";
 
 // Mosquitto Setup
 const char* mqtt_server = "192.168.16.219"; // need to change based on your ip address
