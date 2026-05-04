@@ -4,15 +4,17 @@
 #define LED 13
 #define BUZZER 12
 #define FLAME_PIN 7
-#define DHT_PIN 6
+#define DHT_PIN 4
+#define DHT_TYPE DHT11
 #define MQ2_PIN A0
 #define MQ7_PIN A1
 #define RELAY1_PIN 8
 #define CALIBRATE_BUTTON 11
 
-DHT dht(DHT_PIN, DHT11); // Define DHT version
+DHT dht(DHT_PIN, DHT_TYPE); // Define DHT version 
 
-int flameValue, tempValue, humidValue; // Define integer variable for flame, temp and humid
+int flameValue; // Define integer variable for flame
+float tempValue, humidValue; // Define float variable for temperature and humidity
 float smokePPM, coPPM; // Define float variable for PPM measurement of smoke and CO
 bool flameDetected; // Define boolean variable for flame detected
 
@@ -274,7 +276,7 @@ void displaySensorReadings(bool flame, int temp, int humid, float smoke, float c
 
   Serial.print("Flame:");
   Serial.print(flame);
-  Serial.print(",");
+  Serial.print(", ");
 
   Serial.print("Temp:");
   Serial.print(temp);
