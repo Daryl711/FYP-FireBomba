@@ -132,8 +132,7 @@ bool checkFlame(int flame){
 }
 
 // Function for check whether the thresholds for each sensor be trigger or not
-void checkFireCondition()
-{
+void checkFireCondition(){
   if((flameValue == 0 || smokePPM >= 1000) && tempValue >= 55 || coPPM > 50){
     fireAlarmActive = true;
     waterPumpActive = true;
@@ -331,4 +330,3 @@ void loop() {
   displaySensorReadings(flameDetected, tempValue, humidValue, smokePPM, coPPM);
   handleAlertNotification();
 }
-

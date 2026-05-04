@@ -1,25 +1,37 @@
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <esp_log.h>
 
-// Define RX and TX PIN
+// Setup for Received and Transmit PIN
 #define RXD2 44
 #define TXD2 43
 
 // WiFi Setup
-const char* ssid = "";
-const char* password = "";
+const char* ssid = "YOUR WIFI NAME";
+const char* password = "YOUR WIFI PASSWORD";
 
 // Mosquitto Setup
-const char* mqtt_server = ""; // need to change based on your ip address
-const char* mqtt_user = "";
-const char* mqtt_pass = "";
+const char* mqtt_server = "YOUR MQTT SERVER IP ADDRESS"; // need to change to your ip address of mqtt server
+const char* mqtt_user = "YOUR MQTT USERNAME";
+const char* mqtt_pass = "YOUR MQTT PASSWORD";
+const int   mqtt_port   = 0; // TLS port, change to your mqtt server port
 
-WiFiClient esps3Client;
-PubSubClient client(esps3Client);
+// ================= CA CERTIFICATE =================
+const char* root_ca = R"EOF(
+-----BEGIN CERTIFICATE-----
+PUT YOUR CA CERTIFICATE HERE
+-----END CERTIFICATE-----
+)EOF";
+
+// Secure WiFi client
+WiFiClientSecure esp32s3Client;
+PubSubClient client(esp32s3Client);
 
 void connectMosquittoMQTT(){
   Serial.println("Connecting to MQTT...");
+
+  esp32s3Client.setCACert(root_ca);
   client.setBufferSize(512);
   client.setServer(mqtt_server, 8883);
 
@@ -232,4 +244,3 @@ String getValue(String data, String key) {
 
   return data.substring(start, end);
 }
-
