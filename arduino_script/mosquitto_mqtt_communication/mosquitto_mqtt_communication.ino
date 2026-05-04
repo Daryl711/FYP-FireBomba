@@ -11,9 +11,9 @@ const char* ssid = "";
 const char* password = "";
 
 // Mosquitto Setup
-const char* mqtt_server = "192.168.16.219"; // need to change based on your ip address
-const char* mqtt_user = "room1";
-const char* mqtt_pass = "BombaRoom1";
+const char* mqtt_server = ""; // need to change based on your ip address
+const char* mqtt_user = "";
+const char* mqtt_pass = "";
 
 WiFiClient esps3Client;
 PubSubClient client(esps3Client);
