@@ -1,0 +1,21 @@
+{
+  "model_path": "C:\\Users\\104382553\\Documents\\YOLOv11 1\\runs\\detect\\yolo11_kfold_20260410_124044\\fold2\\weights\\best.pt",
+  "class_names": {
+    "0": "fire",
+    "1": "smoke"
+  },
+  "inference": {
+    "imgsz": 640,
+    "iou": 0.55,
+    "max_det": 100,
+    "min_box_area_ratio": 0.00018
+  },
+  "thresholds": {
+    "fire": 0.08,
+    "smoke": 0.2
+  },
+  "temporal_alert": {
+    "window_size": 8,
+    "min_positive_frames": 3
+  }
+}
