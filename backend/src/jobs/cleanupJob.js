@@ -18,7 +18,7 @@ cron.schedule("0 0 * * *", async () => {
     } catch (err) {
 
         console.error(err);
-
+i
     }
 
 });

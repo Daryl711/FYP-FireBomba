@@ -31,6 +31,7 @@ exports.getAlerts = async (req, res) => {
 
 exports.markAlertRead = async (req, res) => {
   try {
+    console.log("HELLO");
     const { id } = req.params;
     const roomId = req.user.roomId;
     const affected = await Alert.markRead(id, roomId);
@@ -50,7 +51,7 @@ exports.markAllAlertsRead = async (req, res) => {
     return res.status(200).json({ message: "All alerts marked as read" });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ error: "OI" });
   }
 };
 

@@ -131,7 +131,6 @@ export default function RoomDetailScreen({ route, navigation }) {
     const fetchPumpStatus = async () => {
       try {
         const status = await getPumpStatus(token);
-        console.log(status);
         setPumpActive(status);
       } catch (err) {
         console.error("Failed to fetch pump status:", err);

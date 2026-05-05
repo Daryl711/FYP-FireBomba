@@ -359,7 +359,7 @@ const interpolate = (template, params = {}) =>
   );
 
 const mockRooms = [
-  { id: "r1", name: "Lobby", status: "ok", temperature: 27 },
+  { id: "r1", name: "Room 1", status: "ok", temperature: 27 },
   { id: "r2", name: "Server Room", status: "warning", temperature: 46 },
   { id: "r3", name: "Kitchen", status: "ok", temperature: 30 },
   { id: "r4", name: "Warehouse", status: "ok", temperature: 29 },
@@ -465,6 +465,10 @@ export function AppProvider({ children }) {
 
   const markNotificationRead = async (id) => {
     stopAlarm();
+
+    console.log(token);
+
+  
     setNotifications((prev) =>
       prev.map((item) => (item.id === id ? { ...item, unread: false } : item)),
     );
