@@ -1,0 +1,58 @@
+{
+  "best_fold": 2,
+  "best_model": "C:\\Users\\104382553\\Documents\\YOLOv11 1\\runs\\detect\\yolo11_kfold_20260410_124044\\fold2\\weights\\best.pt",
+  "folds": [
+    {
+      "fold": 1,
+      "weight": "C:\\Users\\104382553\\Documents\\YOLOv11 1\\runs\\detect\\yolo11_kfold_20260410_124044\\fold1\\weights\\best.pt",
+      "precision": 0.8462983063574279,
+      "recall": 0.8247041307167705,
+      "f1": 0.8353616889914643,
+      "map50": 0.8596887151104617,
+      "map50_95": 0.5437195260746156
+    },
+    {
+      "fold": 2,
+      "weight": "C:\\Users\\104382553\\Documents\\YOLOv11 1\\runs\\detect\\yolo11_kfold_20260410_124044\\fold2\\weights\\best.pt",
+      "precision": 0.9630549012033307,
+      "recall": 0.9615506748145456,
+      "f1": 0.9623022001749797,
+      "map50": 0.9892264602727239,
+      "map50_95": 0.7743713166598004
+    },
+    {
+      "fold": 3,
+      "weight": "C:\\Users\\104382553\\Documents\\YOLOv11 1\\runs\\detect\\yolo11_kfold_20260410_124044\\fold3\\weights\\best.pt",
+      "precision": 0.9467720143534168,
+      "recall": 0.9630678446202796,
+      "f1": 0.9548504068818929,
+      "map50": 0.9861332067780748,
+      "map50_95": 0.784748089473814
+    },
+    {
+      "fold": 4,
+      "weight": "C:\\Users\\104382553\\Documents\\YOLOv11 1\\runs\\detect\\yolo11_kfold_20260410_124044\\fold4\\weights\\best.pt",
+      "precision": 0.940237399814001,
+      "recall": 0.9681582506497755,
+      "f1": 0.9539935767283864,
+      "map50": 0.9866117432913977,
+      "map50_95": 0.7772888674414045
+    },
+    {
+      "fold": 5,
+      "weight": "C:\\Users\\104382553\\Documents\\YOLOv11 1\\runs\\detect\\yolo11_kfold_20260410_124044\\fold5\\weights\\best.pt",
+      "precision": 0.9645826752131847,
+      "recall": 0.9565134745379877,
+      "f1": 0.9605311283006985,
+      "map50": 0.9900906996407108,
+      "map50_95": 0.7863049169599015
+    }
+  ],
+  "test": {
+    "precision": 0.8563205312757549,
+    "recall": 0.8089657949159057,
+    "f1": 0.831969864150045,
+    "map50": 0.8515766877593416,
+    "map50_95": 0.5312117635123157
+  }
+}
