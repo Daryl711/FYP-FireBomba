@@ -234,6 +234,7 @@ void loop() {
 
 }
 
+// Function for read the sensor values
 String getValue(String data, String key) {
   int start = data.indexOf(key);
   if (start == -1) return "";

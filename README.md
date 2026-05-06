@@ -7,7 +7,7 @@
 
 Locate to the directory that contains the repository that you have downloaded.
 
-#### Reminder:
+### Reminder:
 please do ```git pull``` everytimes before you start to develop.
 
 
