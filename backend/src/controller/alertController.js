@@ -1,5 +1,8 @@
 const Alert = require("../models/Alert");
 const db = require("../config/database");
+const { mqttEvents } = require("../services/mqttService");
+
+const alertPattern = /^home\/room-(\d+)\/alerts$/;
 
 // Thresholds that trigger a warning alert
 const THRESHOLDS = {
@@ -7,6 +10,25 @@ const THRESHOLDS = {
   smoke: 300.0,
   gas: 500.0,
 };
+
+mqttEvents.on("new-reading", async ({ topic, data }) => {
+  const match = topic.match(alertPattern);
+  if (match) {
+    const roomNumber = match[1];
+    latestRoomData[roomNumber] = data;
+
+    try {
+      const insertDbData = {
+        ...data,
+        roomId: roomNumber,
+      };
+
+      await Alert.insertAlert(insertDbData);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+});
 
 exports.getAlerts = async (req, res) => {
   try {
@@ -31,12 +53,12 @@ exports.getAlerts = async (req, res) => {
 
 exports.markAlertRead = async (req, res) => {
   try {
-    console.log("HELLO");
     const { id } = req.params;
     const roomId = req.user.roomId;
     const affected = await Alert.markRead(id, roomId);
 
-    if (affected === 0) return res.status(404).json({ error: "Alert not found" });
+    if (affected === 0)
+      return res.status(404).json({ error: "Alert not found" });
     return res.status(200).json({ message: "Alert marked as read" });
   } catch (error) {
     console.error(error);
@@ -61,7 +83,8 @@ exports.deleteAlert = async (req, res) => {
     const userId = req.user.userId;
     const affected = await Alert.deleteAlert(id, userId);
 
-    if (affected === 0) return res.status(404).json({ error: "Alert not found" });
+    if (affected === 0)
+      return res.status(404).json({ error: "Alert not found" });
     return res.status(200).json({ message: "Alert deleted" });
   } catch (error) {
     console.error(error);
@@ -71,7 +94,9 @@ exports.deleteAlert = async (req, res) => {
 
 exports.listRooms = async (req, res) => {
   try {
-    const [rows] = await db.query("SELECT id, name, user_id, status FROM rooms ORDER BY id");
+    const [rows] = await db.query(
+      "SELECT id, name, user_id, status FROM rooms ORDER BY id",
+    );
     return res.status(200).json(rows);
   } catch (error) {
     console.error(error);
@@ -88,7 +113,7 @@ exports.createRoom = async (req, res) => {
     }
     const [result] = await db.query(
       "INSERT INTO rooms (user_id, name) VALUES (?, ?)",
-      [userId, name.trim()]
+      [userId, name.trim()],
     );
     return res.status(201).json({ roomId: result.insertId, name: name.trim() });
   } catch (error) {
@@ -104,17 +129,25 @@ exports.processSensorReading = async (req, res) => {
     const { roomId, sensorType, value } = req.body;
 
     if (!roomId || !sensorType || value === undefined) {
-      return res.status(400).json({ error: "roomId, sensorType, and value are required" });
+      return res
+        .status(400)
+        .json({ error: "roomId, sensorType, and value are required" });
     }
 
     const validTypes = ["temperature", "smoke", "gas", "flame"];
     if (!validTypes.includes(sensorType)) {
-      return res.status(400).json({ error: `sensorType must be one of: ${validTypes.join(", ")}` });
+      return res
+        .status(400)
+        .json({ error: `sensorType must be one of: ${validTypes.join(", ")}` });
     }
 
     // Find the room owner to attach the alert
-    const [roomRows] = await db.query("SELECT user_id, name FROM rooms WHERE id = ?", [roomId]);
-    if (roomRows.length === 0) return res.status(404).json({ error: "Room not found" });
+    const [roomRows] = await db.query(
+      "SELECT user_id, name FROM rooms WHERE id = ?",
+      [roomId],
+    );
+    if (roomRows.length === 0)
+      return res.status(404).json({ error: "Room not found" });
 
     const { user_id: userId, name: roomName } = roomRows[0];
 
@@ -122,13 +155,34 @@ exports.processSensorReading = async (req, res) => {
 
     if (sensorType === "flame" && value === 1) {
       const desc = `Flame detected in ${roomName}! Immediate action required.`;
-      alertId = await Alert.createAlert(userId, roomId, "flame", "warning", desc);
-    } else if (THRESHOLDS[sensorType] !== undefined && value >= THRESHOLDS[sensorType]) {
+      alertId = await Alert.createAlert(
+        userId,
+        roomId,
+        "flame",
+        "warning",
+        desc,
+      );
+    } else if (
+      THRESHOLDS[sensorType] !== undefined &&
+      value >= THRESHOLDS[sensorType]
+    ) {
       const desc = buildThresholdDesc(sensorType, value, roomName);
-      alertId = await Alert.createAlert(userId, roomId, sensorType, "warning", desc);
+      alertId = await Alert.createAlert(
+        userId,
+        roomId,
+        sensorType,
+        "warning",
+        desc,
+      );
     }
 
-    return res.status(201).json({ message: "Reading received", alertCreated: alertId !== null, alertId });
+    return res
+      .status(201)
+      .json({
+        message: "Reading received",
+        alertCreated: alertId !== null,
+        alertId,
+      });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Server error" });
@@ -150,10 +204,13 @@ function buildThresholdDesc(sensorType, value, roomName) {
 
 function getUnit(sensorType) {
   switch (sensorType) {
-    case "temperature": return "°C";
+    case "temperature":
+      return "°C";
     case "smoke":
-    case "gas": return "ppm";
-    default: return "";
+    case "gas":
+      return "ppm";
+    default:
+      return "";
   }
 }
 

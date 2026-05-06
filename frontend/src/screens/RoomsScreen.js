@@ -12,9 +12,12 @@ import { COLORS, RADIUS, SPACING, SHADOW } from '../../constants/theme';
 import { useApp } from '../context/AppContext';
 
 export default function RoomsScreen({ navigation }) {
-    const { rooms, t } = useApp();
-    const safeCount = rooms.filter((r) => r.status === 'safe').length;
-    const warnCount = rooms.filter((r) => r.status === 'warning').length;
+    const { roomData, t } = useApp();
+    // const safeCount = rooms.filter((r) => r.status === 'safe').length;
+    // const warnCount = rooms.filter((r) => r.status === 'warning').length;
+
+    const safeCount = 1;
+    const warnCount = 2;
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
@@ -26,37 +29,32 @@ export default function RoomsScreen({ navigation }) {
 
             <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={styles.list}>
-                {rooms.map((room) => (
+                
                     <TouchableOpacity
-                    key={room.id}
+                    key={roomData.roomId}
                     style={styles.roomRow}
-                    onPress={() => navigation.navigate('ListRoomDetail', { roomId: room.id, room })}
+                    onPress={() => navigation.navigate('ListRoomDetail', { roomId: roomData.roomId, roomData })}
                     activeOpacity={0.75}
                     >
                     <View style={{ flex: 1 }}>
-                        <Text style={styles.roomName}>{room.name}</Text>
+                        <Text style={styles.roomName}>{roomData.name}</Text>
                         <View style={styles.roomBottom}>
-                        <Text style={styles.roomTemp}>{t('rooms.temperature')}: {room.temperature}°C</Text>
-                        {room.alertCount > 0 && (
-                            <Text style={styles.roomAlert}>
-                            {room.alertCount} {room.alertCount > 1 ? t('rooms.alerts') : t('rooms.alert')}
-                            </Text>
-                        )}
+                        
                         </View>
                     </View>
                     <Ionicons
-                        name={room.status === 'warning' ? 'warning' : 'checkmark-circle'}
+                        name={roomData.status === 'warning' ? 'warning' : 'checkmark-circle'}
                         size={24}
-                        color={room.status === 'warning' ? COLORS.amber : COLORS.green}
+                        color={roomData.status === 'warning' ? COLORS.amber : COLORS.green}
                     />
                     </TouchableOpacity>
-                ))}
+               
                 </View>
 
                 {/* Summary Footer */}
                 <View style={styles.footer}>
                 <View style={styles.footerStat}>
-                    <Text style={[styles.footerVal, { color: COLORS.blue }]}>{rooms.length}</Text>
+                    <Text style={[styles.footerVal, { color: COLORS.blue }]}>1</Text>
                     <Text style={styles.footerLbl}>{t('rooms.totalRooms')}</Text>
                 </View>
                 <View style={styles.footerDivider} />

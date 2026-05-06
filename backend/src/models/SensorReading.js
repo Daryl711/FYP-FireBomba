@@ -44,3 +44,13 @@ exports.insertSensorReading = async (data) => {
   ]);
   return;
 };
+
+exports.getRoomTemperature = async (roomId) => {
+  const sql = "SELECT temperature FROM SensorReadings WHERE room_id = ? ORDER BY timestamp DESC LIMIT 1";
+
+  const [result] = await db.query(sql, [
+    roomId
+  ]);
+  
+  return result[0].temperature;
+};

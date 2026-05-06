@@ -86,8 +86,23 @@ export async function getAlerts(token) {
   }
 }
 
-export async function markAlertRead(id, token) {
+export async function getRoomData(token) {
+  try {
+    const response = await fetch(`${API_ROOT}/home/room-data`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return await safeParseResponse(response);
+  } catch (error) {
+    console.error(error);
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
 
+export async function markAlertRead(id, token) {
   try {
     const response = await fetch(`${API_ROOT}/alerts/${id}/read`, {
       method: "PATCH",
@@ -154,17 +169,14 @@ export async function getPumpStatus(token) {
 
 export async function controlWaterPumpStatus(token, waterPumpStatus) {
   try {
-    const response = await fetch(
-      `${API_ROOT}/room-detail/control-water-pump`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({waterPumpStatus})
+    const response = await fetch(`${API_ROOT}/room-detail/control-water-pump`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
-    );
+      body: JSON.stringify({ waterPumpStatus }),
+    });
 
     return await safeParseResponse(response);
   } catch (error) {

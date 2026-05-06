@@ -14,9 +14,9 @@ import { useNavigation } from "@react-navigation/native";
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const { rooms, notifications, systemStatus, user, realtimeError, t } =
+  const { roomData, notifications, systemStatus, user, realtimeError, t } =
     useApp();
-  const warningRooms = rooms.filter((r) => r.status === "warning");
+
   const parentNavigation = navigation?.getParent?.();
 
   const navigateTo = (route, params) => {
@@ -37,7 +37,7 @@ export default function HomeScreen() {
   const navigateToRoomDetail = (room) => {
     if (!room) return;
 
-    const params = { roomId: String(room.id), room };
+    const params = { roomId: String(room.roomId), room };
 
     navigation.navigate("HomeRoomDetail", params);
   };
@@ -85,7 +85,6 @@ export default function HomeScreen() {
                   {t("home.activeRooms")}
                 </Text>
               </View>
-              <Text style={styles.statCardVal}>{rooms.length}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.statCard}
@@ -100,7 +99,7 @@ export default function HomeScreen() {
                 />
                 <Text style={styles.statCardTitle}> {t("home.warnings")}</Text>
               </View>
-              <Text style={styles.statCardVal}>{warningRooms.length}</Text>
+              <Text style={styles.statCardVal}>2</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -121,19 +120,19 @@ export default function HomeScreen() {
           <View style={styles.statusRow}>
             <View style={styles.statusItem}>
               <Text style={[styles.statusVal, { color: COLORS.blue }]}>
-                📶 {systemStatus.sensorsOnline}
+                {systemStatus.sensorsOnline}
               </Text>
               <Text style={styles.statusLbl}>{t("home.sensorsOnline")}</Text>
             </View>
             <View style={styles.statusItem}>
               <Text style={[styles.statusVal, { color: COLORS.green }]}>
-                ↑ {systemStatus.uptime}%
+                {systemStatus.uptime}%
               </Text>
               <Text style={styles.statusLbl}>{t("home.uptime")}</Text>
             </View>
             <View style={styles.statusItem}>
               <Text style={[styles.statusVal, { color: COLORS.primary }]}>
-                🔥 {systemStatus.fireEvents}
+                {systemStatus.fireEvents}
               </Text>
               <Text style={styles.statusLbl}>{t("home.fireEvents")}</Text>
             </View>
@@ -188,30 +187,26 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <View style={styles.roomGrid}>
-            {rooms.slice(0, 6).map((room) => (
-              <TouchableOpacity
-                key={room.id}
-                style={styles.roomMini}
-                onPress={() => navigateToRoomDetail(room)}
-                activeOpacity={0.75}
-              >
-                <View style={styles.roomMiniTop}>
-                  <Text style={styles.roomMiniName}>{room.name}</Text>
-                  <Ionicons
-                    name={
-                      room.status === "warning" ? "warning" : "checkmark-circle"
-                    }
-                    size={20}
-                    color={
-                      room.status === "warning" ? COLORS.amber : COLORS.green
-                    }
-                  />
-                </View>
-                <Text style={styles.roomMiniTemp}>
-                  {t("home.temp")}: {room.temperature}°C
-                </Text>
-              </TouchableOpacity>
-            ))}
+            <TouchableOpacity
+              key={roomData.roomId}
+              style={styles.roomMini}
+              onPress={() => navigateToRoomDetail(roomData)}
+              activeOpacity={0.75}
+            >
+              <View style={styles.roomMiniTop}>
+                <Text style={styles.roomMiniName}>{roomData.name}</Text>
+                <Ionicons
+                  name={
+                    roomData.status === "warning" ? "warning" : "checkmark-circle"
+                  }
+                  size={20}
+                  color={
+                    roomData.status === "warning" ? COLORS.amber : COLORS.green
+                  }
+                />
+              </View>
+            
+            </TouchableOpacity>
           </View>
         </View>
 

@@ -1,4 +1,5 @@
 import React, {
+  useCallback,
   createContext,
   useContext,
   useEffect,
@@ -6,12 +7,14 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { Audio } from "expo-av";
 import {
   getAlerts,
   markAlertRead as apiMarkAlertRead,
   markAllAlertsRead as apiMarkAllRead,
   getSensorReading as apiGetSensorReading,
+  getRoomData as apiGetRoomData,
 } from "../services/api";
 
 const AppContext = createContext(null);
@@ -358,20 +361,13 @@ const interpolate = (template, params = {}) =>
     template,
   );
 
-const mockRooms = [
-  { id: "r1", name: "Room 1", status: "ok", temperature: 27 },
-  { id: "r2", name: "Server Room", status: "warning", temperature: 46 },
-  { id: "r3", name: "Kitchen", status: "ok", temperature: 30 },
-  { id: "r4", name: "Warehouse", status: "ok", temperature: 29 },
-  { id: "r5", name: "Office A", status: "warning", temperature: 41 },
-];
-
 export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [language, setLanguage] = useState("en");
   const [sensorReading, setSensorReading] = useState({});
   const [notifications, setNotifications] = useState([]);
+  const [roomData, setRoomData] = useState({});
   const alertRef = useRef(null);
   const sensorDataRef = useRef(null);
   const soundRef = useRef(null);
@@ -416,7 +412,6 @@ export function AppProvider({ children }) {
     if (Object.keys(result).length !== 0) {
       setSensorReading(result);
     }
-
   };
 
   // Start polling when the user logs in
@@ -430,6 +425,17 @@ export function AppProvider({ children }) {
       clearInterval(alertRef.current);
       clearInterval(sensorDataRef.current);
     };
+  }, [token]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (token) {
+        const roomData = await apiGetRoomData(token);
+        setRoomData(roomData);
+      }
+    };
+
+    fetchData();
   }, [token]);
 
   // Accepts { userId, fullName, email } from login response + the JWT token
@@ -465,10 +471,6 @@ export function AppProvider({ children }) {
 
   const markNotificationRead = async (id) => {
     stopAlarm();
-
-    console.log(token);
-
-  
     setNotifications((prev) =>
       prev.map((item) => (item.id === id ? { ...item, unread: false } : item)),
     );
@@ -476,9 +478,6 @@ export function AppProvider({ children }) {
   };
 
   const value = useMemo(() => {
-    const warningCount = mockRooms.filter(
-      (room) => room.status === "warning",
-    ).length;
     const unreadCount = notifications.filter((item) => item.unread).length;
     // expose so components can manually refresh (e.g. after pump activation)
     const t = (key, params) => {
@@ -501,7 +500,7 @@ export function AppProvider({ children }) {
       t,
       login,
       logout,
-      rooms: mockRooms,
+      roomData,
       notifications,
       sensorReading,
       unreadCount,
@@ -510,10 +509,10 @@ export function AppProvider({ children }) {
       refreshAlerts: () => token && fetchAlerts(token),
       realtimeError: null,
       systemStatus: {
-        allOperational: warningCount === 0,
+        allOperational: false,
         sensorsOnline: 28,
         uptime: 99.8,
-        fireEvents: warningCount,
+        fireEvents: 2,
       },
     };
   }, [language, notifications, user, token]);

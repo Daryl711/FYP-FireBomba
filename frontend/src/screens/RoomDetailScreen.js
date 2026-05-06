@@ -95,22 +95,10 @@ const sStyles = StyleSheet.create({
 });
 
 export default function RoomDetailScreen({ route, navigation }) {
-  const { rooms, t, sensorReading, token } = useApp();
+  const { roomData, t, sensorReading, token } = useApp();
   const { room: initialRoom, roomId } = route?.params || {};
 
-  const resolvedRoomId =
-    roomId != null
-      ? String(roomId)
-      : initialRoom?.id != null
-        ? String(initialRoom.id)
-        : undefined;
-
-  const room =
-    (resolvedRoomId
-      ? rooms.find((item) => String(item.id) === resolvedRoomId)
-      : undefined) || initialRoom;
-
-  const name = room?.name || "Room";
+  const name = roomData?.name || "Room";
 
   const [sensorLoading, setSensorLoading] = useState(false);
   const [sensorError, setSensorError] = useState(null);
@@ -120,12 +108,6 @@ export default function RoomDetailScreen({ route, navigation }) {
 
   const spinAnim = useRef(new Animated.Value(0)).current;
   const pumpPulse = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    if (!room) {
-      return;
-    }
-  }, [room]);
 
   useEffect(() => {
     const fetchPumpStatus = async () => {
@@ -182,19 +164,19 @@ export default function RoomDetailScreen({ route, navigation }) {
     }
   }, [sensorReading]);
 
-  const sensors = sensorReading ||
-    room?.sensors || {
-      temperature: room?.temperature ?? 0,
-      smoke: 0,
-      flame: false,
-      co: 0,
-      humidity: 0,
-    };
+  const sensors = sensorReading || {
+    temperature: 0,
+    smoke: 0,
+    flame: false,
+    co: 0,
+    humidity: 0,
+  };
 
-  const sensorHistory = Array.isArray(room?.sensorHistory)
-    ? room.sensorHistory
-    : [];
+  // const sensorHistory = Array.isArray(room?.sensorHistory)
+  //   ? room.sensorHistory
+  //   : [];
 
+  const sensorHistory = [];
   const spin = spinAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "360deg"],
@@ -237,7 +219,7 @@ export default function RoomDetailScreen({ route, navigation }) {
   const coPct = Math.min((sensors.co / 100) * 100, 100);
   const humidityPct = Math.min(sensors.humidity ?? 0, 100);
 
-  if (!room) {
+  if (!roomData) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.unavailableWrap}>
@@ -277,7 +259,7 @@ export default function RoomDetailScreen({ route, navigation }) {
             styles.statusDot,
             {
               backgroundColor:
-                room.status === "warning" ? COLORS.amber : COLORS.green,
+                roomData.status === "warning" ? COLORS.amber : COLORS.green,
             },
           ]}
         />

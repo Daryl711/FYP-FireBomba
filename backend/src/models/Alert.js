@@ -12,17 +12,35 @@ exports.getAlertsByRoom = async (roomId) => {
   return rows;
 };
 
-exports.createAlert = async (userId, roomId, sensorType, type, description) => {
+exports.createAlert = async (data) => {
+  const { roomId = null, warningTitle = null } = data || {};
+
+  const titles = Array.isArray(warningTitle)
+    ? warningTitle
+    : warningTitle !== null
+      ? [warningTitle]
+      : [];
+
+  if (titles.length === 0) return [];
+
   const sql = `
-    INSERT INTO alerts (user_id, room_id, sensor_type, type, description)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO AlertNotification (room_id, timestamp, warning_title, is_read)
+    VALUES (?, NOW(), ?, FALSE)
   `;
-  const [result] = await db.query(sql, [userId, roomId, sensorType, type, description]);
-  return result.insertId;
+
+  const insertIds = [];
+
+  for (const title of titles) {
+    const [result] = await db.query(sql, [roomId, title]);
+    insertIds.push(result.insertId);
+  }
+
+  return insertIds; 
 };
 
 exports.markRead = async (id, roomId) => {
-  const sql = "UPDATE AlertNotification SET is_read = TRUE WHERE alert_id = ? AND room_id = ?";
+  const sql =
+    "UPDATE AlertNotification SET is_read = TRUE WHERE alert_id = ? AND room_id = ?";
   const [result] = await db.query(sql, [id, roomId]);
   return result.affectedRows;
 };
