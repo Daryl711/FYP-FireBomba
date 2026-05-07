@@ -15,7 +15,6 @@ mqttEvents.on("new-reading", async ({ topic, data }) => {
   const match = topic.match(alertPattern);
   if (match) {
     const roomNumber = match[1];
-    latestRoomData[roomNumber] = data;
 
     try {
       const insertDbData = {
