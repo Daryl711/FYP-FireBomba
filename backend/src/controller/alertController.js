@@ -15,16 +15,10 @@ mqttEvents.on("new-reading", async ({ topic, data }) => {
   const match = topic.match(alertPattern);
   if (match) {
 
-    console.log("HELLO");
     const roomNumber = match[1];
 
     try {
-      const insertDbData = {
-        ...data,
-        roomId: roomNumber,
-      };
-
-      await Alert.createAlert(insertDbData);
+      await Alert.createAlert(data);
     } catch (error) {
       console.log(error);
     }

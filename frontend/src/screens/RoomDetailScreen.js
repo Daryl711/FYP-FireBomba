@@ -19,6 +19,13 @@ import {
   controlWaterPumpStatus,
 } from "../services/api";
 
+const THRESHOLDS = {
+  temperature: 60,
+  smoke: 1000,
+  co: 50,
+  humidity: 100,
+};
+
 function SensorCard({ icon, label, value, unit, fillPct, fillColor }) {
   return (
     <View style={sStyles.card}>
@@ -214,9 +221,12 @@ export default function RoomDetailScreen({ route, navigation }) {
     }
   };
 
-  const tempPct = Math.min((sensors.temperature / 60) * 100, 100);
-  const smokePct = Math.min(sensors.smoke, 100);
-  const coPct = Math.min((sensors.co / 100) * 100, 100);
+  const tempPct = Math.min(
+    (sensors.temperature / THRESHOLDS.temperature) * 100,
+    100,
+  );
+  const smokePct = Math.min((sensors.smoke / THRESHOLDS.smoke) * 100, 100);
+  const coPct = Math.min((sensors.co / THRESHOLDS.co) * 100, 100);
   const humidityPct = Math.min(sensors.humidity ?? 0, 100);
 
   if (!roomData) {
@@ -325,7 +335,7 @@ export default function RoomDetailScreen({ route, navigation }) {
               icon="cloud-outline"
               label={t("roomDetail.smoke")}
               value={sensors.smoke}
-              unit="%"
+              unit="ppm"
               fillPct={smokePct}
               fillColor={COLORS.blue}
             />

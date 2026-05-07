@@ -14,12 +14,7 @@ mqttEvents.on("new-reading", async ({ topic, data }) => {
     latestRoomData[roomNumber] = data;
 
     try {
-      const insertDbData = {
-        ...data,
-        roomId: roomNumber,
-      };
-
-      await SensorReading.insertSensorReading(insertDbData);
+      await SensorReading.insertSensorReading(data);
     } catch (error) {
       console.log(error);
     }
