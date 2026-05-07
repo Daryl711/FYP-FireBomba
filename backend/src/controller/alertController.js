@@ -14,6 +14,8 @@ const THRESHOLDS = {
 mqttEvents.on("new-reading", async ({ topic, data }) => {
   const match = topic.match(alertPattern);
   if (match) {
+
+    console.log("HELLO");
     const roomNumber = match[1];
 
     try {
@@ -22,7 +24,7 @@ mqttEvents.on("new-reading", async ({ topic, data }) => {
         roomId: roomNumber,
       };
 
-      await Alert.insertAlert(insertDbData);
+      await Alert.createAlert(insertDbData);
     } catch (error) {
       console.log(error);
     }

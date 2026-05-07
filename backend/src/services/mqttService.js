@@ -20,6 +20,7 @@ client.on("connect", () => {
 
 client.on("message", (topic, message) => {
   try {
+    console.log(topic);
     const data = JSON.parse(message.toString());
 
     mqttEvents.emit("new-reading", { topic, data });

@@ -13,29 +13,19 @@ exports.getAlertsByRoom = async (roomId) => {
 };
 
 exports.createAlert = async (data) => {
-  const { roomId = null, warningTitle = null } = data || {};
-
-  const titles = Array.isArray(warningTitle)
-    ? warningTitle
-    : warningTitle !== null
-      ? [warningTitle]
-      : [];
-
-  if (titles.length === 0) return [];
+  const { roomId = null, warning_titles = null } = data || {};
 
   const sql = `
     INSERT INTO AlertNotification (room_id, timestamp, warning_title, is_read)
     VALUES (?, NOW(), ?, FALSE)
   `;
 
-  const insertIds = [];
+  const [result] = await db.query(sql, [roomId, warningTitle]);
 
-  for (const title of titles) {
-    const [result] = await db.query(sql, [roomId, title]);
-    insertIds.push(result.insertId);
-  }
 
-  return insertIds; 
+
+
+  return result.insertId; 
 };
 
 exports.markRead = async (id, roomId) => {
