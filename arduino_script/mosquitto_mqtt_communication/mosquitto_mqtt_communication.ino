@@ -146,7 +146,7 @@ void loop() {
       // Build JSON store sensor readings
       sensorPayload = "{";
       sensorPayload += "\"room_id\":\"1\",";
-      sensorPayload += "\"flame\":\"" + flame + "\",";
+      sensorPayload += "\"flame\":" + flame + ",";
       sensorPayload += "\"temperature\":" + temp + ",";
       sensorPayload += "\"humidity\":" + humid + ",";
       sensorPayload += "\"smoke\":" + smoke + ",";
