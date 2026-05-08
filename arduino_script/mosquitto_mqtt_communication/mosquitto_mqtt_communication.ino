@@ -145,8 +145,8 @@ void loop() {
 
       // Build JSON store sensor readings
       sensorPayload = "{";
-      sensorPayload += "\"room_id\":\"1\",";
-      sensorPayload += "\"flame\":\"" + flame + "\",";
+      sensorPayload += "\"roomId\":\"1\",";
+      sensorPayload += "\"flame\":" + flame + ",";
       sensorPayload += "\"temperature\":" + temp + ",";
       sensorPayload += "\"humidity\":" + humid + ",";
       sensorPayload += "\"smoke\":" + smoke + ",";
@@ -187,8 +187,8 @@ void loop() {
       if (alertList != "")
       {
         alertPayload = "{";
-        alertPayload += "\"room_id\":1,";
-        alertPayload += "\"warning_titles\":[" + alertList + "]";
+        alertPayload += "\"roomId\":1,";
+        alertPayload += "\"warningTitles\":[" + alertList + "]";
         alertPayload += "}";
       } else {
         alertPayload = "";

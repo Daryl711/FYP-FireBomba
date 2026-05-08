@@ -16,7 +16,7 @@ DHT dht(DHT_PIN, DHT_TYPE); // Define DHT version
 int flameValue; // Define integer variable for flame
 float tempValue, humidValue; // Define float variable for temperature and humidity
 float smokePPM, coPPM; // Define float variable for PPM measurement of smoke and CO
-bool flameDetected; // Define boolean variable for flame detected
+int flameDetected; // Define boolean variable for flame detected
 
 #define RL 10.0 // Load resistor on module ≈10k ohm
 
@@ -89,9 +89,18 @@ void calibrateMQSensors()
 
 void handleCalibrate(int buttonRead){
   if(buttonRead == 1){
+
+    // Stop fire alarm and water pump during calibration
+    fireAlarmActive = false;
+    waterPumpActive = false;
+
+    // Turn off buzzer immediately
+    noTone(BUZZER);
+
+    // Optional: Turn off LED
+    digitalWrite(LED, LOW);
+
     calibrateMQSensors();
-  }else{
-    return;
   }
 }
 
@@ -125,11 +134,11 @@ float getCOPPM()
 //   delay(90000);                   // 90 seconds
 // }
 
-bool checkFlame(int flame){
+int checkFlame(int flame){
   if(flame == 1){
-    return false;
+    return 0;
   }else{
-    return true;
+    return 1;
   }
 }
 
@@ -260,7 +269,7 @@ void activeFireAlarm()
 }
 
 // Function for active the water pump system
-void activeWaterPUMP(){
+void activeWaterPump(){
   if(waterPumpActive){
     digitalWrite(RELAY1_PIN, LOW);
   }else{
@@ -327,8 +336,8 @@ void loop() {
 
   handleCalibrate(calibrateButtonRead);
   checkFireCondition(); // Check fire condition to trigger the alarm and water pump
-  // activeFireAlarm();
-  // activeWaterPump();
-  displaySensorReadings(flameDetected, tempValue, humidValue, smokePPM, coPPM);
+  activeFireAlarm();
+  activeWaterPump();
   handleAlertNotification();
+  displaySensorReadings(flameDetected, tempValue, humidValue, smokePPM, coPPM);
 }
