@@ -74,7 +74,7 @@ async function get(path, token) {
 async function listRooms() {
   console.log(`\n${C.bold}Available Rooms${C.reset}  (${BASE_URL}/api/rooms)\n`);
   try {
-    const { status, data } = await get("/api/rooms");
+    const { status, data } = await get("/api/alerts/rooms");
     if (status !== 200 || data.error) {
       console.log(`  ${C.red}Error: ${data.error || status}${C.reset}\n`);
       return;
@@ -115,26 +115,24 @@ async function loginAs(email, password) {
   const token = login.data.token;
   console.log(`${C.green}OK${C.reset}`);
 
-  // 2. Create rooms under this account
-  console.log(`  Creating rooms...`);
-  let firstRoomId = null;
-  for (const name of TEST_ROOMS) {
-    const room = await post("/api/rooms", { name }, token);
-    if (room.status === 201) {
-      if (!firstRoomId) firstRoomId = room.data.roomId;
-      console.log(`    ${C.green}✓${C.reset} "${name}"  (id: ${room.data.roomId})`);
-    } else {
-      console.log(`    ${C.yellow}⚠ "${name}" — ${room.data?.error}${C.reset}`);
-    }
+  // 2. Use the user's existing room (from their JWT roomId) so alerts show up in the app
+  const roomId = login.data.user?.roomId ?? login.data.roomId;
+
+  // Decode roomId from JWT payload if not in response body
+  let targetRoomId = roomId;
+  if (!targetRoomId) {
+    const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64").toString());
+    targetRoomId = payload.roomId;
   }
 
-  if (!firstRoomId) {
-    console.log(`\n  ${C.red}No rooms created. Cannot run scenarios.${C.reset}\n`);
+  if (!targetRoomId) {
+    console.log(`\n  ${C.red}Could not determine your room ID from login response.${C.reset}\n`);
     return;
   }
 
-  console.log(`\n  ${C.bold}Running fire alert scenarios on room id: ${firstRoomId}...${C.reset}\n`);
-  await runScenarios(firstRoomId);
+  console.log(`  Using your assigned room id: ${C.cyan}${targetRoomId}${C.reset}`);
+  console.log(`\n  ${C.bold}Running fire alert scenarios on room id: ${targetRoomId}...${C.reset}\n`);
+  await runScenarios(targetRoomId);
 }
 
 // ─── --seed ───────────────────────────────────────────────────────────────────
@@ -168,7 +166,7 @@ async function seed() {
   console.log(`  Creating rooms...`);
   let firstRoomId = null;
   for (const name of TEST_ROOMS) {
-    const room = await post("/api/rooms", { name }, token);
+    const room = await post("/api/alerts/rooms", { name }, token);
     if (room.status === 201) {
       if (!firstRoomId) firstRoomId = room.data.roomId;
       console.log(`    ${C.green}✓${C.reset} "${name}"  (id: ${room.data.roomId})`);
@@ -193,7 +191,7 @@ async function seed() {
 async function sendReading(roomId, scenario) {
   const body = { roomId, sensorType: scenario.sensorType, value: scenario.value };
   try {
-    const { status, data } = await post("/api/sensor-reading", body);
+    const { status, data } = await post("/api/alerts/sensor-reading", body);
     if (status !== 201) {
       const hint = data.error === "Room not found"
         ? ` ${C.gray}(run --list to see valid room IDs)${C.reset}`

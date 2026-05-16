@@ -95,7 +95,7 @@ exports.deleteAlert = async (req, res) => {
 exports.listRooms = async (req, res) => {
   try {
     const [rows] = await db.query(
-      "SELECT id, name, user_id, status FROM rooms ORDER BY id",
+      "SELECT room_id AS id, name, status FROM Rooms ORDER BY room_id",
     );
     return res.status(200).json(rows);
   } catch (error) {
@@ -106,14 +106,13 @@ exports.listRooms = async (req, res) => {
 
 exports.createRoom = async (req, res) => {
   try {
-    const userId = req.user.userId;
     const { name } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ error: "Room name is required" });
     }
     const [result] = await db.query(
-      "INSERT INTO rooms (user_id, name) VALUES (?, ?)",
-      [userId, name.trim()],
+      "INSERT INTO Rooms (name) VALUES (?)",
+      [name.trim()],
     );
     return res.status(201).json({ roomId: result.insertId, name: name.trim() });
   } catch (error) {
@@ -141,39 +140,28 @@ exports.processSensorReading = async (req, res) => {
         .json({ error: `sensorType must be one of: ${validTypes.join(", ")}` });
     }
 
-    // Find the room owner to attach the alert
     const [roomRows] = await db.query(
-      "SELECT user_id, name FROM rooms WHERE id = ?",
+      "SELECT name FROM Rooms WHERE room_id = ?",
       [roomId],
     );
     if (roomRows.length === 0)
       return res.status(404).json({ error: "Room not found" });
 
-    const { user_id: userId, name: roomName } = roomRows[0];
+    const { name: roomName } = roomRows[0];
 
     let alertId = null;
 
     if (sensorType === "flame" && value === 1) {
       const desc = `Flame detected in ${roomName}! Immediate action required.`;
-      alertId = await Alert.createAlert(
-        userId,
-        roomId,
-        "flame",
-        "warning",
-        desc,
-      );
+      const ids = await Alert.createAlert({ roomId, warningTitle: desc });
+      alertId = ids[0] ?? null;
     } else if (
       THRESHOLDS[sensorType] !== undefined &&
       value >= THRESHOLDS[sensorType]
     ) {
       const desc = buildThresholdDesc(sensorType, value, roomName);
-      alertId = await Alert.createAlert(
-        userId,
-        roomId,
-        sensorType,
-        "warning",
-        desc,
-      );
+      const ids = await Alert.createAlert({ roomId, warningTitle: desc });
+      alertId = ids[0] ?? null;
     }
 
     return res
