@@ -18,6 +18,7 @@ float tempValue, humidValue; // Define float variable for temperature and humidi
 float smokePPM, coPPM; // Define float variable for PPM measurement of smoke and CO
 int flameDetected; // Define boolean variable for flame detected
 
+
 #define RL 10.0 // Load resistor on module ≈10k ohm
 
 float R0_MQ2 = 10;
@@ -27,6 +28,7 @@ bool fireAlarmActive = false;
 bool waterPumpActive = false;
 bool fireAlertSent = false; // prevent alert notification send spam
 bool alertNotificationTrigger = false;
+bool waterPumpPrevActive = false;
 
 unsigned long sirenTimer = 0;
 int sirenFreq = 700;
@@ -275,6 +277,15 @@ void activeWaterPump(){
   }else{
     digitalWrite(RELAY1_PIN, HIGH);
   }
+
+  // Prepare to send to ESP32
+  if (waterPumpActive && !waterPumpPrevActive) {
+    Serial.println("WaterPump:ON");
+  } else if (!waterPumpActive && waterPumpPrevActive) {
+    Serial.println("WaterPump:OFF");
+  }
+
+  waterPumpPrevActive = waterPumpActive;
 }
 
 // Function to display the sensor readings from flame, DHT22, MQ7 and MQ2 sensor

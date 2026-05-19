@@ -3,20 +3,32 @@ const SensorReading = require("../models/SensorReading");
 const Actuator = require("../models/Actuator");
 
 const roomPattern = /^home\/room-(\d+)\/sensor-data$/;
+const waterPumpPattern = /^home\/room-(\d+)\/pump-control$/;
 
 let latestRoomData = {};
 
 mqttEvents.on("new-reading", async ({ topic, data }) => {
-  const match = topic.match(roomPattern);
-  if (match) {
-    const roomNumber = match[1];
+  const matchRoomPattern = topic.match(roomPattern);
+  const matchWaterPumpPattern = topic.match(waterPumpPattern);
+  if (matchRoomPattern) {
+    const roomNumber = matchRoomPattern[1];
 
     latestRoomData[roomNumber] = data;
 
     try {
       await SensorReading.insertSensorReading(data);
     } catch (error) {
-      console.log(error);
+      console.error(error);
+    }
+  } else if (matchWaterPumpPattern) {
+    const roomNumber = matchWaterPumpPattern[1];
+    
+    const waterPumpStatus = data.command;
+
+    const actualWaterPumpStatus = await Actuator.getWaterPumpStatus(roomNumber);
+
+    if (waterPumpStatus !== actualWaterPumpStatus) {
+      await Actuator.updateWaterPumpStatus(waterPumpStatus, roomNumber);
     }
   }
 });

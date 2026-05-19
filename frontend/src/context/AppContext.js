@@ -410,7 +410,6 @@ export function AppProvider({ children }) {
   const fetchSensorData = async (authToken) => {
     const result = await apiGetSensorReading(authToken);
     if (Object.keys(result).length !== 0) {
-      console.log(result);
       setSensorReading(result);
     }
   };

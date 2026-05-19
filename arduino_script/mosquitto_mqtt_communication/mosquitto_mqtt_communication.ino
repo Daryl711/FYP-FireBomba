@@ -136,6 +136,20 @@ void loop() {
       Serial.println("Data from Arduino:");
       Serial.println(serialData);
 
+      if (serialData.startsWith("WaterPump:")) {
+        String pumpState = serialData.substring(10).trim();
+        String pumpPayload = "{\"command\":";
+        pumpPayload += (pumpState == "ON") ? "1" : "0";
+        pumpPayload += "}";
+
+        Serial.println("Publishing water pump command:");
+        Serial.println(pumpPayload);
+        client.publish("home/room-1/water-pump", pumpPayload.c_str());
+
+        serialData = "";
+        continue; // skip sensor/alert parsing for this line
+      }
+
       // Parse sensor values
       String flame  = getValue(serialData, "Flame:");
       String temp   = getValue(serialData, "Temp:");
