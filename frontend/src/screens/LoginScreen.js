@@ -42,7 +42,6 @@ export default function LoginScreen({ navigation }) {
         try {
             // 3. Call your Express Backend API
             const result = await loginUser(email.trim(), password);
-
             // 4. Check for errors from the server (e.g. "Wrong password")
             if (result.error) {
                 Alert.alert(t('login.loginFailed'), result.error);
@@ -57,6 +56,7 @@ export default function LoginScreen({ navigation }) {
             }
         } catch (error) {
             Alert.alert(t('login.errorTitle'), t('login.connectError'));
+            console.error(error);
         } finally {
             // Stop Loading
             setIsLoading(false);
