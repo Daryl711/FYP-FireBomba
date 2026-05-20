@@ -32,9 +32,11 @@
       "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
-   
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
   }
 }

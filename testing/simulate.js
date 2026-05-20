@@ -112,7 +112,7 @@ async function loginAs(email, password) {
     console.log(`${C.red}failed: ${login.data?.error}${C.reset}\n`);
     return;
   }
-  const token = login.data.token;
+  const token = login.data.accessToken;
   console.log(`${C.green}OK${C.reset}`);
 
   // 2. Create rooms under this account
@@ -161,7 +161,7 @@ async function seed() {
     console.log(`${C.red}failed: ${login.data?.error}${C.reset}`);
     return;
   }
-  const token = login.data.token;
+  const token = login.data.accessToken;
   console.log(`${C.green}OK${C.reset}  (token received)`);
 
   // 3. Create rooms
