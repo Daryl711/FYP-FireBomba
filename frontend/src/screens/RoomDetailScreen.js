@@ -106,9 +106,9 @@ const sStyles = StyleSheet.create({
 
 export default function RoomDetailScreen({ route, navigation }) {
   const { roomData, t, sensorReading, token } = useApp();
-  const { room: initialRoom, roomId } = route?.params || {};
+  const { room } = route?.params || {};
 
-  const name = roomData?.name || "Room";
+  const name = room?.name || "Room";
 
   const [sensorLoading, setSensorLoading] = useState(false);
   const [sensorError, setSensorError] = useState(null);

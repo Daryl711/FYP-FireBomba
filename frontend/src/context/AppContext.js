@@ -373,7 +373,7 @@ export function AppProvider({ children }) {
   const [language, setLanguage] = useState("en");
   const [sensorReading, setSensorReading] = useState({});
   const [notifications, setNotifications] = useState([]);
-  const [roomData, setRoomData] = useState({});
+  const [roomData, setRoomData] = useState([]);
   const alertRef = useRef(null);
   const sensorDataRef = useRef(null);
   const soundRef = useRef(null);
@@ -453,8 +453,9 @@ export function AppProvider({ children }) {
   useEffect(() => {
     const fetchData = async () => {
       if (token) {
-        const roomData = await apiGetRoomData();
-        setRoomData(roomData);
+        const fetchedRoomData = await apiGetRoomData();
+        setRoomData([fetchedRoomData]);
+        console.log(roomData);
       }
     };
 

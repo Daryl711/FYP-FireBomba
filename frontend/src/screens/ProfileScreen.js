@@ -118,7 +118,7 @@ export default function ProfileScreen({ navigation }) {
 
           <View style={styles.quickStats}>
             <View style={styles.quickStat}>
-              <Text style={styles.quickStatVal}>1</Text>
+              <Text style={styles.quickStatVal}>{roomData.length}</Text>
               <Text style={styles.quickStatLbl}>{t("profile.rooms")}</Text>
             </View>
             <View style={styles.quickStatDivider} />

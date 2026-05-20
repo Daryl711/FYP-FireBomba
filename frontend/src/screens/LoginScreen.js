@@ -29,6 +29,11 @@ export default function LoginScreen({ navigation }) {
     // Added a loading state so the button can show a spinner while connecting
     const [isLoading, setIsLoading] = useState(false);
 
+
+    const handleForgotPassword = async () => {
+
+    }
+
     const handleLogin = async () => {
         // 1. Validation
         if (!email.trim() || !password.trim()) {
@@ -146,7 +151,7 @@ export default function LoginScreen({ navigation }) {
                                 </View>
                                 <Text style={styles.rememberText}>{t('login.rememberMe')}</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity disabled={isLoading}>
+                            <TouchableOpacity disabled={isLoading} onClick={handleForgotPassword}>
                                 <Text style={styles.forgotText}>{t('login.forgotPassword')}</Text>
                             </TouchableOpacity>
                         </View>

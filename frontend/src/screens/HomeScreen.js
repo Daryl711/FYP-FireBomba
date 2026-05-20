@@ -37,7 +37,7 @@ export default function HomeScreen() {
   const navigateToRoomDetail = (room) => {
     if (!room) return;
 
-    const params = { roomId: String(room.roomId), room };
+    const params = { room };
 
     navigation.navigate("HomeRoomDetail", params);
   };
@@ -85,6 +85,7 @@ export default function HomeScreen() {
                   {t("home.activeRooms")}
                 </Text>
               </View>
+              <Text style={styles.statCardVal}>{roomData.length}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.statCard}
@@ -187,26 +188,31 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <View style={styles.roomGrid}>
-            <TouchableOpacity
-              key={roomData.roomId}
-              style={styles.roomMini}
-              onPress={() => navigateToRoomDetail(roomData)}
-              activeOpacity={0.75}
-            >
-              <View style={styles.roomMiniTop}>
-                <Text style={styles.roomMiniName}>{roomData.name}</Text>
-                <Ionicons
-                  name={
-                    roomData.status === "warning" ? "warning" : "checkmark-circle"
-                  }
-                  size={20}
-                  color={
-                    roomData.status === "warning" ? COLORS.amber : COLORS.green
-                  }
-                />
-              </View>
-            
-            </TouchableOpacity>
+            {roomData.map((room) => {
+              return (
+                <TouchableOpacity
+                  key={room.roomId}
+                  style={styles.roomMini}
+                  onPress={() => navigateToRoomDetail(room)} // 
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.roomMiniTop}>
+                    <Text style={styles.roomMiniName}>{room.name}</Text>
+                    <Ionicons
+                      name={
+                        room.status === "warning"
+                          ? "warning"
+                          : "checkmark-circle"
+                      }
+                      size={20}
+                      color={
+                        room.status === "warning" ? COLORS.amber : COLORS.green
+                      }
+                    />
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
