@@ -14,7 +14,18 @@ import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
 import SensorChart from "../../components/SensorChart";
-import { getSensorReading } from "../services/api";
+import {
+  getSensorReading,
+  getPumpStatus,
+  controlWaterPumpStatus,
+} from "../services/api";
+
+const THRESHOLDS = {
+  temperature: 60,
+  smoke: 1000,
+  co: 50,
+  humidity: 100,
+};
 
 const PI_IP = process.env.EXPO_PUBLIC_RASPBERRY_PI_URL;
 
@@ -94,24 +105,11 @@ const sStyles = StyleSheet.create({
 });
 
 export default function RoomDetailScreen({ route, navigation }) {
-  const { rooms, t } = useApp();
+  const { roomData, t, sensorReading, token } = useApp();
   const { room: initialRoom, roomId } = route?.params || {};
 
-  const resolvedRoomId =
-    roomId != null
-      ? String(roomId)
-      : initialRoom?.id != null
-        ? String(initialRoom.id)
-        : undefined;
+  const name = roomData?.name || "Room";
 
-  const room =
-    (resolvedRoomId
-      ? rooms.find((item) => String(item.id) === resolvedRoomId)
-      : undefined) || initialRoom;
-
-  const name = room?.name || "Room";
-
-  const [sensorData, setSensorData] = useState(null);
   const [sensorLoading, setSensorLoading] = useState(false);
   const [sensorError, setSensorError] = useState(null);
   const [pumpActive, setPumpActive] = useState(false);
@@ -123,29 +121,16 @@ export default function RoomDetailScreen({ route, navigation }) {
   const pumpPulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (!room) {
-      return;
-    }
-
-    const fetchSensorData = async () => {
-      setSensorLoading(true);
-      setSensorError(null);
+    const fetchPumpStatus = async () => {
       try {
-        const data = await getSensorReading();
-        setSensorData(data);
-      } catch (_error) {
-        setSensorError("Could not get sensor data.");
-        Alert.alert("Error", "Could not get sensor data.");
-      } finally {
-        setSensorLoading(false);
+        const status = await getPumpStatus(token);
+        setPumpActive(status);
+      } catch (err) {
+        console.error("Failed to fetch pump status:", err);
       }
     };
-
-    fetchSensorData();
-    const interval = setInterval(fetchSensorData, 5000);
-
-    return () => clearInterval(interval);
-  }, [room]);
+    fetchPumpStatus();
+  }, [token]);
 
   useEffect(() => {
     Animated.loop(
@@ -185,25 +170,24 @@ export default function RoomDetailScreen({ route, navigation }) {
   }, [pumpActive, pumpPulse]);
 
   useEffect(() => {
-    if (sensorData) {
+    if (sensorReading) {
       setLastUpdated(new Date());
     }
-  }, [sensorData]);
+  }, [sensorReading]);
 
-  const sensors = sensorData ||
-    room?.sensors || {
-      temperature: room?.temperature ?? 0,
-      smoke: 0,
-      gas: 0,
-      flame: false,
-      co: 0,
-      humidity: 0,
-    };
+  const sensors = sensorReading || {
+    temperature: 0,
+    smoke: 0,
+    flame: false,
+    co: 0,
+    humidity: 0,
+  };
 
-  const sensorHistory = Array.isArray(room?.sensorHistory)
-    ? room.sensorHistory
-    : [];
+  // const sensorHistory = Array.isArray(room?.sensorHistory)
+  //   ? room.sensorHistory
+  //   : [];
 
+  const sensorHistory = [];
   const spin = spinAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "360deg"],
@@ -216,7 +200,7 @@ export default function RoomDetailScreen({ route, navigation }) {
       second: "2-digit",
     });
 
-  const handlePumpToggle = () => {
+  const handlePumpToggle = async () => {
     if (!pumpActive) {
       Alert.alert(
         t("roomDetail.activateTitle"),
@@ -226,7 +210,8 @@ export default function RoomDetailScreen({ route, navigation }) {
           {
             text: t("roomDetail.activate"),
             style: "destructive",
-            onPress: () => {
+            onPress: async () => {
+              await controlWaterPumpStatus(token, 1);
               setPumpActive(true);
               setLastUpdated(new Date());
             },
@@ -234,17 +219,21 @@ export default function RoomDetailScreen({ route, navigation }) {
         ],
       );
     } else {
+      await controlWaterPumpStatus(token, 0);
       setPumpActive(false);
       setLastUpdated(new Date());
     }
   };
 
-  const tempPct = Math.min((sensors.temperature / 60) * 100, 100);
-  const smokePct = Math.min(sensors.smoke, 100);
-  const gasPct = Math.min((sensors.gas / 100) * 100, 100);
+  const tempPct = Math.min(
+    (sensors.temperature / THRESHOLDS.temperature) * 100,
+    100,
+  );
+  const smokePct = Math.min((sensors.smoke / THRESHOLDS.smoke) * 100, 100);
+  const coPct = Math.min((sensors.co / THRESHOLDS.co) * 100, 100);
   const humidityPct = Math.min(sensors.humidity ?? 0, 100);
 
-  if (!room) {
+  if (!roomData) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.unavailableWrap}>
@@ -284,7 +273,7 @@ export default function RoomDetailScreen({ route, navigation }) {
             styles.statusDot,
             {
               backgroundColor:
-                room.status === "warning" ? COLORS.amber : COLORS.green,
+                roomData.status === "warning" ? COLORS.amber : COLORS.green,
             },
           ]}
         />
@@ -356,7 +345,7 @@ export default function RoomDetailScreen({ route, navigation }) {
               icon="cloud-outline"
               label={t("roomDetail.smoke")}
               value={sensors.smoke}
-              unit="%"
+              unit="ppm"
               fillPct={smokePct}
               fillColor={COLORS.blue}
             />
@@ -365,10 +354,10 @@ export default function RoomDetailScreen({ route, navigation }) {
           <View style={styles.sensorRow}>
             <SensorCard
               icon="flask-outline"
-              label={t("roomDetail.gas")}
-              value={sensors.gas}
+              label={t("roomDetail.co")}
+              value={sensors.co}
               unit="ppm"
-              fillPct={gasPct}
+              fillPct={coPct}
               fillColor={COLORS.amber}
             />
             <View style={[sStyles.card, { justifyContent: "center" }]}>

@@ -73,7 +73,7 @@ function PrefRow({ item, onPress }) {
 }
 
 export default function ProfileScreen({ navigation }) {
-  const { user, logout, unreadCount, rooms, systemStatus, language, setLanguage, t } = useApp();
+  const { user, logout, unreadCount, roomData, systemStatus, language, setLanguage, t } = useApp();
 
   const handleLogout = () => {
     Alert.alert(t("profile.signOutTitle"), t("profile.signOutConfirm"), [
@@ -118,7 +118,7 @@ export default function ProfileScreen({ navigation }) {
 
           <View style={styles.quickStats}>
             <View style={styles.quickStat}>
-              <Text style={styles.quickStatVal}>{rooms.length}</Text>
+              <Text style={styles.quickStatVal}>1</Text>
               <Text style={styles.quickStatLbl}>{t("profile.rooms")}</Text>
             </View>
             <View style={styles.quickStatDivider} />

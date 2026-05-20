@@ -47,9 +47,9 @@ export default function LoginScreen({ navigation }) {
             if (result.error) {
                 Alert.alert(t('login.loginFailed'), result.error);
             } else {
-                // 5. Save user to context so HomeScreen can show the real name
-                login(result.user);
-                
+                // 5. Save user + both tokens to context and SecureStore
+                await login(result.user, result.accessToken, result.refreshToken);
+
                 // 6. Navigate to Home
                 if (navigation?.replace) {
                     navigation.replace('Main');

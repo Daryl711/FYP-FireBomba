@@ -1,175 +1,71 @@
-# Installing an APK via USB (Android Developer Mode)
+# Fire Detection and Early Warning for Sarawak Longhouse
 
-A step-by-step guide to sideloading an APK directly from your computer to an Android device over USB.
+## To run this project, please do the following instructions:
+```git init```
 
----
+```git clone https://github.com/Daryl711/FYP-FireBomba```
 
-## Prerequisites
+Locate to the directory that contains the repository that you have downloaded.
 
-- An Android phone or tablet
-- A USB cable (data cable, not a charge-only cable)
-- A computer running Windows, macOS, or Linux
-- The `.apk` file you want to install
-- ADB (Android Debug Bridge) installed on your computer
+### Reminder:
+please do ```git pull``` everytimes before you start to develop.
 
----
 
-## Step 1 — Install ADB on your computer
+### Frontend:
+#### Prerequisite: 
+Must download EXPO GO in your phone.
 
-### Windows
+```cd frontend```
 
-1. Download the [Android SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools) ZIP from Google.
-2. Extract the ZIP to a folder, e.g. `C:\adb`.
-3. Add that folder to your system PATH:
-   - Search **Environment Variables** in the Start menu.
-   - Under **System variables**, select **Path** → **Edit** → **New**.
-   - Paste `C:\adb` and click OK.
-4. Open **Command Prompt** and verify:
-   ```
-   adb version
-   ```
+Install dependencies:
 
-### macOS
+```npm install```
 
-Using Homebrew:
-```bash
-brew install android-platform-tools
-```
+**❗IMPORTANT:** 
+Please create an .env file that contains the following:
 
-Verify:
-```bash
-adb version
-```
+```EXPO_PUBLIC_API_URL=http://[your_ip_address]:3000```
 
-### Linux (Debian/Ubuntu)
+The laptop must be in the same network as your phone.
 
-```bash
-sudo apt update && sudo apt install adb
-```
+#### To run:
+```npm run start```
 
-Verify:
-```bash
-adb version
-```
+Then scan the QR code using EXPO GO that is shown in the terminal.
 
----
 
-## Step 2 — Enable Developer Mode on your Android device
+### Backend:
+#### Prerequiste:
+Must download XAMPP in your laptop.
 
-> **Note:** The exact menu names vary slightly between manufacturers (Samsung, Pixel, Xiaomi, etc.) but the steps are the same.
+#### Steps to Setup Database in localhost:
+1. Start Apache and MySQL in the XAMPP
+2. Open the admin page by using localhost/phpmyadmin
+3. Go to the IMPORT tab, and import the sql file that is contained in backend > sql > database.sql.
 
-1. Open **Settings**.
-2. Scroll down to **About phone** (sometimes inside **General management**).
-3. Find **Build number**.
-4. Tap **Build number 7 times** in quick succession.
-   - You will see a countdown: *"You are now X steps away from being a developer."*
-   - After the 7th tap: *"You are now a developer!"*
-5. Go back to **Settings** — a new **Developer options** menu has appeared (usually just above **About phone** or inside **System**).
+Then navigate to your backend using:
 
----
+```cd backend```
 
-## Step 3 — Enable USB Debugging
+Install dependencies:
 
-1. Open **Developer options**.
-2. Toggle **Developer options** ON at the top of the screen.
-3. Find **USB debugging** and toggle it ON.
-4. Tap **OK** on the confirmation dialog.
+```npm install```
 
----
+**❗IMPORTANT:** 
+Please create an .env file that contains the following:
 
-## Step 4 — Connect your phone to the computer
+```JWT_SECRET = [some random string]```
 
-1. Plug the USB cable into your phone and computer.
-2. On your phone, pull down the notification shade — tap the **USB** notification.
-3. Change the connection mode from **Charging** to **File Transfer (MTP)**.
-   - On some devices this appears as **USB controlled by: This phone** — switch it to **Connected device**.
-4. Your phone will show a dialog:
+```JWT_EXPIRES_IN = 15m```
 
-   > **Allow USB debugging?**
-   > The computer's RSA key fingerprint is: `XX:XX:XX:...`
+Then run by using:
 
-5. Tap **Allow** (check **Always allow from this computer** to avoid this prompt in future).
+```npm run start```
 
----
+## Testing:
+To test the alert, please run the following command:
 
-## Step 5 — Verify ADB can see your device
+```cd testing```
 
-Open a terminal / command prompt and run:
+```node simulate.js --login [your_registered_email] [your_password]```
 
-```bash
-adb devices
-```
-
-Expected output:
-
-```
-List of devices attached
-XXXXXXXXXXXXXXXX    device
-```
-
-If you see `unauthorized` instead of `device`, unplug and replug the cable, then accept the USB debugging prompt on the phone again.
-
-If no device appears, try a different USB port or cable.
-
----
-
-## Step 6 — Install the APK
-
-Run the following command in the frontend folder:
-
-```bash
-npx expo run:android --device
-```
-
-Choose your phone as the selected device. It will take a while to download.
-
-## Step 7 — Allow installs from unknown sources (if prompted)
-
-When you first open the sideloaded app, Android may block it:
-
-> **"Install blocked — for your security, your phone is not allowed to install unknown apps from this source."**
-
-To allow it:
-
-1. Tap **Settings** in the prompt, or go to **Settings → Apps → Special app access → Install unknown apps**.
-2. Find the app you used to trigger the install (usually **Files** or **Package installer**).
-3. Toggle **Allow from this source** ON.
-4. Go back and open the app again.
-
----
-
-## Troubleshooting
-
-| Problem | Fix |
-|---------|-----|
-| `adb: command not found` | ADB is not in your PATH — revisit Step 1 |
-| `no devices/emulators found` | Accept the USB debugging prompt on the phone; try a different cable |
-| `unauthorized` | Revoke USB debugging authorisations in Developer options and reconnect |
-| `INSTALL_FAILED_VERSION_DOWNGRADE` | Add the `-d` flag to allow downgrade |
-| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | Uninstall the existing version first: `adb uninstall com.your.package` |
-| Device shows as `offline` | Run `adb kill-server && adb start-server`, then reconnect |
-| Windows: device not detected at all | Install the manufacturer's USB driver (Samsung, Xiaomi, etc.) |
-
----
-
-## Uninstalling via ADB
-
-To remove an app by its package name:
-
-```bash
-adb uninstall com.example.yourapp
-```
-
-To find the package name of an installed app:
-
-```bash
-adb shell pm list packages | grep keyword
-```
-
----
-
-## Security note
-
-Disable **USB debugging** after you are done to prevent unauthorised access to your device when plugging into untrusted USB ports.
-
-**Developer options → USB debugging → OFF**
