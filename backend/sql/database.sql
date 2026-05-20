@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS Rooms (
     last_update DATETIME
 );
 
-INSERT INTO Rooms (name, status, last_update) VALUES ("Room 1", "Active", NOW())
+INSERT INTO Rooms (name, status, last_update) VALUES ("Room 1", "Active", NOW());
 
 
 CREATE TABLE IF NOT EXISTS Users(
@@ -80,7 +80,16 @@ CREATE TABLE IF NOT EXISTS AlertNotification (
     FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
 
-CREATE TABLE SensorAggregates IF NOT EXISTS (
+CREATE TABLE IF NOT EXISTS RefreshTokens (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    token VARCHAR(512) NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS SensorAggregates (
 
     aggregate_id INT PRIMARY KEY AUTO_INCREMENT,
 

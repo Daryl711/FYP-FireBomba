@@ -15,6 +15,11 @@ import {
   markAllAlertsRead as apiMarkAllRead,
   getSensorReading as apiGetSensorReading,
   getRoomData as apiGetRoomData,
+  logoutUser,
+  saveTokens,
+  getAccessToken,
+  getRefreshToken,
+  clearTokens,
 } from "../services/api";
 
 const AppContext = createContext(null);
@@ -364,6 +369,7 @@ const interpolate = (template, params = {}) =>
 export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
   const [language, setLanguage] = useState("en");
   const [sensorReading, setSensorReading] = useState({});
   const [notifications, setNotifications] = useState([]);
@@ -372,6 +378,23 @@ export function AppProvider({ children }) {
   const sensorDataRef = useRef(null);
   const soundRef = useRef(null);
   const prevUnreadRef = useRef(0);
+
+  // Restore session from SecureStore on app startup
+  useEffect(() => {
+    const restoreSession = async () => {
+      try {
+        const storedToken = await getAccessToken();
+        if (storedToken) {
+          setToken(storedToken);
+        }
+      } catch {
+        // SecureStore unavailable — start fresh
+      } finally {
+        setAuthReady(true);
+      }
+    };
+    restoreSession();
+  }, []);
 
   // Load alarm sound once on mount
   useEffect(() => {
@@ -393,8 +416,8 @@ export function AppProvider({ children }) {
     };
   }, []);
 
-  const fetchAlerts = async (authToken) => {
-    const result = await getAlerts(authToken);
+  const fetchAlerts = async () => {
+    const result = await getAlerts();
     if (!result.error && Array.isArray(result)) {
       const newUnreadCount = result.filter((a) => a.unread).length;
       if (newUnreadCount > prevUnreadRef.current && soundRef.current) {
@@ -407,8 +430,8 @@ export function AppProvider({ children }) {
     }
   };
 
-  const fetchSensorData = async (authToken) => {
-    const result = await apiGetSensorReading(authToken);
+  const fetchSensorData = async () => {
+    const result = await apiGetSensorReading();
     if (Object.keys(result).length !== 0) {
       setSensorReading(result);
     }
@@ -417,9 +440,9 @@ export function AppProvider({ children }) {
   // Start polling when the user logs in
   useEffect(() => {
     if (token) {
-      fetchAlerts(token);
-      alertRef.current = setInterval(() => fetchAlerts(token), 10000);
-      sensorDataRef.current = setInterval(() => fetchSensorData(token), 5000);
+      fetchAlerts();
+      alertRef.current = setInterval(() => fetchAlerts(), 10000);
+      sensorDataRef.current = setInterval(() => fetchSensorData(), 5000);
     }
     return () => {
       clearInterval(alertRef.current);
@@ -430,7 +453,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     const fetchData = async () => {
       if (token) {
-        const roomData = await apiGetRoomData(token);
+        const roomData = await apiGetRoomData();
         setRoomData(roomData);
       }
     };
@@ -438,20 +461,23 @@ export function AppProvider({ children }) {
     fetchData();
   }, [token]);
 
-  // Accepts { userId, fullName, email } from login response + the JWT token
-  const login = (userData, authToken) => {
+  // Accepts { userId, fullName, email } from login response + both tokens
+  const login = async (userData, accessToken, refreshToken) => {
+    await saveTokens(accessToken, refreshToken);
     setUser({
       id: userData.userId,
       name: userData.fullName,
       email: userData.email,
     });
-    setToken(authToken);
+    setToken(accessToken);
   };
 
   const logout = async () => {
     clearInterval(alertRef.current);
     clearInterval(sensorDataRef.current);
     prevUnreadRef.current = 0;
+    const refreshToken = await getRefreshToken();
+    await logoutUser(refreshToken);
     setUser(null);
     setToken(null);
     setNotifications([]);
@@ -466,7 +492,7 @@ export function AppProvider({ children }) {
     setNotifications((prev) =>
       prev.map((item) => ({ ...item, unread: false })),
     );
-    if (token) await apiMarkAllRead(token);
+    if (token) await apiMarkAllRead();
   };
 
   const markNotificationRead = async (id) => {
@@ -474,7 +500,7 @@ export function AppProvider({ children }) {
     setNotifications((prev) =>
       prev.map((item) => (item.id === id ? { ...item, unread: false } : item)),
     );
-    if (token) await apiMarkAlertRead(id, token);
+    if (token) await apiMarkAlertRead(id);
   };
 
   const value = useMemo(() => {
@@ -495,6 +521,7 @@ export function AppProvider({ children }) {
     return {
       user,
       token,
+      authReady,
       language,
       setLanguage,
       t,
@@ -506,7 +533,7 @@ export function AppProvider({ children }) {
       unreadCount,
       markAllRead,
       markNotificationRead,
-      refreshAlerts: () => token && fetchAlerts(token),
+      refreshAlerts: () => token && fetchAlerts(),
       realtimeError: null,
       systemStatus: {
         allOperational: false,
@@ -515,7 +542,7 @@ export function AppProvider({ children }) {
         fireEvents: 2,
       },
     };
-  }, [language, notifications, user, token]);
+  }, [language, notifications, user, token, authReady]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
