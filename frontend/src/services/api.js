@@ -121,6 +121,7 @@ export async function registerUser(fullName, email, password) {
 
 export async function loginUser(email, password) {
   try {
+    console.log(API_ROOT);
     const response = await fetch(`${API_ROOT}/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
