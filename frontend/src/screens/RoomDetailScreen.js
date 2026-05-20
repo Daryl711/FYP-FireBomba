@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { RTCPeerConnection, RTCView } from "react-native-webrtc";
+import { Video } from "expo-av";
 import {
   View,
   Text,
@@ -121,36 +121,6 @@ export default function RoomDetailScreen({ route, navigation }) {
 
   const spinAnim = useRef(new Animated.Value(0)).current;
   const pumpPulse = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    const pc = new RTCPeerConnection();
-    pc.addTransceiver('video', { direction: 'recvonly' });
-    pc.ontrack = (event) => {
-      setStream(event.streams[0]);
-    };
-
-    async function start() {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      
-      const res = await fetch(`${PI_IP}/mystream/whep`, {
-        method: "POST",
-        headers: { "Content-Type": "application/sdp" },
-        body: offer.sdp,
-      });
-
-
-      const answer = await res.text();
-
-      await pc.setRemoteDescription({
-        type: "answer",
-        sdp: answer,
-      });
-    }
-
-    start();
-  }, []);
 
   useEffect(() => {
     if (!room) {
@@ -322,28 +292,25 @@ export default function RoomDetailScreen({ route, navigation }) {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.cameraBlock}>
-          {stream ? (
-            <RTCView
-              streamURL={stream.toURL()}
-              style={styles.rtcView}
-              objectFit="cover"
-              mirror={false}
-            />
-          ) : (
-            <View style={styles.cameraInner}>
-              <Animated.View
-                style={[styles.spinner, { transform: [{ rotate: spin }] }]}
-              />
-              <Text style={styles.camLabel}>
-                {t("roomDetail.liveCameraFeed")}
-              </Text>
-              <Text style={styles.camRoom}>{name}</Text>
-            </View>
-          )}
+          <Video
+            source={{
+              uri: `http://${PI_IP}/hls/mystream.m3u8`,
+            }}
+            style={styles.rtcView}
+            resizeMode="cover"
+            shouldPlay
+            isLooping={false}
+            useNativeControls={false}
+            progressUpdateIntervalMillis={500}
+            onLoad={() => console.log("VIDEO LOADED")}
+            onError={(e) => console.log("VIDEO ERROR", e)}
+          />
+
           <View style={styles.recBadge}>
             <View style={styles.recDot} />
             <Text style={styles.recText}>REC</Text>
           </View>
+
           <Text style={styles.camTime}>{formatTime(camTime)}</Text>
         </View>
 
