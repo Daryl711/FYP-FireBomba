@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Video } from "expo-av";
 import {
   View,
   Text,
@@ -25,6 +26,8 @@ const THRESHOLDS = {
   co: 50,
   humidity: 100,
 };
+
+const PI_IP = process.env.EXPO_PUBLIC_RASPBERRY_PI_URL;
 
 function SensorCard({ icon, label, value, unit, fillPct, fillColor }) {
   return (
@@ -112,6 +115,7 @@ export default function RoomDetailScreen({ route, navigation }) {
   const [pumpActive, setPumpActive] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [camTime, setCamTime] = useState(new Date());
+  const [stream, setStream] = useState(null);
 
   const spinAnim = useRef(new Animated.Value(0)).current;
   const pumpPulse = useRef(new Animated.Value(1)).current;
@@ -277,19 +281,25 @@ export default function RoomDetailScreen({ route, navigation }) {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.cameraBlock}>
-          <View style={styles.cameraInner}>
-            <Animated.View
-              style={[styles.spinner, { transform: [{ rotate: spin }] }]}
-            />
-            <Text style={styles.camLabel}>
-              {t("roomDetail.liveCameraFeed")}
-            </Text>
-            <Text style={styles.camRoom}>{name}</Text>
-          </View>
+          <Video
+            source={{
+              uri: `http://${PI_IP}/hls/mystream.m3u8`,
+            }}
+            style={styles.rtcView}
+            resizeMode="cover"
+            shouldPlay
+            isLooping={false}
+            useNativeControls={false}
+            progressUpdateIntervalMillis={500}
+            onLoad={() => console.log("VIDEO LOADED")}
+            onError={(e) => console.log("VIDEO ERROR", e)}
+          />
+
           <View style={styles.recBadge}>
             <View style={styles.recDot} />
             <Text style={styles.recText}>REC</Text>
           </View>
+
           <Text style={styles.camTime}>{formatTime(camTime)}</Text>
         </View>
 
@@ -617,6 +627,12 @@ const styles = StyleSheet.create({
   sensorRow: {
     flexDirection: "row",
     gap: SPACING.md,
+  },
+
+  rtcView: {
+    width: "100%",
+    height: "100%",
+    position: "absolute",
   },
   historyCard: {
     backgroundColor: COLORS.white,

@@ -22,7 +22,8 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.jonathanyeo0728.FireBomba"
     },
     "androidNavigationBar": {
       "visible": "immersive"
@@ -32,9 +33,11 @@
       "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
-   
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "plugins": [
+      "@config-plugins/react-native-webrtc"
+    ]
   }
 }
