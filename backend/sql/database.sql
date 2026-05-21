@@ -1,4 +1,4 @@
-DROP DATABASE firebomba_db;
+DROP DATABASE IF EXISTS firebomba_db;
 
 CREATE DATABASE firebomba_db;
 
