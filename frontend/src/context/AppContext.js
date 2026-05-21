@@ -127,12 +127,31 @@ const translations = {
           subtitle: "Update your details",
         },
         email: { title: "Email & Contact", subtitle: "Manage contact info" },
-        security: { title: "Security", subtitle: "Password & 2FA" },
+        security: { title: "Security", subtitle: "Manage security settings" },
       },
       prefItems: {
         notif: { title: "Notifications", subtitle: "Alert preferences" },
         settings: { title: "System Settings", subtitle: "Configure sensors" },
       },
+    },
+    security: {
+      title: "Security Settings",
+      active: "active camera(s)",
+      cameraDetection: "Allow camera detection",
+      disableTitle: "Disable camera detection feature",
+      disableConfirm:
+        "Are you sure you want to disable camera detection feature? You can always turn it back on anytime.",
+      enableTitle: "Enable camera detection feature",
+      enableConfirm:
+        "Are you sure you want to disable camera detection feature? You can always turn it off anytime.",
+      disable: "Disable",
+      enable: "Enable",
+      enableAll: "Enable All",
+      disableAll: "Disable All",
+      disableAllTitle: "Disable camera detection feature for all rooms",
+      noRooms: "No rooms found",
+      cameraActive: "Active",
+      cameraOff: "Deactivated",
     },
     login: {
       title: "Welcome Back",
@@ -405,6 +424,8 @@ export function AppProvider({ children }) {
   const [sensorReading, setSensorReading] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [roomData, setRoomData] = useState([]);
+  const [cameraStates, setCameraStates] = useState({});
+
   const alertRef = useRef(null);
   const sensorDataRef = useRef(null);
   const soundRef = useRef(null);
@@ -486,7 +507,6 @@ export function AppProvider({ children }) {
       if (token) {
         const fetchedRoomData = await apiGetRoomData();
         setRoomData([fetchedRoomData]);
-        console.log(roomData);
       }
     };
 
@@ -560,6 +580,8 @@ export function AppProvider({ children }) {
       login,
       logout,
       roomData,
+      cameraStates,
+      setCameraStates,
       notifications,
       sensorReading,
       unreadCount,

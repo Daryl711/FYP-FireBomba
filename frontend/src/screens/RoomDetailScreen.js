@@ -18,6 +18,7 @@ import {
   getSensorReading,
   getPumpStatus,
   controlWaterPumpStatus,
+  getCameraStatus,
 } from "../services/api";
 
 const THRESHOLDS = {
@@ -37,7 +38,8 @@ function SensorCard({ icon, label, value, unit, fillPct, fillColor }) {
       </View>
       <Text style={sStyles.label}>{label}</Text>
       <Text style={sStyles.value}>
-        {value} {unit ? <Text style={sStyles.unit}>{unit}</Text> : null}
+        {value}
+        {unit ? <Text style={sStyles.unit}> {unit}</Text> : null}
       </Text>
       {fillPct !== undefined && (
         <View style={sStyles.bar}>
@@ -105,7 +107,7 @@ const sStyles = StyleSheet.create({
 });
 
 export default function RoomDetailScreen({ route, navigation }) {
-  const { roomData, t, sensorReading, token } = useApp();
+  const { roomData, t, sensorReading, token, cameraStates } = useApp();
   const { room } = route?.params || {};
 
   const name = room?.name || "Room";
@@ -113,6 +115,7 @@ export default function RoomDetailScreen({ route, navigation }) {
   const [sensorLoading, setSensorLoading] = useState(false);
   const [sensorError, setSensorError] = useState(null);
   const [pumpActive, setPumpActive] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [camTime, setCamTime] = useState(new Date());
   const [stream, setStream] = useState(null);
@@ -131,6 +134,19 @@ export default function RoomDetailScreen({ route, navigation }) {
     };
     fetchPumpStatus();
   }, [token]);
+
+  useEffect(() => {
+    const fetchCameraStatus = async () => {
+      try {
+        const data = await getCameraStatus();
+        setCameraActive(data.cameraStatus);
+      } catch (err) {
+        console.error("Failed to fetch camera status:", err);
+      }
+    };
+
+    fetchCameraStatus();
+  }, [cameraStates]);
 
   useEffect(() => {
     Animated.loop(
@@ -280,30 +296,30 @@ export default function RoomDetailScreen({ route, navigation }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.cameraBlock}>
-          <Video
-            source={{
-              uri: `http://${PI_IP}/hls/mystream.m3u8`,
-            }}
-            style={styles.rtcView}
-            resizeMode="cover"
-            shouldPlay
-            isLooping={false}
-            useNativeControls={false}
-            progressUpdateIntervalMillis={500}
-            onLoad={() => console.log("VIDEO LOADED")}
-            onError={(e) => console.log("VIDEO ERROR", e)}
-          />
-
-          <View style={styles.recBadge}>
-            <View style={styles.recDot} />
-            <Text style={styles.recText}>REC</Text>
+        {cameraActive && (
+          <View style={styles.cameraBlock}>
+            <Video
+              source={{
+                uri: `http://${PI_IP}/hls/mystream.m3u8`,
+              }}
+              style={styles.rtcView}
+              resizeMode="cover"
+              shouldPlay
+              isLooping={false}
+              useNativeControls={false}
+              progressUpdateIntervalMillis={500}
+              onLoad={() => console.log("VIDEO LOADED")}
+              onError={(e) => console.log("VIDEO ERROR", e)}
+            />
+            <View style={styles.recBadge}>
+              <View style={styles.recDot} />
+              <Text style={styles.recText}>REC</Text>
+            </View>
+            <Text style={styles.camTime}>{formatTime(camTime)}</Text>
           </View>
+        )}
 
-          <Text style={styles.camTime}>{formatTime(camTime)}</Text>
-        </View>
-
-        {sensorLoading && !sensorData && (
+        {sensorLoading && (
           <View
             style={{
               paddingHorizontal: SPACING.lg,
@@ -329,7 +345,12 @@ export default function RoomDetailScreen({ route, navigation }) {
           </View>
         )}
 
-        <View style={styles.sensorGrid}>
+        <View
+          style={[
+            styles.sensorGrid,
+            !cameraActive && { marginTop: SPACING.lg },
+          ]}
+        >
           <View style={styles.sensorRow}>
             <SensorCard
               icon="thermometer-outline"
@@ -623,6 +644,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     gap: SPACING.md,
     marginBottom: SPACING.md,
+    marginTop: 0, // default
   },
   sensorRow: {
     flexDirection: "row",
