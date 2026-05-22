@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS Rooms (
     name VARCHAR(50) NOT NULL,
     status VARCHAR(50),
     last_updated DATETIME,
-    camera_enabled BOOLEAN DEFAULT 0,
+    camera_enabled BOOLEAN DEFAULT 0
 );
 
 INSERT INTO Rooms (name, status, last_updated) VALUES ("Room 1", "Active", NOW());

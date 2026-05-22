@@ -5,6 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,6 +18,20 @@ export default function HomeScreen() {
   const { roomData, notifications, systemStatus, user, realtimeError, t } =
     useApp();
 
+  // ── Loading gate ───────────────────────────────────────────────────────────
+  // roomData is null/undefined while the context is still fetching
+  if (!roomData) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>{t("home.loading")}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Navigation helpers ────────────────────────────────────────────────────
   const parentNavigation = navigation?.getParent?.();
 
   const navigateTo = (route, params) => {
@@ -27,22 +42,18 @@ export default function HomeScreen() {
       parentNavigation.navigate(route, params);
       return;
     }
-
     if (navigation?.navigate) {
       navigation.navigate(route, params);
     }
   };
 
-  //Robust room detail navigation (stack-first, then tab fallback)
   const navigateToRoomDetail = (room) => {
     if (!room) return;
-
-    const params = { room };
-
-    navigation.navigate("HomeRoomDetail", params);
+    navigation.navigate("HomeRoomDetail", { room });
   };
 
-  const recentAlerts = notifications.slice(0, 2).map((n) => ({
+  // Safe to access now that roomData is guaranteed to be an array
+  const recentAlerts = (notifications ?? []).slice(0, 2).map((n) => ({
     id: n.id,
     room: n.room,
     warningTitle: n.warningTitle,
@@ -162,7 +173,7 @@ export default function HomeScreen() {
               onPress={() => navigateTo("Notifications")}
               activeOpacity={0.75}
             >
-              <View key={alert.id} style={styles.alertCard}>
+              <View style={styles.alertCard}>
                 <View
                   style={[styles.alertDot, { backgroundColor: alert.color }]}
                 />
@@ -188,31 +199,29 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <View style={styles.roomGrid}>
-            {roomData.map((room) => {
-              return (
-                <TouchableOpacity
-                  key={room.roomId}
-                  style={styles.roomMini}
-                  onPress={() => navigateToRoomDetail(room)} // 
-                  activeOpacity={0.75}
-                >
-                  <View style={styles.roomMiniTop}>
-                    <Text style={styles.roomMiniName}>{room.name}</Text>
-                    <Ionicons
-                      name={
-                        room.status === "warning"
-                          ? "warning"
-                          : "checkmark-circle"
-                      }
-                      size={20}
-                      color={
-                        room.status === "warning" ? COLORS.amber : COLORS.green
-                      }
-                    />
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+            {roomData.map((room) => (
+              <TouchableOpacity
+                key={room.roomId}
+                style={styles.roomMini}
+                onPress={() => navigateToRoomDetail(room)}
+                activeOpacity={0.75}
+              >
+                <View style={styles.roomMiniTop}>
+                  <Text style={styles.roomMiniName}>{room.name}</Text>
+                  <Ionicons
+                    name={
+                      room.status === "warning"
+                        ? "warning"
+                        : "checkmark-circle"
+                    }
+                    size={20}
+                    color={
+                      room.status === "warning" ? COLORS.amber : COLORS.green
+                    }
+                  />
+                </View>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
@@ -227,6 +236,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.bg,
   },
+
+  // ── Loading ──────────────────────────────────────────────────────────────
+  loadingWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.md,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: COLORS.text2,
+    fontWeight: "500",
+  },
+
+  // ── Header ───────────────────────────────────────────────────────────────
   header: {
     backgroundColor: COLORS.primary,
     paddingHorizontal: SPACING.xl,
@@ -284,6 +308,8 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     marginTop: 6,
   },
+
+  // ── Status card ──────────────────────────────────────────────────────────
   statusCard: {
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
@@ -324,6 +350,8 @@ const styles = StyleSheet.create({
     color: COLORS.text2,
     marginTop: 3,
   },
+
+  // ── Error ────────────────────────────────────────────────────────────────
   errorCard: {
     marginHorizontal: SPACING.lg,
     marginBottom: SPACING.lg,
@@ -336,6 +364,8 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 12,
   },
+
+  // ── Sections ─────────────────────────────────────────────────────────────
   section: {
     paddingHorizontal: SPACING.lg,
     marginBottom: SPACING.lg,
@@ -356,6 +386,8 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: "600",
   },
+
+  // ── Alerts ───────────────────────────────────────────────────────────────
   alertCard: {
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
@@ -392,6 +424,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.text2,
   },
+
+  // ── Room grid ────────────────────────────────────────────────────────────
   roomGrid: {
     flexDirection: "row",
     flexWrap: "wrap",

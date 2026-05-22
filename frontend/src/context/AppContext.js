@@ -41,6 +41,7 @@ const translations = {
       welcomeBack: "Welcome Back,",
       activeRooms: "Active Rooms",
       warnings: "Warnings",
+      loading: "Loading...",
       systemStatus: "System Status",
       allOperational: "All Systems Operational",
       warningDetected: "Warning Detected",
@@ -254,6 +255,7 @@ const translations = {
       warningDetected: "Amaran Dikesan",
       sensorsOnline: "Sensor Dalam Talian",
       uptime: "Masa Operasi",
+      loading: "Memuatkan...",
       fireEvents: "Kejadian Kebakaran",
       realtimeUnavailable: "API masa nyata tidak tersedia: {{error}}",
       recentAlerts: "Amaran Terkini",
@@ -424,7 +426,6 @@ export function AppProvider({ children }) {
   const [sensorReading, setSensorReading] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [roomData, setRoomData] = useState([]);
-  const [cameraStates, setCameraStates] = useState({});
 
   const alertRef = useRef(null);
   const sensorDataRef = useRef(null);
@@ -580,8 +581,6 @@ export function AppProvider({ children }) {
       login,
       logout,
       roomData,
-      cameraStates,
-      setCameraStates,
       notifications,
       sensorReading,
       unreadCount,

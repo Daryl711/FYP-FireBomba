@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { LogBox } from "react-native";
 import {
   View,
@@ -17,17 +17,9 @@ import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
 import { updateCameraStatus, getCameraStatus } from "../services/api";
 
-// ── Optimized Room Row (Handles local UI states smoothly) ────────────────────
-function RoomCameraRow({ room, globalEnabled, onToggleSuccess, t }) {
+// ── Animated room row ─────────────────────────────────────────────────────────
+function RoomCameraRow({ room, enabled, onToggle, t }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  // 1. Local state decouples the UI switch from global context lag
-  const [localEnabled, setLocalEnabled] = useState(globalEnabled);
-
-  // Sync with global state only when it completely changes from outside (e.g. initial load)
-  useEffect(() => {
-    setLocalEnabled(globalEnabled);
-  }, [globalEnabled]);
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -45,37 +37,15 @@ function RoomCameraRow({ room, globalEnabled, onToggleSuccess, t }) {
     }).start();
   };
 
-  // 2. Perform optimistic state updates inside your UI action handler
-  const executionToggle = async (targetValue) => {
-    // Instantly flip the UI state locally so it looks perfectly fluid
-    setLocalEnabled(targetValue);
-
-    try {
-      // Execute the database update API call
-      const res = await updateCameraStatus(targetValue);
-
-      if (res && !res.error) {
-        // Update context softly only after successful execution
-        onToggleSuccess(room.roomId, targetValue);
-      } else {
-        throw new Error("API Update failure");
-      }
-    } catch (err) {
-      console.error("Failed to commit camera state update:", err);
-      Alert.alert("Error", "Could not sync status with backend database.");
-      // Rollback local switch visually if database write completely fails
-      setLocalEnabled(!targetValue);
-    }
-  };
-
-  const handleToggle = (value) => {
+  const handleToggle = async (value) => {
     if (!value) {
+      // Warn user before disabling
       Alert.alert(t("security.disableTitle"), t("security.disableConfirm"), [
         { text: t("common.cancel"), style: "cancel" },
         {
           text: t("security.disable"),
           style: "destructive",
-          onPress: () => executionToggle(false),
+          onPress: () => onToggle(room.roomId, false),
         },
       ]);
     } else {
@@ -84,10 +54,12 @@ function RoomCameraRow({ room, globalEnabled, onToggleSuccess, t }) {
         {
           text: t("security.enable"),
           style: "destructive",
-          onPress: () => executionToggle(true),
+          onPress: () => onToggle(room.roomId, true),
         },
       ]);
     }
+
+    await updateCameraStatus(value);
   };
 
   return (
@@ -98,19 +70,21 @@ function RoomCameraRow({ room, globalEnabled, onToggleSuccess, t }) {
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
       >
+        {/* Room icon */}
         <View
           style={[
             styles.roomIcon,
-            { backgroundColor: localEnabled ? COLORS.primaryLight : COLORS.bg },
+            { backgroundColor: enabled ? COLORS.primaryLight : COLORS.bg },
           ]}
         >
           <Ionicons
-            name={localEnabled ? "videocam" : "videocam-off-outline"}
+            name={enabled ? "videocam" : "videocam-off-outline"}
             size={20}
-            color={localEnabled ? COLORS.primary : COLORS.text3}
+            color={enabled ? COLORS.primary : COLORS.text3}
           />
         </View>
 
+        {/* Room info */}
         <View style={styles.roomInfo}>
           <Text style={styles.roomName}>
             {room.name || `Room ${room.roomId}`}
@@ -119,29 +93,26 @@ function RoomCameraRow({ room, globalEnabled, onToggleSuccess, t }) {
             <View
               style={[
                 styles.statusDot,
-                {
-                  backgroundColor: localEnabled ? COLORS.primary : COLORS.text3,
-                },
+                { backgroundColor: enabled ? COLORS.primary : COLORS.text3 },
               ]}
             />
             <Text
               style={[
                 styles.roomStatus,
-                { color: localEnabled ? COLORS.primary : COLORS.text3 },
+                { color: enabled ? COLORS.primary : COLORS.text3 },
               ]}
             >
-              {localEnabled
-                ? t("security.cameraActive")
-                : t("security.cameraOff")}
+              {enabled ? t("security.cameraActive") : t("security.cameraOff")}
             </Text>
           </View>
         </View>
 
+        {/* Toggle */}
         <Switch
-          value={localEnabled}
+          value={enabled}
           onValueChange={handleToggle}
           trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
-          thumbColor={localEnabled ? COLORS.primary : COLORS.white}
+          thumbColor={enabled ? COLORS.primary : COLORS.white}
           ios_backgroundColor={COLORS.border}
         />
       </TouchableOpacity>
@@ -151,36 +122,37 @@ function RoomCameraRow({ room, globalEnabled, onToggleSuccess, t }) {
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function SecurityScreen({ navigation }) {
-  const { roomData, t, cameraStates, setCameraStates } = useApp();
+  const { roomData, t } = useApp();
+
+
+  const [cameraStates, setCameraStates] = useState({});
   const [isLoading, setIsLoading] = useState(true);
 
-  const enabledCount = useMemo(() => {
-    if (!cameraStates) return 0;
-    return Object.values(cameraStates).filter(Boolean).length;
-  }, [cameraStates]);
+  const enabledCount = Object.values(cameraStates || {}).filter(Boolean).length;
 
   useEffect(() => {
     const loadCameraStatuses = async () => {
       try {
         setIsLoading(true);
+
+        // Call your Express backend API endpoint
         const response = await getCameraStatus();
 
         if (response && !response.error) {
           const normalized = {
             [response.roomId]: Boolean(response.cameraStatus),
           };
+
           setCameraStates(normalized);
         } else {
           const fallbackStates = Object.fromEntries(
-            roomData.map((r) => [r.roomId || r.id, true]),
+            roomData.map((r) => [r.id, true]),
           );
           setCameraStates(fallbackStates);
         }
       } catch (error) {
         console.error("Failed to fetch camera status:", error);
-        setCameraStates(
-          Object.fromEntries(roomData.map((r) => [r.roomId || r.id, true])),
-        );
+        setCameraStates(Object.fromEntries(roomData.map((r) => [r.id, true])));
       } finally {
         setIsLoading(false);
       }
@@ -189,8 +161,36 @@ export default function SecurityScreen({ navigation }) {
     loadCameraStatuses();
   }, [roomData]);
 
-  const handleToggleSuccess = (roomId, value) => {
+  const handleToggle = (roomId, value) => {
     setCameraStates((prev) => ({ ...prev, [roomId]: value }));
+  };
+
+  const handleEnableAll = () => {
+    Alert.alert(t("security.enableAllTitle"), t("security.enableConfirm"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("security.enableAll"),
+        style: "destructive",
+        onPress: () => {
+          const allOn = Object.fromEntries(roomData.map((r) => [r.id, true]));
+          setCameraStates(allOn);
+        },
+      },
+    ]);
+  };
+
+  const handleDisableAll = () => {
+    Alert.alert(t("security.disableAllTitle"), t("security.disableConfirm"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("security.disableAll"),
+        style: "destructive",
+        onPress: () => {
+          const allOff = Object.fromEntries(roomData.map((r) => [r.id, false]));
+          setCameraStates(allOff);
+        },
+      },
+    ]);
   };
 
   if (isLoading) {
@@ -223,6 +223,7 @@ export default function SecurityScreen({ navigation }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Camera Detection Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionLabel}>
@@ -232,27 +233,54 @@ export default function SecurityScreen({ navigation }) {
               {enabledCount}/{roomData.length} {t("security.active")}
             </Text>
           </View>
-
-          <View style={styles.card}>
-            {roomData.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="home-outline" size={32} color={COLORS.text3} />
-                <Text style={styles.emptyText}>{t("security.noRooms")}</Text>
-              </View>
-            ) : (
-              roomData.map((room, i) => (
-                <React.Fragment key={room.roomId}>
-                  <RoomCameraRow
-                    room={room}
-                    globalEnabled={!!cameraStates[room.roomId]}
-                    onToggleSuccess={handleToggleSuccess}
-                    t={t}
-                  />
-                  {i < roomData.length - 1 && <View style={styles.divider} />}
-                </React.Fragment>
-              ))
-            )}
-          </View>
+          {roomData.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="home-outline" size={32} color={COLORS.text3} />
+              <Text style={styles.emptyText}>{t("security.noRooms")}</Text>
+            </View>
+          ) : (
+            roomData.map((room, i) => (
+              <React.Fragment key={room.roomId}>
+                <RoomCameraRow
+                  room={room}
+                  enabled={!!cameraStates[room.roomId]}
+                  onToggle={handleToggle}
+                  t={t}
+                />
+                {i < roomData.length - 1 && <View style={styles.divider} />}
+              </React.Fragment>
+            ))
+          )}
+          {/* Bulk actions
+          {roomData.length > 1 && (
+            <View style={styles.bulkActions}>
+              <TouchableOpacity
+                style={styles.bulkBtn}
+                onPress={handleEnableAll}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="videocam" size={14} color={COLORS.primary} />
+                <Text style={styles.bulkBtnText}>
+                  {t("security.enableAll")}
+                </Text>
+              </TouchableOpacity>
+              <View style={styles.bulkDivider} />
+              <TouchableOpacity
+                style={styles.bulkBtn}
+                onPress={handleDisableAll}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="videocam-off-outline"
+                  size={14}
+                  color={COLORS.text2}
+                />
+                <Text style={[styles.bulkBtnText, { color: COLORS.text2 }]}>
+                  {t("security.disableAll")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )} */}
         </View>
 
         <View style={{ height: SPACING.xxl }} />
@@ -266,11 +294,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.bg,
   },
-  centerContent: {
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-  },
+
+  // ── Header ────────────────────────────────────────────────────────────────
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -294,6 +319,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: COLORS.text,
   },
+
+  // ── Section ───────────────────────────────────────────────────────────────
   section: {
     paddingHorizontal: SPACING.lg,
     marginTop: SPACING.lg,
@@ -316,12 +343,16 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: COLORS.primary,
   },
+
+  // ── Card ──────────────────────────────────────────────────────────────────
   card: {
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
     overflow: "hidden",
     ...SHADOW.small,
   },
+
+  // ── Room row ──────────────────────────────────────────────────────────────
   roomRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -364,6 +395,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.border,
     marginLeft: 68,
   },
+
+  // ── Empty state ───────────────────────────────────────────────────────────
   emptyState: {
     alignItems: "center",
     justifyContent: "center",
@@ -373,6 +406,41 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 13,
     color: COLORS.text3,
+  },
+
+  // ── Bulk actions ──────────────────────────────────────────────────────────
+  bulkActions: {
+    flexDirection: "row",
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.lg,
+    marginTop: SPACING.sm,
+    overflow: "hidden",
+    ...SHADOW.small,
+  },
+  bulkBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: SPACING.md,
+  },
+  bulkDivider: {
+    width: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: SPACING.sm,
+  },
+  bulkBtnText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: COLORS.primary,
+  },
+
+  loadingContainer: {
+    paddingVertical: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
   loadingText: {
     fontSize: 13,

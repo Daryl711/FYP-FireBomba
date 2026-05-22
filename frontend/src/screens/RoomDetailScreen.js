@@ -107,7 +107,7 @@ const sStyles = StyleSheet.create({
 });
 
 export default function RoomDetailScreen({ route, navigation }) {
-  const { roomData, t, sensorReading, token, cameraStates } = useApp();
+  const { roomData, t, sensorReading, token } = useApp();
   const { room } = route?.params || {};
 
   const name = room?.name || "Room";
@@ -115,10 +115,10 @@ export default function RoomDetailScreen({ route, navigation }) {
   const [sensorLoading, setSensorLoading] = useState(false);
   const [sensorError, setSensorError] = useState(null);
   const [pumpActive, setPumpActive] = useState(false);
-  const [cameraActive, setCameraActive] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [camTime, setCamTime] = useState(new Date());
   const [stream, setStream] = useState(null);
+  const [cameraActive, setCameraActive] = useState(false);
 
   const spinAnim = useRef(new Animated.Value(0)).current;
   const pumpPulse = useRef(new Animated.Value(1)).current;
@@ -132,10 +132,7 @@ export default function RoomDetailScreen({ route, navigation }) {
         console.error("Failed to fetch pump status:", err);
       }
     };
-    fetchPumpStatus();
-  }, [token]);
 
-  useEffect(() => {
     const fetchCameraStatus = async () => {
       try {
         const data = await getCameraStatus();
@@ -145,8 +142,9 @@ export default function RoomDetailScreen({ route, navigation }) {
       }
     };
 
+    fetchPumpStatus();
     fetchCameraStatus();
-  }, [cameraStates]);
+  }, [token]);
 
   useEffect(() => {
     Animated.loop(
