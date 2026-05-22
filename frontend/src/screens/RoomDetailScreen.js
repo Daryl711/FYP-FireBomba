@@ -58,6 +58,21 @@ function SensorCard({ icon, label, value, unit, fillPct, fillColor }) {
   );
 }
 
+function HistoryStatCard({ icon, label, value, unit, accentColor }) {
+  return (
+    <View style={hStyles.card}>
+      <View style={[hStyles.iconWrap, { backgroundColor: accentColor + "22" }]}>
+        <Ionicons name={icon} size={18} color={accentColor} />
+      </View>
+      <Text style={hStyles.label}>{label}</Text>
+      <Text style={hStyles.value}>
+        {value}
+        {unit ? <Text style={hStyles.unit}> {unit}</Text> : null}
+      </Text>
+    </View>
+  );
+}
+
 const sStyles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.white,
@@ -103,6 +118,42 @@ const sStyles = StyleSheet.create({
   fill: {
     height: "100%",
     borderRadius: 2,
+  },
+});
+
+const hStyles = StyleSheet.create({
+  card: {
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    width: "47.5%",
+    aspectRatio: 1,
+    justifyContent: "space-between",
+    ...SHADOW.small,
+  },
+  iconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  label: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: COLORS.text2,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  value: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: COLORS.text,
+  },
+  unit: {
+    fontSize: 12,
+    fontWeight: "400",
+    color: COLORS.text2,
   },
 });
 
@@ -202,6 +253,46 @@ export default function RoomDetailScreen({ route, navigation }) {
   //   : [];
 
   const sensorHistory = [];
+  const historySummary = {
+    avg_temperature: sensorHistory.at(-1)?.avg_temperature,
+    avg_humidity: sensorHistory.at(-1)?.avg_humidity,
+    avg_smoke: sensorHistory.at(-1)?.avg_smoke,
+    avg_co: sensorHistory.at(-1)?.avg_co,
+  };
+  const historyCards = [
+    {
+      key: "avg_temperature",
+      label: "Avg Temp",
+      value: historySummary.avg_temperature ?? "--",
+      unit: "°C",
+      icon: "thermometer-outline",
+      color: COLORS.green,
+    },
+    {
+      key: "avg_humidity",
+      label: "Avg Humidity",
+      value: historySummary.avg_humidity ?? "--",
+      unit: "%",
+      icon: "water-outline",
+      color: COLORS.blue,
+    },
+    {
+      key: "avg_smoke",
+      label: "Avg Smoke",
+      value: historySummary.avg_smoke ?? "--",
+      unit: "ppm",
+      icon: "cloud-outline",
+      color: COLORS.blue,
+    },
+    {
+      key: "avg_co",
+      label: "Avg CO",
+      value: historySummary.avg_co ?? "--",
+      unit: "ppm",
+      icon: "flask-outline",
+      color: COLORS.amber,
+    },
+  ];
   const spin = spinAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "360deg"],
@@ -427,15 +518,19 @@ export default function RoomDetailScreen({ route, navigation }) {
 
         <View style={styles.historyCard}>
           <Text style={styles.cardTitle}>{t("roomDetail.sensorHistory")}</Text>
-          {sensorHistory.length > 0 ? (
-            <SensorChart data={sensorHistory} />
-          ) : (
-            <View style={styles.chartEmpty}>
-              <Text style={styles.chartEmptyText}>
-                {t("roomDetail.noSensorData")}
-              </Text>
-            </View>
-          )}
+          <View style={styles.historyGrid}>
+            {historyCards.map((item) => (
+              <HistoryStatCard
+                key={item.key}
+                icon={item.icon}
+                label={item.label}
+                value={item.value}
+                unit={item.unit}
+                accentColor={item.color}
+              />
+            ))}
+          </View>
+          {sensorHistory.length > 0 && <SensorChart data={sensorHistory} />}
         </View>
 
         <Animated.View
@@ -661,6 +756,13 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING.lg,
     marginBottom: SPACING.md,
     ...SHADOW.small,
+  },
+  historyGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: SPACING.md,
+    marginBottom: SPACING.md,
   },
   chartEmpty: {
     height: 140,
