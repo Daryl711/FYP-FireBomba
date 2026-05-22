@@ -83,10 +83,15 @@ CREATE TABLE IF NOT EXISTS Actuators (
     actuator_id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,
     last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
-    activated_status BOOLEAN,
+    waterpump_enabled BOOLEAN DEFAULT FALSE,
+    activated_status BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
-
+INSERT INTO Actuators (actuator_id, room_id, last_updated, waterpump_enabled, activated_status)
+VALUES(1, 1, NOW(), FALSE, FALSE),
+      (2, 2, NOW(), TRUE, FALSE),
+      (3, 3, NOW(), TRUE, TRUE);
+      
 -- 5. Camera Table
 CREATE TABLE IF NOT EXISTS Camera (
     camera_id INT PRIMARY KEY AUTO_INCREMENT,
