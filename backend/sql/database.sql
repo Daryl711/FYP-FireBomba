@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS Users(
     password VARCHAR(255) NOT NULL,
     full_name VARCHAR(50) NOT NULL,
     role VARCHAR(20) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
 -- Insert Users Data
@@ -33,7 +34,8 @@ INSERT IGNORE INTO Users (
         email,
         password,
         full_name,
-        role
+        role,
+        created_at
     )
 VALUES (
         1,
@@ -41,7 +43,8 @@ VALUES (
         'admin@gmail.com',
         '$2a$10$Ws5hhCulP8GlpEI3Lwx0M.hbpjfxAJ0EFiVhCGcSRk.V8Ma9M8uTS',
         'Admin User',
-        'Admin'
+        'Admin',
+        NOW()
     ),
     (
         2,
@@ -49,7 +52,8 @@ VALUES (
         'test@gmail.com',
         '$2a$10$fkfQZ9YHaotEPPlZ6jkOc.XaV895.bNAMY2DEDLbVMB8kFa0FXjjm',
         'Test User',
-        'User'
+        'User',
+        NOW()
     ),
     (
         3,
@@ -57,7 +61,8 @@ VALUES (
         'test2@gmail.com',
         '$2a$10$WY6bPepmZ3oPQ2lJcyWs1e4LLJz76yEpJmrsMUwr4BsxJ7LeeTa4m',
         'Test User 2',
-        'User'
+        'User',
+        NOW()
     );
 
 -- 3. SensorReadings Table
