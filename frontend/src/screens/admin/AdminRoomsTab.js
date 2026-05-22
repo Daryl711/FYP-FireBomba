@@ -320,7 +320,7 @@ export default function AdminRoomsTab() {
 				<View style={styles.tableHeader}>
 					<Text style={[styles.headerCell, styles.hRoom]}>Room</Text>
 					<Text style={[styles.headerCell, styles.hStatus]}>Status</Text>
-					<Text style={[styles.headerCell, styles.hAlerts]}>Temperature</Text>
+					<Text style={[styles.headerCell, styles.hAlerts]}>℃</Text>
 					<Text style={[styles.headerCell, styles.hCamera]}>Camera</Text>
 					<Text style={[styles.headerCell, styles.hActions]}>Actions</Text>
 				</View>
