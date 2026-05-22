@@ -184,6 +184,7 @@ export default function RoomDetailScreen({ route, navigation }) {
   const [sensorLoading, setSensorLoading] = useState(false);
   const [sensorError, setSensorError] = useState(null);
   const [sensorHistory, setSensorHistory] = useState([]);
+  const [historyWindowStart, setHistoryWindowStart] = useState(0);
   const [pumpActive, setPumpActive] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [camTime, setCamTime] = useState(new Date());
@@ -274,12 +275,14 @@ export default function RoomDetailScreen({ route, navigation }) {
       setSensorLoading(true);
       setSensorError(null);
 
-      const data = await getSensorAggregates(10);
+      const data = await getSensorAggregates(20);
 
       if (!isMounted) return;
 
       if (Array.isArray(data)) {
-        setSensorHistory(data.slice().reverse());
+        const sorted = data.slice().reverse();
+        setSensorHistory(sorted);
+        setHistoryWindowStart(0);
       } else {
         setSensorHistory([]);
         setSensorError("Failed to load sensor history.");
@@ -289,16 +292,33 @@ export default function RoomDetailScreen({ route, navigation }) {
     };
 
     loadHistory();
-    const interval = setInterval(loadHistory, 60000);
+    const refreshInterval = setInterval(loadHistory, 300000);
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      clearInterval(refreshInterval);
     };
   }, []);
+
+  useEffect(() => {
+    if (sensorHistory.length < 10) return undefined;
+
+    const tick = setInterval(() => {
+      setHistoryWindowStart((prev) => {
+        const maxStart = Math.max(sensorHistory.length - 10, 0);
+        if (maxStart === 0) return 0;
+        return prev + 1 > maxStart ? 0 : prev + 1;
+      });
+    }, 60000);
+
+    return () => clearInterval(tick);
+  }, [sensorHistory]);
   const formatNumber = (value, digits = 1) =>
     Number.isFinite(value) ? Number(value).toFixed(digits) : "--";
-  const displayHistory = sensorHistory.slice(-10);
+  const displayHistory = sensorHistory.slice(
+    historyWindowStart,
+    historyWindowStart + 10,
+  );
   const now = new Date();
   const formatTimeShort = (d) =>
     d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
