@@ -160,6 +160,19 @@ export async function getSensorReading() {
   }
 }
 
+export async function getSensorAggregates(limit = 10) {
+  try {
+    const response = await authFetch(
+      `${API_ROOT}/room-detail/sensor-aggregates?limit=${limit}`,
+    );
+    const data = await safeParseResponse(response);
+    return data.data || [];
+  } catch (error) {
+    console.error(error);
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
 export async function getAlerts() {
   try {
     const response = await authFetch(`${API_ROOT}/alerts`);
