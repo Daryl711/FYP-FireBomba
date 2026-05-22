@@ -13,12 +13,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
-import SensorChart from "../../components/SensorChart";
 import {
   getSensorReading,
   getPumpStatus,
   controlWaterPumpStatus,
   getCameraStatus,
+  getSensorAggregates,
 } from "../services/api";
 
 const THRESHOLDS = {
@@ -58,17 +58,22 @@ function SensorCard({ icon, label, value, unit, fillPct, fillColor }) {
   );
 }
 
-function HistoryStatCard({ icon, label, value, unit, accentColor }) {
+function HistoryStatCard({ label, unit, values }) {
   return (
     <View style={hStyles.card}>
-      <View style={[hStyles.iconWrap, { backgroundColor: accentColor + "22" }]}>
-        <Ionicons name={icon} size={18} color={accentColor} />
-      </View>
       <Text style={hStyles.label}>{label}</Text>
-      <Text style={hStyles.value}>
-        {value}
-        {unit ? <Text style={hStyles.unit}> {unit}</Text> : null}
-      </Text>
+      <View style={hStyles.list}>
+        {values.map((item, idx) => (
+          <View key={`${label}-${idx}`} style={hStyles.listRow}>
+            <Text style={hStyles.listIndex}>{idx + 1}</Text>
+            <Text style={hStyles.listValue}>
+              {item.value}
+              {unit ? <Text style={hStyles.unit}> {unit}</Text> : null}
+            </Text>
+            <Text style={hStyles.listTime}>{item.time}</Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
@@ -127,33 +132,46 @@ const hStyles = StyleSheet.create({
     borderRadius: RADIUS.md,
     padding: SPACING.md,
     width: "47.5%",
-    aspectRatio: 1,
-    justifyContent: "space-between",
+    minHeight: 260,
     ...SHADOW.small,
   },
-  iconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   label: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
     color: COLORS.text2,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  value: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: COLORS.text,
-  },
   unit: {
     fontSize: 12,
     fontWeight: "400",
     color: COLORS.text2,
+  },
+  list: {
+    marginTop: 8,
+    gap: 4,
+  },
+  listRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  listIndex: {
+    width: 18,
+    fontSize: 10,
+    fontWeight: "700",
+    color: COLORS.text3,
+  },
+  listValue: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: "700",
+    color: COLORS.text,
+  },
+  listTime: {
+    fontSize: 9,
+    color: COLORS.text3,
+    marginLeft: 6,
   },
 });
 
@@ -165,6 +183,7 @@ export default function RoomDetailScreen({ route, navigation }) {
 
   const [sensorLoading, setSensorLoading] = useState(false);
   const [sensorError, setSensorError] = useState(null);
+  const [sensorHistory, setSensorHistory] = useState([]);
   const [pumpActive, setPumpActive] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [camTime, setCamTime] = useState(new Date());
@@ -248,51 +267,54 @@ export default function RoomDetailScreen({ route, navigation }) {
     humidity: 0,
   };
 
-  // const sensorHistory = Array.isArray(room?.sensorHistory)
-  //   ? room.sensorHistory
-  //   : [];
+  useEffect(() => {
+    let isMounted = true;
 
-  const sensorHistory = [];
-  const historySummary = {
-    avg_temperature: sensorHistory.at(-1)?.avg_temperature,
-    avg_humidity: sensorHistory.at(-1)?.avg_humidity,
-    avg_smoke: sensorHistory.at(-1)?.avg_smoke,
-    avg_co: sensorHistory.at(-1)?.avg_co,
-  };
-  const historyCards = [
-    {
-      key: "avg_temperature",
-      label: "Avg Temp",
-      value: historySummary.avg_temperature ?? "--",
-      unit: "°C",
-      icon: "thermometer-outline",
-      color: COLORS.green,
-    },
-    {
-      key: "avg_humidity",
-      label: "Avg Humidity",
-      value: historySummary.avg_humidity ?? "--",
-      unit: "%",
-      icon: "water-outline",
-      color: COLORS.blue,
-    },
-    {
-      key: "avg_smoke",
-      label: "Avg Smoke",
-      value: historySummary.avg_smoke ?? "--",
-      unit: "ppm",
-      icon: "cloud-outline",
-      color: COLORS.blue,
-    },
-    {
-      key: "avg_co",
-      label: "Avg CO",
-      value: historySummary.avg_co ?? "--",
-      unit: "ppm",
-      icon: "flask-outline",
-      color: COLORS.amber,
-    },
-  ];
+    const loadHistory = async () => {
+      setSensorLoading(true);
+      setSensorError(null);
+
+      const data = await getSensorAggregates(10);
+
+      if (!isMounted) return;
+
+      if (Array.isArray(data)) {
+        setSensorHistory(data.slice().reverse());
+      } else {
+        setSensorHistory([]);
+        setSensorError("Failed to load sensor history.");
+      }
+
+      setSensorLoading(false);
+    };
+
+    loadHistory();
+    const interval = setInterval(loadHistory, 60000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+  const formatNumber = (value, digits = 1) =>
+    Number.isFinite(value) ? Number(value).toFixed(digits) : "--";
+  const displayHistory = sensorHistory.slice(-10);
+  const now = new Date();
+  const formatTimeShort = (d) =>
+    d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const logTimes = displayHistory.map((_, idx) => {
+    const minutesBack = displayHistory.length - 1 - idx;
+    return formatTimeShort(new Date(now.getTime() - minutesBack * 60000));
+  });
+  const toLogList = (items, key, digits, times) =>
+    items.map((row, idx) => ({
+      value: formatNumber(row[key], digits),
+      time: times[idx] || "--",
+    }));
+  const tempLogs = toLogList(displayHistory, "avg_temperature", 1, logTimes);
+  const humidityLogs = toLogList(displayHistory, "avg_humidity", 1, logTimes);
+  const smokeLogs = toLogList(displayHistory, "avg_smoke", 0, logTimes);
+  const coLogs = toLogList(displayHistory, "avg_co", 0, logTimes);
   const spin = spinAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "360deg"],
@@ -519,18 +541,15 @@ export default function RoomDetailScreen({ route, navigation }) {
         <View style={styles.historyCard}>
           <Text style={styles.cardTitle}>{t("roomDetail.sensorHistory")}</Text>
           <View style={styles.historyGrid}>
-            {historyCards.map((item) => (
-              <HistoryStatCard
-                key={item.key}
-                icon={item.icon}
-                label={item.label}
-                value={item.value}
-                unit={item.unit}
-                accentColor={item.color}
-              />
-            ))}
+            <HistoryStatCard label="AVG TEMP" unit="°C" values={tempLogs} />
+            <HistoryStatCard
+              label="AVG HUMIDITY"
+              unit="%"
+              values={humidityLogs}
+            />
+            <HistoryStatCard label="AVG SMOKE" unit="ppm" values={smokeLogs} />
+            <HistoryStatCard label="AVG CO" unit="ppm" values={coLogs} />
           </View>
-          {sensorHistory.length > 0 && <SensorChart data={sensorHistory} />}
         </View>
 
         <Animated.View
@@ -762,7 +781,6 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "space-between",
     rowGap: SPACING.md,
-    marginBottom: SPACING.md,
   },
   chartEmpty: {
     height: 140,

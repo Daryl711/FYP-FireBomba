@@ -1,6 +1,7 @@
 const { mqttEvents, publishMessage } = require("../services/mqttService");
 const SensorReading = require("../models/SensorReading");
 const Actuator = require("../models/Actuator");
+const SensorAggregate = require("../models/SensorAggregate");
 
 const roomPattern = /^home\/room-(\d+)\/sensor-data$/;
 const waterPumpPattern = /^home\/room-(\d+)\/pump-control$/;
@@ -90,6 +91,20 @@ exports.getWaterPumpStatus = async (req, res) => {
     return res.status(200).json({
       waterPumpStatus,
     });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.getSensorAggregates = async (req, res) => {
+  try {
+    const roomId = req.user.roomId;
+    const limit = Number(req.query.limit) || 10;
+
+    const data = await SensorAggregate.getLatestByRoom(roomId, limit);
+
+    return res.status(200).json({ data });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Server error" });
