@@ -144,6 +144,7 @@ export default function RoomDetailScreen({ route, navigation }) {
 
     fetchPumpStatus();
     fetchCameraStatus();
+
   }, [token]);
 
   useEffect(() => {
@@ -294,7 +295,7 @@ export default function RoomDetailScreen({ route, navigation }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {cameraActive && (
+        {cameraActive === 1 && (
           <View style={styles.cameraBlock}>
             <Video
               source={{
@@ -317,7 +318,7 @@ export default function RoomDetailScreen({ route, navigation }) {
           </View>
         )}
 
-        {sensorLoading && (
+        {sensorLoading === true && (
           <View
             style={{
               paddingHorizontal: SPACING.lg,
@@ -330,7 +331,7 @@ export default function RoomDetailScreen({ route, navigation }) {
           </View>
         )}
 
-        {sensorError && (
+        {sensorError !== null && (
           <View
             style={{
               paddingHorizontal: SPACING.lg,
@@ -346,7 +347,7 @@ export default function RoomDetailScreen({ route, navigation }) {
         <View
           style={[
             styles.sensorGrid,
-            !cameraActive && { marginTop: SPACING.lg },
+            !cameraActive ? { marginTop: SPACING.lg } : null,
           ]}
         >
           <View style={styles.sensorRow}>
