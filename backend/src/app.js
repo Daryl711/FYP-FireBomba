@@ -6,6 +6,7 @@ const authRoutes = require('./routes/auth.routes');
 const roomDetailRoutes = require('./routes/roomDetails.routes');
 const alertRoutes = require('./routes/alerts.routes');
 const homeRoutes = require('./routes/home.routes');
+const settingRoutes = require('./routes/settings.routes');
 
 const app = express();
 app.use(cors());
@@ -15,6 +16,7 @@ app.use('/api', authRoutes);
 app.use('/api/room-detail', roomDetailRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/home', homeRoutes);
+app.use('/api/settings', settingRoutes);
 
 
 

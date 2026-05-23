@@ -41,6 +41,7 @@ const translations = {
       welcomeBack: "Welcome Back,",
       activeRooms: "Active Rooms",
       warnings: "Warnings",
+      loading: "Loading...",
       systemStatus: "System Status",
       allOperational: "All Systems Operational",
       warningDetected: "Warning Detected",
@@ -127,12 +128,31 @@ const translations = {
           subtitle: "Update your details",
         },
         email: { title: "Email & Contact", subtitle: "Manage contact info" },
-        security: { title: "Security", subtitle: "Password & 2FA" },
+        security: { title: "Security", subtitle: "Manage security settings" },
       },
       prefItems: {
         notif: { title: "Notifications", subtitle: "Alert preferences" },
         settings: { title: "System Settings", subtitle: "Configure sensors" },
       },
+    },
+    security: {
+      title: "Security Settings",
+      active: "active camera(s)",
+      cameraDetection: "Allow camera detection",
+      disableTitle: "Disable camera detection feature",
+      disableConfirm:
+        "Are you sure you want to disable camera detection feature? You can always turn it back on anytime.",
+      enableTitle: "Enable camera detection feature",
+      enableConfirm:
+        "Are you sure you want to disable camera detection feature? You can always turn it off anytime.",
+      disable: "Disable",
+      enable: "Enable",
+      enableAll: "Enable All",
+      disableAll: "Disable All",
+      disableAllTitle: "Disable camera detection feature for all rooms",
+      noRooms: "No rooms found",
+      cameraActive: "Active",
+      cameraOff: "Deactivated",
     },
     login: {
       title: "Welcome Back",
@@ -164,9 +184,40 @@ const translations = {
       confirmPassword: "Confirm Password",
       confirmPasswordPlaceholder: "Confirm your password",
       terms: "I agree to the",
-      termsOfService: "Terms of Service",
-      and: "and",
-      privacyPolicy: "Privacy Policy",
+      termsAndService: "Terms of Service and Privacy Policy",
+
+      listOfTermsAndService: [
+        "Welcome to Fire Bomba. By using this application to monitor fire safety devices and systems, you agree to these Terms & Conditions. Fire Bomba is an IoT-based fire monitoring and notification platform designed to assist users in detecting potential fire-related incidents using sensors, video analytics, and machine learning technologies.",
+
+        "1. Purpose & Limitations: This app serves as an auxiliary safety support tool only. It does not replace official emergency response services, professional firefighting systems, fire alarms required by law, or human supervision. Users must always contact emergency services directly during actual emergencies.",
+
+        "2. No Guarantee of Detection: The developers do not guarantee continuous uptime, perfect fire or smoke detection accuracy, immediate notification delivery, or prevention of injury, loss, or property damage. False positives or missed detections may occur due to environmental conditions, hardware limitations, network interruptions, or software errors. Users are responsible for maintaining proper fire safety measures independently of the App.",
+
+        "3. User Responsibilities: Users agree to use the system lawfully and responsibly, maintain their IoT devices, sensors, cameras, and network connections, keep account credentials secure, and ensure authorized installation and testing of connected hardware. Users are solely responsible for any damages caused by improper use, unauthorized modifications, or negligent operation.",
+
+        "4. Hardware Control & Testing: Certain features allow remote activation of connected hardware such as water pumps and alarms. These features should only be used during actual emergencies or authorized testing and maintenance periods. Improper use may result in property damage, equipment malfunction, or unnecessary water discharge.",
+
+        "5. Video Monitoring & Camera Usage: Video streaming and object detection features are optional and may be disabled through the Settings menu. When enabled, video is used solely for fire and smoke detection purposes. Access to video footage is restricted to the room owner or authorized users only — administrators and developers do not intentionally access private footage unless legally required or explicitly authorized. Users are responsible for complying with local privacy and surveillance laws when deploying cameras.",
+
+        "6. Limitation of Liability: To the maximum extent permitted by law, the developers, contributors, and affiliated parties shall not be liable for fire incidents, property damage, personal injury, data loss, service interruptions, notification failures, hardware malfunctions, or any indirect or consequential damages arising from use of the App. Use of the system is entirely at the user's own risk.",
+
+        "7. Changes to the Service: The developers reserve the right to modify or discontinue features, update system functionality, and change these Terms & Conditions at any time without prior notice. Continued use of the App after updates constitutes acceptance of the revised terms.",
+      ],
+
+      listOfPrivacyStatement: [
+        "Fire Bomba values user privacy and is committed to protecting user data and system security. Depending on enabled features, the App may collect sensor readings (temperature, smoke, gas, humidity, flame detection), device identifiers, camera and video streams, alert history and timestamps, and user account information such as email and room ownership data.",
+
+        "1. How Data Is Used: Collected data is used exclusively for fire detection and notification services, real-time monitoring dashboards, system analytics and performance improvements, and device synchronization and alert delivery. Data is not sold to third parties.",
+
+        "2. Video & Camera Privacy: Camera functionality is entirely optional. If enabled, video is processed for object detection and monitoring purposes only, and access is limited to authorized room owners. Video streams are not publicly accessible and administrators are not intended to access private streams. Users may disable video monitoring at any time through the Settings menu.",
+
+        "3. Data Security: Reasonable technical measures are implemented to protect user data, including authentication controls, restricted video access, and secure communication between devices and servers where applicable. However, no system can guarantee complete security against unauthorized access, cyberattacks, or hardware failures.",
+
+        "4. Data Retention & Third-Party Services: Sensor logs, alerts, and video-related data may be retained temporarily for operational purposes, diagnostics, or system improvements. The App may rely on third-party infrastructure including cloud hosting providers, push notification services, networking or streaming frameworks, and machine learning libraries. These services may process limited technical information necessary for system operation.",
+
+        "5. User Rights: Users may disable optional video features, request account deletion where supported, remove connected devices from the system, and stop using the service at any time. For questions, issues, or concerns regarding privacy or system usage, please contact the Fire Bomba development team or your system administrator.",
+      ],
+
       createAccount: "Create Account",
       alreadyHaveAccount: "Already have an account?",
       signIn: "Sign In",
@@ -204,6 +255,7 @@ const translations = {
       warningDetected: "Amaran Dikesan",
       sensorsOnline: "Sensor Dalam Talian",
       uptime: "Masa Operasi",
+      loading: "Memuatkan...",
       fireEvents: "Kejadian Kebakaran",
       realtimeUnavailable: "API masa nyata tidak tersedia: {{error}}",
       recentAlerts: "Amaran Terkini",
@@ -374,6 +426,7 @@ export function AppProvider({ children }) {
   const [sensorReading, setSensorReading] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [roomData, setRoomData] = useState([]);
+
   const alertRef = useRef(null);
   const sensorDataRef = useRef(null);
   const soundRef = useRef(null);
@@ -455,7 +508,6 @@ export function AppProvider({ children }) {
       if (token) {
         const fetchedRoomData = await apiGetRoomData();
         setRoomData([fetchedRoomData]);
-        console.log(roomData);
       }
     };
 

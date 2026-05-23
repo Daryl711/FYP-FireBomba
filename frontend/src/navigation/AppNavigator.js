@@ -13,6 +13,7 @@ import RoomsScreen from "../screens/RoomsScreen";
 import RoomDetailScreen from "../screens/RoomDetailScreen";
 import AlertsScreen from "../screens/AlertsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
+import SecurityScreen from "../screens/SecurityScreen";
 
 import { useApp } from "../context/AppContext";
 import { COLORS } from "../../constants/theme";
@@ -81,7 +82,7 @@ function ProfileStack() {
         name="PersonalInfo"
         component={ProfileScreen}
       />
-      <ProfileStackNav.Screen name="Security" component={ProfileScreen} />
+      <ProfileStackNav.Screen name="Security" component={SecurityScreen} />
       <ProfileStackNav.Screen
         name="NotificationSettings"
         component={ProfileScreen}

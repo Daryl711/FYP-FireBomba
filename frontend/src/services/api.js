@@ -121,7 +121,6 @@ export async function registerUser(fullName, email, password) {
 
 export async function loginUser(email, password) {
   try {
-    console.log(API_ROOT);
     const response = await fetch(`${API_ROOT}/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -151,8 +150,23 @@ export async function logoutUser(refreshToken) {
 
 export async function getSensorReading() {
   try {
-    const response = await authFetch(`${API_ROOT}/room-detail/get-latest-readings`);
+    const response = await authFetch(
+      `${API_ROOT}/room-detail/get-latest-readings`,
+    );
     return await safeParseResponse(response);
+  } catch (error) {
+    console.error(error);
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+export async function getSensorAggregates(limit = 10) {
+  try {
+    const response = await authFetch(
+      `${API_ROOT}/room-detail/sensor-aggregates?limit=${limit}`,
+    );
+    const data = await safeParseResponse(response);
+    return data.data || [];
   } catch (error) {
     console.error(error);
     return { error: "Network error. Cannot connect to server." };
@@ -213,7 +227,9 @@ export async function deleteAlert(id) {
 
 export async function getPumpStatus() {
   try {
-    const response = await authFetch(`${API_ROOT}/room-detail/get-water-pump-status`);
+    const response = await authFetch(
+      `${API_ROOT}/room-detail/get-water-pump-status`,
+    );
     const data = await safeParseResponse(response);
     return data.waterPumpStatus;
   } catch (error) {
@@ -223,10 +239,42 @@ export async function getPumpStatus() {
 
 export async function controlWaterPumpStatus(waterPumpStatus) {
   try {
-    const response = await authFetch(`${API_ROOT}/room-detail/control-water-pump`, {
-      method: "PUT",
-      body: JSON.stringify({ waterPumpStatus }),
-    });
+    const response = await authFetch(
+      `${API_ROOT}/room-detail/control-water-pump`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ waterPumpStatus }),
+      },
+    );
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+export async function updateCameraStatus(cameraStatus) {
+  try {
+    const response = await authFetch(
+      `${API_ROOT}/settings/update-camera-status`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ cameraStatus }),
+      },
+    );
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+export async function getCameraStatus() {
+  try {
+    const response = await authFetch(
+      `${API_ROOT}/settings/get-camera-status`,
+      {
+        method: "GET"
+      },
+    );
     return await safeParseResponse(response);
   } catch (error) {
     return { error: "Network error. Cannot connect to server." };
