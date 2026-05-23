@@ -9,7 +9,6 @@
 #define MQ2_PIN A0
 #define MQ7_PIN A1
 #define RELAY1_PIN 8
-#define CALIBRATE_BUTTON 11
 
 DHT dht(DHT_PIN, DHT_TYPE); // Define DHT version 
 
@@ -87,23 +86,6 @@ void calibrateMQSensors()
 
   Serial.println("SAVE THESE VALUES!!");
   Serial.println("=================================");
-}
-
-void handleCalibrate(int buttonRead){
-  if(buttonRead == 1){
-
-    // Stop fire alarm and water pump during calibration
-    fireAlarmActive = false;
-    waterPumpActive = false;
-
-    // Turn off buzzer immediately
-    noTone(BUZZER);
-
-    // Optional: Turn off LED
-    digitalWrite(LED, LOW);
-
-    calibrateMQSensors();
-  }
 }
 
 // Smoke PPM Measurement Convert
@@ -325,10 +307,12 @@ void setup() {
   pinMode(MQ2_PIN, INPUT);
   pinMode(MQ7_PIN, INPUT);
   pinMode(RELAY1_PIN, OUTPUT);
-  pinMode(CALIBRATE_BUTTON, INPUT);
 
   // Set default relay as off
   digitalWrite(RELAY1_PIN, HIGH); // OFF relay
+
+  // Calibrate the MQ sensors once when the power up
+  calibrateMQSensors();
 }
 
 void loop() {
@@ -342,10 +326,6 @@ void loop() {
   coPPM = getCOPPM();
   flameDetected = checkFlame(flameValue); // Convert flame digital output 1 to false, 0 to true
 
-  // Read digital value of button
-  int calibrateButtonRead = digitalRead(CALIBRATE_BUTTON);
-
-  handleCalibrate(calibrateButtonRead);
   checkFireCondition(); // Check fire condition to trigger the alarm and water pump
   activeFireAlarm();
   activeWaterPump();
