@@ -137,7 +137,8 @@ void loop() {
       Serial.println(serialData);
 
       if (serialData.startsWith("WaterPump:")) {
-        String pumpState = serialData.substring(10).trim();
+        String pumpState = serialData.substring(10);
+        pumpState.trim();
         String pumpPayload = "{\"command\":";
         pumpPayload += (pumpState == "ON") ? "1" : "0";
         pumpPayload += "}";
