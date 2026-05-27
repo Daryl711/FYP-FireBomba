@@ -334,8 +334,8 @@ export default function RoomDetailScreen({ route, navigation }) {
     }));
   const tempLogs = toLogList(displayHistory, "avg_temperature", 1, logTimes);
   const humidityLogs = toLogList(displayHistory, "avg_humidity", 1, logTimes);
-  const smokeLogs = toLogList(displayHistory, "avg_smoke", 0, logTimes);
-  const coLogs = toLogList(displayHistory, "avg_co", 0, logTimes);
+  const smokeLogs = toLogList(displayHistory, "avg_smoke", 2, logTimes);
+  const coLogs = toLogList(displayHistory, "avg_co", 2, logTimes);
   const spin = spinAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "360deg"],
