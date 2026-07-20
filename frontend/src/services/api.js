@@ -225,6 +225,17 @@ export async function deleteAlert(id) {
   }
 }
 
+export async function hideAllAlerts() {
+  try {
+    const response = await authFetch(`${API_ROOT}/alerts/hide-all`, {
+      method: "PATCH",
+    });
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
 export async function getPumpStatus() {
   try {
     const response = await authFetch(
@@ -269,12 +280,9 @@ export async function updateCameraStatus(cameraStatus) {
 
 export async function getCameraStatus() {
   try {
-    const response = await authFetch(
-      `${API_ROOT}/settings/get-camera-status`,
-      {
-        method: "GET"
-      },
-    );
+    const response = await authFetch(`${API_ROOT}/settings/get-camera-status`, {
+      method: "GET",
+    });
     return await safeParseResponse(response);
   } catch (error) {
     return { error: "Network error. Cannot connect to server." };

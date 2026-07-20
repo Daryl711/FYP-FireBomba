@@ -4,7 +4,12 @@ const alertController = require("../controller/alertController");
 const authMiddleware = require("../middleware/auth");
 
 alertRouter.get("/", authMiddleware, alertController.getAlerts);
-alertRouter.patch("/read-all", authMiddleware, alertController.markAllAlertsRead);
+alertRouter.patch(
+  "/read-all",
+  authMiddleware,
+  alertController.markAllAlertsRead,
+);
+alertRouter.patch("/hide-all", authMiddleware, alertController.hideAllAlerts);
 alertRouter.patch("/:id/read", authMiddleware, alertController.markAlertRead);
 alertRouter.delete("/:id", authMiddleware, alertController.deleteAlert);
 

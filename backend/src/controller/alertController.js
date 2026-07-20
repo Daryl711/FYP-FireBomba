@@ -1,4 +1,4 @@
-const Alert = require("../models/Alert");
+const Alert = require("../models/AlertNotification");
 const db = require("../config/database");
 const { mqttEvents } = require("../services/mqttService");
 
@@ -14,7 +14,6 @@ const THRESHOLDS = {
 mqttEvents.on("new-reading", async ({ topic, data }) => {
   const match = topic.match(alertPattern);
   if (match) {
-
     const roomNumber = match[1];
 
     try {
@@ -27,8 +26,8 @@ mqttEvents.on("new-reading", async ({ topic, data }) => {
 
 exports.getAlerts = async (req, res) => {
   try {
-    const roomId = req.user.roomId;
-    const alerts = await Alert.getAlertsByRoom(roomId);
+    const userId = req.user.userId;
+    const alerts = await Alert.getAlertsByUser(userId);
 
     const formatted = alerts.map((a) => ({
       id: a.alert_id,
@@ -49,8 +48,8 @@ exports.getAlerts = async (req, res) => {
 exports.markAlertRead = async (req, res) => {
   try {
     const { id } = req.params;
-    const roomId = req.user.roomId;
-    const affected = await Alert.markRead(id, roomId);
+    const userId = req.user.userId;
+    const affected = await Alert.markRead(id, userId);
 
     if (affected === 0)
       return res.status(404).json({ error: "Alert not found" });
@@ -63,12 +62,12 @@ exports.markAlertRead = async (req, res) => {
 
 exports.markAllAlertsRead = async (req, res) => {
   try {
-    const roomId = req.user.roomId;
-    await Alert.markAllRead(roomId);
+    const userId = req.user.userId;
+    await Alert.markAllRead(userId);
     return res.status(200).json({ message: "All alerts marked as read" });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ error: "OI" });
+    return res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -80,7 +79,18 @@ exports.deleteAlert = async (req, res) => {
 
     if (affected === 0)
       return res.status(404).json({ error: "Alert not found" });
-    return res.status(200).json({ message: "Alert deleted" });
+    return res.status(200).json({ message: "Alert cleared" });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.hideAllAlerts = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    await Alert.hideAllAlerts(userId);
+    return res.status(200).json({ message: "All alerts cleared" });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Server error" });
@@ -171,13 +181,11 @@ exports.processSensorReading = async (req, res) => {
       );
     }
 
-    return res
-      .status(201)
-      .json({
-        message: "Reading received",
-        alertCreated: alertId !== null,
-        alertId,
-      });
+    return res.status(201).json({
+      message: "Reading received",
+      alertCreated: alertId !== null,
+      alertId,
+    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Server error" });

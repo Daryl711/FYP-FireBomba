@@ -11,11 +11,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
 
-
-
 export default function AlertsScreen() {
-  const { notifications, unreadCount, markAllRead, markNotificationRead, t } =
-    useApp();
+  const {
+    notifications,
+    unreadCount,
+    markAllRead,
+    markNotificationRead,
+    clearNotification,
+    clearAllNotifications,
+    t,
+  } = useApp();
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -42,45 +47,66 @@ export default function AlertsScreen() {
         </TouchableOpacity>
       </View>
 
-      {unreadCount > 0 && (
-        <TouchableOpacity style={styles.markAllBtn} onPress={markAllRead}>
-          <Text style={styles.markAllText}>{t("alerts.markAllRead")}</Text>
-        </TouchableOpacity>
-      )}
+      <View style={styles.actionsRow}>
+        {unreadCount > 0 && (
+          <TouchableOpacity style={styles.markAllBtn} onPress={markAllRead}>
+            <Text style={styles.markAllText}>{t("alerts.markAllRead")}</Text>
+          </TouchableOpacity>
+        )}
+        {notifications.length > 0 && (
+          <TouchableOpacity
+            style={styles.clearAllBtn}
+            onPress={clearAllNotifications}
+          >
+            <Text style={styles.clearAllText}>{t("alerts.clearAll")}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.list}>
           {notifications.map((notif) => {
             return (
-              <TouchableOpacity
+              <View
                 key={notif.id}
                 style={[styles.notifCard, notif.unread && styles.unreadCard]}
-                activeOpacity={0.75}
-                onPress={() => markNotificationRead(notif.id)}
               >
-                {notif.unread && <View style={styles.unreadStripe} />}
-                
-                <View style={styles.notifContent}>
-                  <Text style={styles.notifTitle}>
-                    {t("alerts.warningTitle")}
-                  </Text>
-                  <Text style={styles.notifDesc}>{notif.warningTitle}</Text>
-                  <View style={styles.notifMeta}>
-                    <View style={styles.notifTag}>
-                      <Text style={styles.notifTagText}>{notif.room}</Text>
-                    </View>
-                    <View style={styles.notifTimeRow}>
-                      <Ionicons
-                        name="time-outline"
-                        size={11}
-                        color={COLORS.text3}
-                      />
-                      <Text style={styles.notifTime}>{notif.time}</Text>
+                <TouchableOpacity
+                  style={styles.notifMain}
+                  activeOpacity={0.75}
+                  onPress={() => markNotificationRead(notif.id)}
+                >
+                  {notif.unread && <View style={styles.unreadStripe} />}
+
+                  <View style={styles.notifContent}>
+                    <Text style={styles.notifTitle}>
+                      {t("alerts.warningTitle")}
+                    </Text>
+                    <Text style={styles.notifDesc}>{notif.warningTitle}</Text>
+                    <View style={styles.notifMeta}>
+                      <View style={styles.notifTag}>
+                        <Text style={styles.notifTagText}>{notif.room}</Text>
+                      </View>
+                      <View style={styles.notifTimeRow}>
+                        <Ionicons
+                          name="time-outline"
+                          size={11}
+                          color={COLORS.text3}
+                        />
+                        <Text style={styles.notifTime}>{notif.time}</Text>
+                      </View>
                     </View>
                   </View>
-                </View>
-                {notif.unread && <View style={styles.unreadDot} />}
-              </TouchableOpacity>
+                  {notif.unread && <View style={styles.unreadDot} />}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.clearBtn}
+                  onPress={() => clearNotification(notif.id)}
+                >
+                  <Text style={styles.clearBtnText}>{t("alerts.clear")}</Text>
+                </TouchableOpacity>
+              </View>
             );
           })}
           {notifications.length === 0 ? (
@@ -147,15 +173,29 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: "700",
   },
-  markAllBtn: {
-    alignSelf: "flex-end",
+  actionsRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    gap: SPACING.sm,
     marginRight: SPACING.lg,
     marginTop: SPACING.sm,
     marginBottom: -SPACING.xs,
   },
+  markAllBtn: {
+    alignSelf: "flex-end",
+  },
   markAllText: {
     fontSize: 13,
     color: COLORS.primary,
+    fontWeight: "600",
+  },
+  clearAllBtn: {
+    alignSelf: "flex-end",
+  },
+  clearAllText: {
+    fontSize: 13,
+    color: COLORS.amber,
     fontWeight: "600",
   },
   list: {
@@ -167,11 +207,17 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: SPACING.md,
     overflow: "hidden",
     position: "relative",
     ...SHADOW.small,
+  },
+  notifMain: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: SPACING.md,
   },
   unreadCard: {
     backgroundColor: "#FFFAFA",
@@ -237,6 +283,15 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     flexShrink: 0,
     marginTop: 4,
+  },
+  clearBtn: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+  },
+  clearBtnText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.amber,
   },
   emptyText: {
     fontSize: 12,

@@ -13,6 +13,8 @@ import {
   getAlerts,
   markAlertRead as apiMarkAlertRead,
   markAllAlertsRead as apiMarkAllRead,
+  deleteAlert as apiDeleteAlert,
+  hideAllAlerts as apiHideAllAlerts,
   getSensorReading as apiGetSensorReading,
   getRoomData as apiGetRoomData,
   logoutUser,
@@ -71,6 +73,8 @@ const translations = {
       unreadSubtitle: "{{count}} unread notification{{suffix}}",
       allCaughtUp: "All caught up!",
       markAllRead: "Mark all as read",
+      clear: "Clear",
+      clearAll: "Clear All",
       empty: "No notifications yet",
       warningTitle: "Warning Alert",
       successTitle: "System Update",
@@ -280,6 +284,8 @@ const translations = {
       unreadSubtitle: "{{count}} notifikasi belum dibaca",
       allCaughtUp: "Semua sudah dibaca!",
       markAllRead: "Tandakan semua dibaca",
+      clear: "Kosongkan",
+      clearAll: "Kosongkan Semua",
       empty: "Belum ada notifikasi",
       warningTitle: "Amaran Bahaya",
       successTitle: "Kemas Kini Sistem",
@@ -425,7 +431,7 @@ export function AppProvider({ children }) {
   const [language, setLanguage] = useState("en");
   const [sensorReading, setSensorReading] = useState({});
   const [notifications, setNotifications] = useState([]);
-  const [roomData, setRoomData] = useState([]);
+  const [roomData, setRoomData] = useState(null);
 
   const alertRef = useRef(null);
   const sensorDataRef = useRef(null);
@@ -472,14 +478,17 @@ export function AppProvider({ children }) {
   const fetchAlerts = async () => {
     const result = await getAlerts();
     if (!result.error && Array.isArray(result)) {
-      const newUnreadCount = result.filter((a) => a.unread).length;
+      const visibleNotifications = result.filter((item) => !item.hidden);
+      const newUnreadCount = visibleNotifications.filter(
+        (a) => a.unread,
+      ).length;
       if (newUnreadCount > prevUnreadRef.current && soundRef.current) {
         soundRef.current
           .playFromPositionAsync(0)
           .catch((e) => console.warn("Alarm play failed:", e));
       }
       prevUnreadRef.current = newUnreadCount;
-      setNotifications(result);
+      setNotifications(visibleNotifications);
     }
   };
 
@@ -556,6 +565,18 @@ export function AppProvider({ children }) {
     if (token) await apiMarkAlertRead(id);
   };
 
+  const clearNotification = async (id) => {
+    stopAlarm();
+    setNotifications((prev) => prev.filter((item) => item.id !== id));
+    if (token) await apiDeleteAlert(id);
+  };
+
+  const clearAllNotifications = async () => {
+    stopAlarm();
+    setNotifications([]);
+    if (token) await apiHideAllAlerts();
+  };
+
   const value = useMemo(() => {
     const unreadCount = notifications.filter((item) => item.unread).length;
     // expose so components can manually refresh (e.g. after pump activation)
@@ -586,6 +607,8 @@ export function AppProvider({ children }) {
       unreadCount,
       markAllRead,
       markNotificationRead,
+      clearNotification,
+      clearAllNotifications,
       refreshAlerts: () => token && fetchAlerts(),
       realtimeError: null,
       systemStatus: {

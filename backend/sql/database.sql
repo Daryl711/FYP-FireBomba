@@ -118,8 +118,6 @@ CREATE TABLE IF NOT EXISTS AlertNotification (
     room_id INT NOT NULL,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     warning_title VARCHAR(50),
-    -- Example Enum values
-    is_read BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
 INSERT INTO AlertNotification (
@@ -193,3 +191,17 @@ VALUES
     (13, 3, 'Smoke', FALSE, NOW()),
     (14, 3, 'CO', TRUE, NOW()),
     (15, 3, 'Flame', TRUE, NOW());
+
+
+-- 11. User notification table (since each notification can be seen by multiple users)
+CREATE TABLE IF NOT EXISTS UserNotification
+(
+    user_notification_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    alert_id INT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    is_hidden BOOLEAN DEFAULT FALSE,
+    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (alert_id) REFERENCES AlertNotification(alert_id) ON DELETE CASCADE
+);

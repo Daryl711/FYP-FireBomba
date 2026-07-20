@@ -21,7 +21,7 @@ export default function HomeScreen() {
 
   // ── Loading gate ───────────────────────────────────────────────────────────
   // roomData is null/undefined while the context is still fetching
-  if (roomData.error || !roomData) {
+  if (roomData?.error || !roomData) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.loadingWrap}>
