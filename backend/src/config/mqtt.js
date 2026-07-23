@@ -2,7 +2,10 @@ require("dotenv").config();
 
 const fs = require("fs");
 
+const enabled = process.env.MQTT_ENABLED === "true" && !!process.env.MQTT_HOST;
+
 module.exports = {
+    enabled,
     host: process.env.MQTT_HOST,
     port: process.env.MQTT_PORT,
     username: process.env.MQTT_USERNAME,
@@ -10,5 +13,5 @@ module.exports = {
 
     protocol: "mqtts",
 
-    ca: fs.readFileSync("./ca.crt")
+    ca: enabled ? fs.readFileSync("./ca.crt") : null
 };

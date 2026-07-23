@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING, SHADOW } from '../../constants/theme';
 import { useApp } from '../context/AppContext';
+import { notify } from '../utils/notify';
 
 // Import your API function (Make sure this path is correct!)
 import { loginUser } from '../services/api';
@@ -37,7 +38,7 @@ export default function LoginScreen({ navigation }) {
     const handleLogin = async () => {
         // 1. Validation
         if (!email.trim() || !password.trim()) {
-            Alert.alert(t('login.missingFieldsTitle'), t('login.missingFieldsMessage'));
+            notify(t('login.missingFieldsTitle'), t('login.missingFieldsMessage'));
             return;
         }
 
@@ -49,7 +50,7 @@ export default function LoginScreen({ navigation }) {
             const result = await loginUser(email.trim(), password);
             // 4. Check for errors from the server (e.g. "Wrong password")
             if (result.error) {
-                Alert.alert(t('login.loginFailed'), result.error);
+                notify(t('login.loginFailed'), result.error);
             } else {
                 // 5. Save user + both tokens to context and SecureStore
                 await login(result.user, result.accessToken, result.refreshToken);
@@ -60,7 +61,7 @@ export default function LoginScreen({ navigation }) {
                 }
             }
         } catch (error) {
-            Alert.alert(t('login.errorTitle'), t('login.connectError'));
+            notify(t('login.errorTitle'), t('login.connectError'));
             console.error(error);
         } finally {
             // Stop Loading
