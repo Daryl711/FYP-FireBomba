@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 
 const RAW_API_URL = (process.env.EXPO_PUBLIC_API_URL || "").trim();
 const API_BASE = RAW_API_URL.replace(/\/+$/, "");
@@ -8,21 +9,36 @@ const ACCESS_TOKEN_KEY = "access_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
 
 // ─── Token storage helpers ────────────────────────────────────────────────────
+// expo-secure-store has no web implementation (its web build is an empty
+// stub), so it falls back to localStorage there.
+const isWeb = Platform.OS === "web";
 
 export const saveTokens = async (accessToken, refreshToken) => {
+  if (isWeb) {
+    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    return;
+  }
   await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken);
   await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
 };
 
 export const getAccessToken = async () => {
+  if (isWeb) return localStorage.getItem(ACCESS_TOKEN_KEY);
   return await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
 };
 
 export const getRefreshToken = async () => {
+  if (isWeb) return localStorage.getItem(REFRESH_TOKEN_KEY);
   return await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
 };
 
 export const clearTokens = async () => {
+  if (isWeb) {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    return;
+  }
   await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
   await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
 };
@@ -49,33 +65,46 @@ async function safeParseResponse(response) {
 
 // Attempt to get a new access token using the stored refresh token.
 // Returns the new access token string, or null if refresh failed.
+// Single-flighted: concurrent 401s across multiple in-flight requests all
+// await the same refresh call instead of each racing /refresh with the same
+// stored token (which caused duplicate-key errors and spurious logouts).
+let refreshPromise = null;
+
 async function tryRefreshToken() {
-  try {
-    const refreshToken = await getRefreshToken();
-    if (!refreshToken) return null;
+  if (refreshPromise) return refreshPromise;
 
-    const response = await fetch(`${API_ROOT}/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken }),
-    });
+  refreshPromise = (async () => {
+    try {
+      const refreshToken = await getRefreshToken();
+      if (!refreshToken) return null;
 
-    if (!response.ok) {
-      await clearTokens();
+      const response = await fetch(`${API_ROOT}/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) {
+        await clearTokens();
+        return null;
+      }
+
+      const data = await safeParseResponse(response);
+      if (data.error) {
+        await clearTokens();
+        return null;
+      }
+
+      await saveTokens(data.accessToken, data.refreshToken);
+      return data.accessToken;
+    } catch {
       return null;
+    } finally {
+      refreshPromise = null;
     }
+  })();
 
-    const data = await safeParseResponse(response);
-    if (data.error) {
-      await clearTokens();
-      return null;
-    }
-
-    await saveTokens(data.accessToken, data.refreshToken);
-    return data.accessToken;
-  } catch {
-    return null;
-  }
+  return refreshPromise;
 }
 
 // Fetch wrapper that auto-refreshes the access token on 401
