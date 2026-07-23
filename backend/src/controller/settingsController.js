@@ -1,4 +1,5 @@
 const Room = require("../models/Room");
+const AuditLog = require("../models/auditLog");
 
 exports.updateCameraStatus = async (req, res) => {
   try {
@@ -12,6 +13,17 @@ exports.updateCameraStatus = async (req, res) => {
     }
 
     await Room.updateCameraStatus(cameraStatus, roomId);
+
+    const room = await Room.getRoomData(roomId);
+    const newStatus = cameraStatus ? "Enabled" : "Disabled";
+    await AuditLog.createLog({
+      userId: req.user.userId,
+      performedBy: req.user.email,
+      action: `Camera ${newStatus}`,
+      sensorType: "Camera",
+      roomName: room.name,
+      details: `Camera in ${room.name} was ${newStatus.toLowerCase()} by ${req.user.email}`,
+    });
 
     return res.status(200).json({
       message: "Update successful.",
