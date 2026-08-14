@@ -62,6 +62,23 @@ Then run by using:
 
 ```npm run start```
 
+## MQTT Connection Setup
+
+Temporarily, there are two MQTT brokers configured:
+- Cloud broker: stored in `/var/lib/mosquitto/cloud`
+- Local broker: stored in `/var/lib/mosquitto/local`
+
+To start both brokers, run the following commands:
+
+```bash
+sudo mosquitto -c /etc/mosquitto/local-broker.conf -v
+sudo mosquitto -c /etc/mosquitto/cloud-broker.conf -v
+```
+
+Broker ports:
+- Local broker: `1883`
+- Cloud broker: `1884`
+
 ## Testing:
 To test the alert, please run the following command:
 

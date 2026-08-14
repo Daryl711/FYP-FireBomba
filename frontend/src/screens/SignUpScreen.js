@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -80,8 +81,8 @@ export default function SignUpScreen({ navigation }) {
       if (result.error) {
         alert(t("signup.signupFailed", { error: result.error }));
       } else {
-        // 3. Success! Show a simple alert and navigate back
-        alert(t("signup.signupSuccess"));
+        // 3. Success! Show a titled alert and navigate back
+        Alert.alert("Success", t("signup.signupSuccess"));
         navigation.goBack();
       }
     } catch (error) {
