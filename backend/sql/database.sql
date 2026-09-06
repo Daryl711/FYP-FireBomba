@@ -2,21 +2,42 @@ DROP DATABASE IF EXISTS firebomba_db;
 CREATE DATABASE firebomba_db;
 USE firebomba_db;
 
--- 1. Rooms Table
+-- 1. Bilik Table
+-- A Bilik is a family household unit inside the longhouse. Each Bilik owns its
+-- own sub-rooms (kitchen, bedroom, living area, ...) in the Rooms table below.
+CREATE TABLE IF NOT EXISTS Bilik (
+    bilik_id INT PRIMARY KEY AUTO_INCREMENT,
+    bilik_number VARCHAR(50) NOT NULL,
+    household_name VARCHAR(100),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+INSERT INTO Bilik (bilik_id, bilik_number, household_name)
+VALUES (1, "Bilik 1", NULL),
+       (2, "Bilik 2", NULL);
+
+-- 2. Rooms Table
+-- A monitored space: either a sub-room belonging to a Bilik (space_type =
+-- BILIK_ROOM, bilik_id set), or a shared longhouse space (Ruai / Tanju) that
+-- isn't owned by any single Bilik (bilik_id NULL).
 -- Associated with Users (1..1 relationship based on the diagram line)
 CREATE TABLE IF NOT EXISTS Rooms (
     room_id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(50) NOT NULL,
     status VARCHAR(50),
     last_updated DATETIME,
-    camera_enabled BOOLEAN DEFAULT 0
+    camera_enabled BOOLEAN DEFAULT 0,
+    space_type ENUM('BILIK_ROOM', 'RUAI', 'TANJU') NOT NULL DEFAULT 'BILIK_ROOM',
+    bilik_id INT NULL,
+    FOREIGN KEY (bilik_id) REFERENCES Bilik(bilik_id) ON DELETE CASCADE
 );
-INSERT INTO Rooms (room_id, name, status, last_updated, camera_enabled)
-VALUES (1, "Room 1", "0", NOW(), 1),
-       (2, "Kitchen", "0", NOW(), 1),
-       (3, "Room 2", "1", NOW(), 0);
+INSERT INTO Rooms (room_id, name, status, last_updated, camera_enabled, space_type, bilik_id)
+VALUES (1, "Bedroom", "0", NOW(), 1, 'BILIK_ROOM', 1),
+       (2, "Kitchen", "0", NOW(), 1, 'BILIK_ROOM', 1),
+       (3, "Bedroom", "1", NOW(), 0, 'BILIK_ROOM', 2),
+       (4, "Ruai", "0", NOW(), 1, 'RUAI', NULL),
+       (5, "Tanju", "0", NOW(), 0, 'TANJU', NULL);
 
--- 2. Users Table
+-- 3. Users Table
 CREATE TABLE IF NOT EXISTS Users(
     user_id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,
@@ -69,7 +90,7 @@ VALUES (
         NOW()
     );
 
--- 3. SensorReadings Table
+-- 4. SensorReadings Table
 CREATE TABLE IF NOT EXISTS SensorReadings (
     reading_id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,
@@ -82,7 +103,7 @@ CREATE TABLE IF NOT EXISTS SensorReadings (
     FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
 
--- 4. Actuators Table
+-- 5. Actuators Table
 CREATE TABLE IF NOT EXISTS Actuators (
     actuator_id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,
@@ -96,7 +117,7 @@ VALUES(1, 1, NOW(), FALSE, FALSE),
       (2, 2, NOW(), TRUE, FALSE),
       (3, 3, NOW(), TRUE, TRUE);
 
--- 5. Camera Table
+-- 6. Camera Table
 CREATE TABLE IF NOT EXISTS Camera (
     camera_id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,
@@ -106,7 +127,7 @@ CREATE TABLE IF NOT EXISTS Camera (
     FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
 
--- 6. CameraLogs Table
+-- 7. CameraLogs Table
 CREATE TABLE IF NOT EXISTS CameraLogs (
     log_id INT PRIMARY KEY AUTO_INCREMENT,
     camera_id INT NOT NULL,
@@ -116,7 +137,7 @@ CREATE TABLE IF NOT EXISTS CameraLogs (
     FOREIGN KEY (camera_id) REFERENCES Camera(camera_id) ON DELETE CASCADE
 );
 
--- 7. AlertNotification Table
+-- 8. AlertNotification Table
 CREATE TABLE IF NOT EXISTS AlertNotification (
     alert_id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,
@@ -141,7 +162,7 @@ VALUES (
         FALSE
     );
 
--- 8. RefreshTokens Table
+-- 9. RefreshTokens Table
 CREATE TABLE IF NOT EXISTS RefreshTokens (
     id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT NOT NULL,
@@ -151,7 +172,7 @@ CREATE TABLE IF NOT EXISTS RefreshTokens (
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
 );
 
--- 9. SensorAggregates Table
+-- 10. SensorAggregates Table
 CREATE TABLE IF NOT EXISTS SensorAggregates (
     aggregate_id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,
@@ -170,6 +191,8 @@ CREATE TABLE IF NOT EXISTS SensorAggregates (
     FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
 
+<<<<<<< HEAD
+=======
 -- 10. Audit Log Table
 CREATE TABLE IF NOT EXISTS AuditLog (
     log_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -183,6 +206,7 @@ CREATE TABLE IF NOT EXISTS AuditLog (
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+>>>>>>> d662ebd5dcdd36ac5083e42d8e404411786a4027
 -- 11. Admin Sensor Table
 CREATE TABLE IF NOT EXISTS AdminSensor (
     sensor_id INT PRIMARY KEY AUTO_INCREMENT,
