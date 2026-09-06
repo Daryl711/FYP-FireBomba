@@ -20,7 +20,9 @@ VALUES (1, "Room 1", "0", NOW(), 1),
 CREATE TABLE IF NOT EXISTS Users(
     user_id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,
-    email VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(50) DEFAULT NULL UNIQUE,
+    phone VARCHAR(20) DEFAULT NULL UNIQUE,
+    phone_verified BOOLEAN NOT NULL DEFAULT FALSE,
     password VARCHAR(255) NOT NULL,
     full_name VARCHAR(50) NOT NULL,
     role VARCHAR(20) NOT NULL,
@@ -36,6 +38,7 @@ INSERT IGNORE INTO Users (
         user_id,
         room_id,
         email,
+        phone,
         password,
         full_name,
         role,
@@ -45,6 +48,7 @@ VALUES (
         1,
         1,
         'admin@gmail.com',
+        '+60111000001',
         '$2a$10$ErgXJL1aT.A9A1EK54fMNOtfL3wMRh4ngEWkq9Pdu7mru7oz/viZq',
         'Admin User',
         'Admin',
@@ -54,6 +58,7 @@ VALUES (
         2,
         1,
         'test@gmail.com',
+        '+60111000002',
         '$2a$10$Nqi6BhvHIDCKaR4GfssZyOlmSBv3BPB70CdSo9BEj2Qi1j.aDfGri',
         'Test User',
         'User',
@@ -63,6 +68,7 @@ VALUES (
         3,
         2,
         'test2@gmail.com',
+        '+60111000003',
         '$2a$10$sWesFoary2aSeXym63i.eeu7oDMlPlivAbirmGa4ht9jgergNsGH.',
         'Test User 2',
         'User',
@@ -222,4 +228,20 @@ CREATE TABLE IF NOT EXISTS UserNotification
     last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (alert_id) REFERENCES AlertNotification(alert_id) ON DELETE CASCADE
+);
+
+-- 13. OtpCodes table (SMS one-time passwords: login 2FA + password reset)
+--     Codes are stored HASHED, never in plaintext.
+CREATE TABLE IF NOT EXISTS OtpCodes (
+    otp_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    code_hash VARCHAR(255) NOT NULL,
+    purpose VARCHAR(20) NOT NULL,
+    destination VARCHAR(20) NOT NULL,
+    attempts INT NOT NULL DEFAULT 0,
+    expires_at DATETIME NOT NULL,
+    consumed_at DATETIME DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    INDEX idx_otp_user_purpose (user_id, purpose, consumed_at)
 );

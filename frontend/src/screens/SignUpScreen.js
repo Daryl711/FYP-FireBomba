@@ -21,6 +21,7 @@ import { registerUser } from "../services/api";
 export default function SignUpScreen({ navigation }) {
   const { t } = useApp();
   const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -34,6 +35,13 @@ export default function SignUpScreen({ navigation }) {
     return emailRegex.test(emailText);
   };
 
+  // Accepts 012-345 6789, 0123456789, 60123456789 and +60123456789.
+  // The backend normalises whichever form to a single +60... value.
+  const validatePhone = (phoneText) => {
+    const digits = phoneText.replace(/[^\d+]/g, "");
+    return /^(\+?60|0)\d{8,10}$/.test(digits);
+  };
+
   const handleTermsAndCondition = async () => {
     setIsModalVisible(true);
   };
@@ -44,11 +52,16 @@ export default function SignUpScreen({ navigation }) {
       alert(t("signup.enterFullName"));
       return;
     }
-    if (!email.trim()) {
-      alert(t("signup.enterEmail"));
+    if (!phone.trim()) {
+      alert(t("signup.enterPhone"));
       return;
     }
-    if (!validateEmail(email.trim())) {
+    if (!validatePhone(phone.trim())) {
+      alert(t("signup.invalidPhone"));
+      return;
+    }
+    // Email is optional: only validate it when the user actually typed one.
+    if (email.trim() && !validateEmail(email.trim())) {
       alert(t("signup.invalidEmail"));
       return;
     }
@@ -75,6 +88,7 @@ export default function SignUpScreen({ navigation }) {
         fullName.trim(),
         email.trim(),
         password,
+        phone.trim(),
       );
 
       if (result.error) {
@@ -142,7 +156,30 @@ export default function SignUpScreen({ navigation }) {
               </View>
             </View>
 
-            {/* Email */}
+            {/* Phone (required - this is the account identifier) */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>{t("signup.phone")}</Text>
+              <View style={styles.inputWrap}>
+                <Ionicons
+                  name="call-outline"
+                  size={18}
+                  color={COLORS.text3}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder={t("signup.phonePlaceholder")}
+                  placeholderTextColor={COLORS.text3}
+                  keyboardType="phone-pad"
+                  autoCapitalize="none"
+                  value={phone}
+                  onChangeText={setPhone}
+                />
+              </View>
+              <Text style={styles.fieldHelp}>{t("signup.phoneHelp")}</Text>
+            </View>
+
+            {/* Email (optional) */}
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>{t("signup.email")}</Text>
               <View style={styles.inputWrap}>
@@ -398,6 +435,12 @@ const styles = StyleSheet.create({
     ...SHADOW.small,
   },
   fieldGroup: { gap: SPACING.xs },
+  fieldHelp: {
+    fontSize: 11,
+    color: COLORS.text3,
+    marginTop: 2,
+    lineHeight: 15,
+  },
   fieldLabel: {
     fontSize: 13,
     fontWeight: "600",

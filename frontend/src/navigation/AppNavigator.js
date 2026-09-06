@@ -8,6 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import LoginScreen from "../screens/LoginScreen";
 import SignUpScreen from "../screens/SignUpScreen";
+import OtpScreen from "../screens/OtpScreen";
 import HomeScreen from "../screens/HomeScreen";
 import RoomsScreen from "../screens/RoomsScreen";
 import RoomDetailScreen from "../screens/RoomDetailScreen";
@@ -170,6 +171,7 @@ export default function AppNavigator() {
       >
         <RootStack.Screen name="Login" component={LoginScreen} />
         <RootStack.Screen name="SignUp" component={SignUpScreen} />
+        <RootStack.Screen name="Otp" component={OtpScreen} />
         <RootStack.Screen name="Main" component={MainTabs} />
       </RootStack.Navigator>
     </NavigationContainer>

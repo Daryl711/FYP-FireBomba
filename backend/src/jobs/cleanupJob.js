@@ -1,5 +1,6 @@
 const cron = require("node-cron");
 const db = require("../config/database");
+const OtpCode = require("../models/OtpCode");
 
 // Every day at midnight
 cron.schedule("0 0 * * *", async () => {
@@ -13,6 +14,8 @@ cron.schedule("0 0 * * *", async () => {
             WHERE timestamp < NOW() - INTERVAL 7 DAY
 
         `);
+
+        await OtpCode.deleteExpired();
 
 
     } catch (err) {
