@@ -13,6 +13,9 @@ module.exports = (req, res, next) => {
         req.user = decoded; // { id, email } now available in every protected route
         next();
     } catch (err) {
-        return res.status(403).json({ error: 'Invalid or expired token.' });
+        // Must be 401, not 403: api.js only tries a silent refresh on a 401,
+        // so a 403 here logged the user out the moment the 15m access token
+        // expired instead of quietly renewing it.
+        return res.status(401).json({ error: 'Invalid or expired token.' });
     }
 };

@@ -6,12 +6,28 @@ const API_ROOT = API_BASE.endsWith("/api") ? API_BASE : `${API_BASE}/api`;
 
 const ACCESS_TOKEN_KEY = "access_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
+const SESSION_EXPIRES_KEY = "session_expires_at";
+const REMEMBER_ME_KEY = "remember_me";
+const SESSION_USER_KEY = "session_user";
+// Deliberately NOT cleared on logout - it's a device preference, not session
+// state, so turning biometrics off survives signing out and back in.
+const BIOMETRIC_ENABLED_KEY = "biometric_enabled";
 
 // ─── Token storage helpers ────────────────────────────────────────────────────
 
+// SecureStore.setItemAsync throws on a null/undefined value, so anything
+// missing is removed instead of written.
+const writeItem = async (key, value) => {
+  if (value === null || value === undefined) {
+    await SecureStore.deleteItemAsync(key);
+    return;
+  }
+  await SecureStore.setItemAsync(key, String(value));
+};
+
 export const saveTokens = async (accessToken, refreshToken) => {
-  await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken);
-  await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
+  await writeItem(ACCESS_TOKEN_KEY, accessToken);
+  await writeItem(REFRESH_TOKEN_KEY, refreshToken);
 };
 
 export const getAccessToken = async () => {
@@ -25,6 +41,96 @@ export const getRefreshToken = async () => {
 export const clearTokens = async () => {
   await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
   await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+  await SecureStore.deleteItemAsync(SESSION_EXPIRES_KEY);
+  await SecureStore.deleteItemAsync(REMEMBER_ME_KEY);
+  await SecureStore.deleteItemAsync(SESSION_USER_KEY);
+};
+
+// ─── Session helpers (biometric login) ───────────────────────────────────────
+
+// Persists everything needed to decide, on the next cold start, whether to
+// show the biometric unlock screen or send the user back to the password form.
+export const saveSession = async ({
+  accessToken,
+  refreshToken,
+  sessionExpiresAt,
+  rememberMe,
+  user,
+}) => {
+  await saveTokens(accessToken, refreshToken);
+  await writeItem(SESSION_EXPIRES_KEY, sessionExpiresAt);
+  await writeItem(REMEMBER_ME_KEY, rememberMe ? "true" : "false");
+  await writeItem(SESSION_USER_KEY, user ? JSON.stringify(user) : null);
+};
+
+export const getStoredSession = async () => {
+  try {
+    const [refreshToken, accessToken, sessionExpiresAt, rememberMe, rawUser] =
+      await Promise.all([
+        SecureStore.getItemAsync(REFRESH_TOKEN_KEY),
+        SecureStore.getItemAsync(ACCESS_TOKEN_KEY),
+        SecureStore.getItemAsync(SESSION_EXPIRES_KEY),
+        SecureStore.getItemAsync(REMEMBER_ME_KEY),
+        SecureStore.getItemAsync(SESSION_USER_KEY),
+      ]);
+
+    let user = null;
+    if (rawUser) {
+      try {
+        user = JSON.parse(rawUser);
+      } catch {
+        user = null;
+      }
+    }
+
+    return {
+      accessToken,
+      refreshToken,
+      sessionExpiresAt,
+      rememberMe: rememberMe === "true",
+      user,
+    };
+  } catch {
+    // SecureStore unavailable — behave as if nothing was stored.
+    return {
+      accessToken: null,
+      refreshToken: null,
+      sessionExpiresAt: null,
+      rememberMe: false,
+      user: null,
+    };
+  }
+};
+
+// The 30/7-day rule is enforced server-side on every refresh; this is the
+// local fast path so an expired session skips the biometric prompt entirely
+// even when the phone is offline.
+export const isSessionExpired = (sessionExpiresAt) => {
+  if (!sessionExpiresAt) return false;
+  const deadline = new Date(sessionExpiresAt).getTime();
+  if (Number.isNaN(deadline)) return false;
+  return Date.now() > deadline;
+};
+
+export const getBiometricPreference = async () => {
+  try {
+    // Defaults to on: after a password login the app should ask for biometrics
+    // next time unless the user has explicitly turned it off.
+    return (await SecureStore.getItemAsync(BIOMETRIC_ENABLED_KEY)) !== "false";
+  } catch {
+    return true;
+  }
+};
+
+export const setBiometricPreference = async (enabled) => {
+  try {
+    await SecureStore.setItemAsync(
+      BIOMETRIC_ENABLED_KEY,
+      enabled ? "true" : "false",
+    );
+  } catch {
+    // Preference is best-effort; a write failure just means the default stands.
+  }
 };
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
@@ -47,35 +153,76 @@ async function safeParseResponse(response) {
   };
 }
 
-// Attempt to get a new access token using the stored refresh token.
-// Returns the new access token string, or null if refresh failed.
-async function tryRefreshToken() {
-  try {
-    const refreshToken = await getRefreshToken();
-    if (!refreshToken) return null;
+// AppContext registers a callback here so an expired session drops the user
+// back to the login screen even while the app is already open.
+let sessionExpiredHandler = null;
 
-    const response = await fetch(`${API_ROOT}/refresh`, {
+export const setOnSessionExpired = (handler) => {
+  sessionExpiredHandler = handler;
+};
+
+// Exchanges the stored refresh token for a fresh pair. Used both by the
+// biometric unlock screen and by authFetch's silent retry.
+export async function refreshSession() {
+  let refreshToken;
+  try {
+    refreshToken = await getRefreshToken();
+  } catch {
+    return { ok: false, reason: "NO_SESSION" };
+  }
+
+  if (!refreshToken) return { ok: false, reason: "NO_SESSION" };
+
+  let response;
+  let data;
+  try {
+    response = await fetch(`${API_ROOT}/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
     });
-
-    if (!response.ok) {
-      await clearTokens();
-      return null;
-    }
-
-    const data = await safeParseResponse(response);
-    if (data.error) {
-      await clearTokens();
-      return null;
-    }
-
-    await saveTokens(data.accessToken, data.refreshToken);
-    return data.accessToken;
+    data = await safeParseResponse(response);
   } catch {
-    return null;
+    // Offline or server down. The session may still be perfectly valid, so
+    // keep it stored and let the caller retry rather than forcing a logout.
+    return { ok: false, reason: "NETWORK" };
   }
+
+  if (!response.ok || data.error) {
+    // A 403 means the server rejected the token outright - expired session or
+    // one that has already been rotated away. Either way it is dead.
+    if (response.status === 403) {
+      await clearTokens();
+      const reason = data.code || "REFRESH_FAILED";
+      if (sessionExpiredHandler) sessionExpiredHandler(reason);
+      return { ok: false, reason };
+    }
+    return { ok: false, reason: data.code || "REFRESH_FAILED" };
+  }
+
+  const stored = await getStoredSession();
+
+  await saveSession({
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+    sessionExpiresAt: data.sessionExpiresAt || stored.sessionExpiresAt,
+    rememberMe: stored.rememberMe,
+    user: data.user || stored.user,
+  });
+
+  return {
+    ok: true,
+    accessToken: data.accessToken,
+    user: data.user || stored.user,
+    sessionExpiresAt: data.sessionExpiresAt || stored.sessionExpiresAt,
+  };
+}
+
+// Attempt to get a new access token using the stored refresh token.
+// Returns the new access token string, or null if refresh failed.
+async function tryRefreshToken() {
+  const result = await refreshSession();
+  return result.ok ? result.accessToken : null;
 }
 
 // Fetch wrapper that auto-refreshes the access token on 401
@@ -119,12 +266,14 @@ export async function registerUser(fullName, email, password) {
   }
 }
 
-export async function loginUser(email, password) {
+// rememberMe picks the session length the server hands back: 30 days when
+// ticked, 7 when not.
+export async function loginUser(email, password, rememberMe = false) {
   try {
     const response = await fetch(`${API_ROOT}/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, rememberMe }),
     });
     return await safeParseResponse(response);
   } catch (error) {

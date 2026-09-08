@@ -14,6 +14,19 @@ cron.schedule("0 0 * * *", async () => {
 
         `);
 
+        // Sessions past their deadline are already refused at /refresh, but
+        // nothing was deleting the rows - they pile up one per unlock.
+        const [expiredSessions] = await db.execute(`
+
+            DELETE FROM RefreshTokens
+            WHERE expires_at < NOW()
+
+        `);
+
+        if (expiredSessions.affectedRows > 0) {
+            console.log(`Cleanup: removed ${expiredSessions.affectedRows} expired session(s)`);
+        }
+
 
     } catch (err) {
 

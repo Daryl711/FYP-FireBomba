@@ -75,16 +75,19 @@ function PrefRow({ item, onPress }) {
 export default function ProfileScreen({ navigation }) {
   const { user, logout, unreadCount, roomData, systemStatus, language, setLanguage, t } = useApp();
 
+  // roomData is null until the first fetch lands - and stays null if the
+  // server is unreachable - so it can never be read directly.
+  const roomCount = Array.isArray(roomData) ? roomData.length : 0;
+
   const handleLogout = () => {
     Alert.alert(t("profile.signOutTitle"), t("profile.signOutConfirm"), [
       { text: t("common.cancel"), style: "cancel" },
       {
         text: t("profile.signOut"),
         style: "destructive",
-        onPress: () => {
-          logout();
-          navigation.replace("Login");
-        },
+        // The root navigator returns to the login screen by itself once
+        // logout() clears the token from context.
+        onPress: () => logout(),
       },
     ]);
   };
@@ -118,7 +121,7 @@ export default function ProfileScreen({ navigation }) {
 
           <View style={styles.quickStats}>
             <View style={styles.quickStat}>
-              <Text style={styles.quickStatVal}>{roomData.length}</Text>
+              <Text style={styles.quickStatVal}>{roomCount}</Text>
               <Text style={styles.quickStatLbl}>{t("profile.rooms")}</Text>
             </View>
             <View style={styles.quickStatDivider} />

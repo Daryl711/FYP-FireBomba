@@ -46,18 +46,19 @@ export default function LoginScreen({ navigation }) {
 
         try {
             // 3. Call your Express Backend API
-            const result = await loginUser(email.trim(), password);
+            //    rememberMe decides the session length: 30 days ticked, 7 not.
+            const result = await loginUser(email.trim(), password, rememberMe);
             // 4. Check for errors from the server (e.g. "Wrong password")
             if (result.error) {
                 Alert.alert(t('login.loginFailed'), result.error);
             } else {
-                // 5. Save user + both tokens to context and SecureStore
-                await login(result.user, result.accessToken, result.refreshToken);
-
-                // 6. Navigate to Home
-                if (navigation?.replace) {
-                    navigation.replace('Main');
-                }
+                // 5. Save user + both tokens to context and SecureStore.
+                //    The root navigator swaps to the app as soon as the token
+                //    lands in context, so there is nothing to navigate to here.
+                await login(result.user, result.accessToken, result.refreshToken, {
+                    sessionExpiresAt: result.sessionExpiresAt,
+                    rememberMe: result.rememberMe ?? rememberMe,
+                });
             }
         } catch (error) {
             Alert.alert(t('login.errorTitle'), t('login.connectError'));
@@ -151,7 +152,7 @@ export default function LoginScreen({ navigation }) {
                                 </View>
                                 <Text style={styles.rememberText}>{t('login.rememberMe')}</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity disabled={isLoading} onClick={handleForgotPassword}>
+                            <TouchableOpacity disabled={isLoading} onPress={handleForgotPassword}>
                                 <Text style={styles.forgotText}>{t('login.forgotPassword')}</Text>
                             </TouchableOpacity>
                         </View>

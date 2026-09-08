@@ -13,6 +13,8 @@ import { useApp } from "../context/AppContext";
 
 export default function RoomsScreen({ navigation }) {
   const { roomData, t } = useApp();
+  // Null while the first fetch is in flight, so never used directly.
+  const rooms = Array.isArray(roomData) ? roomData : [];
   // const safeCount = rooms.filter((r) => r.status === 'safe').length;
   // const warnCount = rooms.filter((r) => r.status === 'warning').length;
 
@@ -29,7 +31,7 @@ export default function RoomsScreen({ navigation }) {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.list}>
-          {roomData.map((room) => {
+          {rooms.map((room) => {
             return (
               <TouchableOpacity
                 key={room.roomId}
@@ -47,13 +49,13 @@ export default function RoomsScreen({ navigation }) {
                 </View>
                 <Ionicons
                   name={
-                    roomData.status === "warning"
+                    room.status === "warning"
                       ? "warning"
                       : "checkmark-circle"
                   }
                   size={24}
                   color={
-                    roomData.status === "warning" ? COLORS.amber : COLORS.green
+                    room.status === "warning" ? COLORS.amber : COLORS.green
                   }
                 />
               </TouchableOpacity>
@@ -64,7 +66,7 @@ export default function RoomsScreen({ navigation }) {
         {/* Summary Footer */}
         <View style={styles.footer}>
           <View style={styles.footerStat}>
-            <Text style={[styles.footerVal, { color: COLORS.blue }]}>{roomData.length}</Text>
+            <Text style={[styles.footerVal, { color: COLORS.blue }]}>{rooms.length}</Text>
             <Text style={styles.footerLbl}>{t("rooms.totalRooms")}</Text>
           </View>
           <View style={styles.footerDivider} />

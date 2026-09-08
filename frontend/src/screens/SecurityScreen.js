@@ -122,7 +122,10 @@ function RoomCameraRow({ room, enabled, onToggle, t }) {
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function SecurityScreen({ navigation }) {
-  const { roomData, t } = useApp();
+  const { roomData, t, biometricSupport, biometricEnabled, updateBiometricEnabled } =
+    useApp();
+  // Null while the first fetch is in flight, so never used directly.
+  const rooms = Array.isArray(roomData) ? roomData : [];
 
 
   const [cameraStates, setCameraStates] = useState({});
@@ -146,13 +149,13 @@ export default function SecurityScreen({ navigation }) {
           setCameraStates(normalized);
         } else {
           const fallbackStates = Object.fromEntries(
-            roomData.map((r) => [r.id, true]),
+            rooms.map((r) => [r.id, true]),
           );
           setCameraStates(fallbackStates);
         }
       } catch (error) {
         console.error("Failed to fetch camera status:", error);
-        setCameraStates(Object.fromEntries(roomData.map((r) => [r.id, true])));
+        setCameraStates(Object.fromEntries(rooms.map((r) => [r.id, true])));
       } finally {
         setIsLoading(false);
       }
@@ -172,7 +175,7 @@ export default function SecurityScreen({ navigation }) {
         text: t("security.enableAll"),
         style: "destructive",
         onPress: () => {
-          const allOn = Object.fromEntries(roomData.map((r) => [r.id, true]));
+          const allOn = Object.fromEntries(rooms.map((r) => [r.id, true]));
           setCameraStates(allOn);
         },
       },
@@ -186,7 +189,7 @@ export default function SecurityScreen({ navigation }) {
         text: t("security.disableAll"),
         style: "destructive",
         onPress: () => {
-          const allOff = Object.fromEntries(roomData.map((r) => [r.id, false]));
+          const allOff = Object.fromEntries(rooms.map((r) => [r.id, false]));
           setCameraStates(allOff);
         },
       },
@@ -223,6 +226,48 @@ export default function SecurityScreen({ navigation }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Biometric login */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionLabel}>
+              {t("security.biometricSection")}
+            </Text>
+          </View>
+
+          <View style={styles.biometricRow}>
+            <View style={styles.biometricIcon}>
+              <Ionicons
+                name={
+                  biometricSupport.type === "face"
+                    ? "scan-outline"
+                    : "finger-print"
+                }
+                size={20}
+                color={COLORS.primary}
+              />
+            </View>
+
+            <View style={styles.biometricCopy}>
+              <Text style={styles.biometricTitle}>
+                {t("security.biometricLabel")}
+              </Text>
+              <Text style={styles.biometricHint}>
+                {biometricSupport.available
+                  ? t("security.biometricHint")
+                  : t("security.biometricUnavailable")}
+              </Text>
+            </View>
+
+            <Switch
+              value={biometricSupport.available && biometricEnabled}
+              onValueChange={updateBiometricEnabled}
+              disabled={!biometricSupport.available}
+              trackColor={{ false: "#E5E5E5", true: COLORS.primary }}
+              thumbColor="#fff"
+            />
+          </View>
+        </View>
+
         {/* Camera Detection Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -230,16 +275,16 @@ export default function SecurityScreen({ navigation }) {
               {t("security.cameraDetection")}
             </Text>
             <Text style={styles.sectionCount}>
-              {enabledCount}/{roomData.length} {t("security.active")}
+              {enabledCount}/{rooms.length} {t("security.active")}
             </Text>
           </View>
-          {roomData.length === 0 ? (
+          {rooms.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="home-outline" size={32} color={COLORS.text3} />
               <Text style={styles.emptyText}>{t("security.noRooms")}</Text>
             </View>
           ) : (
-            roomData.map((room, i) => (
+            rooms.map((room, i) => (
               <React.Fragment key={room.roomId}>
                 <RoomCameraRow
                   room={room}
@@ -247,12 +292,12 @@ export default function SecurityScreen({ navigation }) {
                   onToggle={handleToggle}
                   t={t}
                 />
-                {i < roomData.length - 1 && <View style={styles.divider} />}
+                {i < rooms.length - 1 && <View style={styles.divider} />}
               </React.Fragment>
             ))
           )}
           {/* Bulk actions
-          {roomData.length > 1 && (
+          {rooms.length > 1 && (
             <View style={styles.bulkActions}>
               <TouchableOpacity
                 style={styles.bulkBtn}
@@ -290,6 +335,24 @@ export default function SecurityScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  biometricRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    gap: SPACING.md,
+  },
+  biometricIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#FFF1F1",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  biometricCopy: { flex: 1, gap: 2 },
+  biometricTitle: { fontSize: 14, fontWeight: "600", color: COLORS.text },
+  biometricHint: { fontSize: 12, color: COLORS.text3 },
   container: {
     flex: 1,
     backgroundColor: COLORS.bg,
