@@ -1,8 +1,9 @@
 import requests
+import time
 from database.conn import get_database_connection
 
 
-PC_API = "http://192.168.1.100:5000/api/sync/insert-sensor-readings"
+PC_API = "http://192.168.1.100:5000/api/sync/insert-sensor-readings" # Change IP address whenever necessary...
 
 
 def get_unsynced_readings():
@@ -59,7 +60,14 @@ def mark_as_failed(reading_id):
 def sync():
     readings = get_unsynced_readings()
 
+    if not readings:
+        print("No readings to sync.", flush=True)
+        return
+
+    
     for reading in readings:
+        if reading["reading_timestamp"] is not None:
+            reading["reading_timestamp"] = reading["reading_timestamp"].isoformat()
 
         try:
             response = requests.post(
@@ -92,6 +100,19 @@ def sync():
                 f"{reading['reading_id']}: {e}"
             )
 
+    
+
 
 if __name__ == "__main__":
-    sync()
+
+    print("Sync service started.", flush=True)
+
+    while True:
+
+        try:
+            sync()
+
+        except Exception as e:
+            print(f"Sync error: {e}", flush=True)
+
+        time.sleep(10)

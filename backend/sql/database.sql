@@ -94,12 +94,13 @@ VALUES (
 CREATE TABLE IF NOT EXISTS SensorReadings (
     reading_id INT PRIMARY KEY AUTO_INCREMENT,
     room_id INT NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    timestamp DATETIME,
     flame_detected BOOLEAN,
     temperature FLOAT,
     humidity FLOAT,
     smoke FLOAT,
     co FLOAT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
 
