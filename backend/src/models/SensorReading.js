@@ -24,6 +24,7 @@ const db = require("../config/database");
 exports.insertSensorReading = async (data) => {
   const {
     roomId = null,
+    timestamp = null,
     flame = null,
     temperature = null,
     humidity = null,
@@ -32,17 +33,18 @@ exports.insertSensorReading = async (data) => {
   } = data || {};
 
   const sql =
-    "INSERT INTO SensorReadings (room_id, timestamp, flame_detected, temperature, humidity, smoke, co) VALUES (?, NOW(), ?, ?, ?, ?, ?)";
+    "INSERT INTO SensorReadings (room_id, timestamp, flame_detected, temperature, humidity, smoke, co) VALUES (?, COALESCE(?, NOW()), ?, ?, ?, ?, ?)";
 
   const [result] = await db.query(sql, [
     roomId,
+    timestamp,
     flame,
     temperature,
     humidity,
     smoke,
     co,
   ]);
-  return;
+  return result.insertId;
 };
 
 exports.getRoomTemperature = async (roomId) => {

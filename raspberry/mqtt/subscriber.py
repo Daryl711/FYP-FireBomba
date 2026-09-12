@@ -1,10 +1,6 @@
 import json
 import paho.mqtt.client as mqtt
-import os
-
-from database import get_room_id, insert_sensor_reading
-
-
+from raspberry.mqtt.insert_sensor_reading import get_room_id, insert_sensor_reading
 
 MQTT_TOPIC = "firebomba/#"
 MQTT_BROKER = "localhost"

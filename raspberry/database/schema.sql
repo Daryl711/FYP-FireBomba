@@ -24,3 +24,11 @@ CREATE TABLE IF NOT EXISTS SensorReadings (
       ON DELETE CASCADE
 );
 
+-- Insert dummy room data into the table
+INSERT INTO Rooms (device_id)
+  VALUES
+  ('ESP32_ROOM_01'),
+  ('ESP32_ROOM_02'),
+  ('ESP32_ROOM_03')
+;
+
