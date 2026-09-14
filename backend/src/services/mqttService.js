@@ -11,9 +11,9 @@ const client = mqtt.connect(brokerUrl, mqttConfig);
 client.on("connect", () => {
   console.log("Connected to MQTT broker");
 
-  client.subscribe("home/room-1/#", (err) => {
+  client.subscribe("firebomba/room/#", (err) => {
     if (!err) {
-      console.log("Subscribed to home/room-1/#");
+      console.log("Subscribed to firebomba/room/#");
     }
   });
 });
@@ -22,8 +22,7 @@ client.on("message", (topic, message) => {
   try {
     const data = JSON.parse(message.toString());
 
-
-    mqttEvents.emit("new-reading", { topic, data });
+    mqttEvents.emit("pump-status", { topic, data });
   } catch (err) {
     console.error("Invalid JSON:", err.message);
   }
@@ -39,7 +38,7 @@ const publishMessage = (topic, message) => {
   client.publish(topic, payload, { qos: 1 }, (err) => {
     if (err) {
       console.error("Publish error:", err);
-    } 
+    }
   });
 };
 

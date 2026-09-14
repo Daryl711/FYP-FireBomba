@@ -242,7 +242,7 @@ export async function getPumpStatus() {
       `${API_ROOT}/room-detail/get-water-pump-status`,
     );
     const data = await safeParseResponse(response);
-    return data.waterPumpStatus;
+    return data;
   } catch (error) {
     return { error: "Network error. Cannot connect to server." };
   }

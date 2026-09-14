@@ -1,35 +1,42 @@
 const { mqttEvents, publishMessage } = require("../services/mqttService");
-const SensorReading = require("../models/SensorReading");
+// const SensorReading = require("../models/SensorReading");
 const Actuator = require("../models/Actuator");
 const SensorAggregate = require("../models/SensorAggregate");
 
-const roomPattern = /^home\/room-(\d+)\/sensor-data$/;
-const waterPumpPattern = /^home\/room-(\d+)\/pump-control$/;
+// const roomPattern = /^firebomba\/room\/(\d+)\/sensor-data$/;
+const waterPumpStatusPattern = /^firebomba\/room\/(\d+)\/pump\/status$/;
 
 let latestRoomData = {};
+let latestWaterPumpStatus = {};
 
-mqttEvents.on("new-reading", async ({ topic, data }) => {
-  const matchRoomPattern = topic.match(roomPattern);
-  const matchWaterPumpPattern = topic.match(waterPumpPattern);
-  if (matchRoomPattern) {
-    const roomNumber = matchRoomPattern[1];
+mqttEvents.on("pump-status", async ({ topic, data }) => {
+  // const matchRoomPattern = topic.match(roomPattern);
+  const matchWaterPumpPattern = topic.match(waterPumpStatusPattern);
+  // if (matchRoomPattern) {
+  //   const roomNumber = matchRoomPattern[1];
 
-    latestRoomData[roomNumber] = data;
+  //   latestRoomData[roomNumber] = data;
 
-    try {
-      await SensorReading.insertSensorReading(data);
-    } catch (error) {
-      console.error(error);
-    }
-  } else if (matchWaterPumpPattern) {
+  //   try {
+  //     await SensorReading.insertSensorReading(data);
+  //   } catch (error) {
+  //     console.error(error);
+  //   }
+  // } else
+  if (matchWaterPumpPattern) {
     const roomNumber = matchWaterPumpPattern[1];
-    
-    const waterPumpStatus = data.command;
 
-    const actualWaterPumpStatus = await Actuator.getWaterPumpStatus(roomNumber);
+    const waterPumpStatus = data.status;
+    const waterPumpState = data.state;
 
-    if (waterPumpStatus !== actualWaterPumpStatus) {
-      await Actuator.updateWaterPumpStatus(waterPumpStatus, roomNumber);
+    latestWaterPumpStatus[roomNumber] = {
+      status: waterPumpStatus,
+      state: waterPumpState,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (waterPumpStatus === "FAILED") {
+      await Actuator.updateWaterPumpStatus(!waterPumpState, roomNumber);
     }
   }
 });
@@ -63,10 +70,12 @@ exports.controlWaterPump = async (req, res) => {
     }
 
     await Actuator.updateWaterPumpStatus(waterPumpStatus, roomId);
+    latestWaterPumpStatus[String(roomId)] = null;
 
-    const topic = `home/room-${roomId}/pump-control`;
+    const topic = `firebomba/room/${roomId}/pump/command`;
 
     const message = {
+      roomId: roomId,
       command: waterPumpStatus,
       timestamp: new Date().toISOString(),
     };
@@ -90,6 +99,7 @@ exports.getWaterPumpStatus = async (req, res) => {
 
     return res.status(200).json({
       waterPumpStatus,
+      operationStatus: latestWaterPumpStatus[String(roomId)] || null,
     });
   } catch (error) {
     console.error(error);

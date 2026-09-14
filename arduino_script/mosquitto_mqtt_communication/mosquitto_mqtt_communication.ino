@@ -145,7 +145,7 @@ void loop() {
 
         Serial.println("Publishing water pump command:");
         Serial.println(pumpPayload);
-        client.publish("home/room-1/water-pump", pumpPayload.c_str());
+        client.publish("firebomba/room/1/pump/status", pumpPayload.c_str());
 
         serialData = "";
         continue; // skip sensor/alert parsing for this line
@@ -223,7 +223,7 @@ void loop() {
 
     Serial.println("Publishing sensor readings to MQTT:");
     Serial.println(sensorPayload);
-    client.publish("home/room-1/sensor-data", sensorPayload.c_str());
+    client.publish("firebomba/room/1/sensor-data", sensorPayload.c_str());
   }
 
   // Only publish when alert is NEW (not same as last one)
@@ -232,7 +232,7 @@ void loop() {
     Serial.println("NEW ALERT → Publishing once:");
     Serial.println(alertPayload);
 
-    client.publish("home/room-1/alerts", alertPayload.c_str());
+    client.publish("firebomba/room/1/alerts", alertPayload.c_str());
 
     lastAlertSent = alertPayload;  // remember last sent alert
     alertActive = true;

@@ -109,6 +109,13 @@ const translations = {
       activateConfirm:
         "Are you sure you want to activate the water pump in {{room}}?",
       activate: "Activate",
+      pumpFailedTitle: "Water Pump Malfunction",
+      pumpFailedMessage:
+        "The water pump may not be operating correctly. Please contact the admin for assistance.",
+      pumpSuccessActivatedTitle: "Water Pump Activated",
+      pumpSuccessActivatedMessage: "The water pump activated successfully.",
+      pumpSuccessDeactivatedTitle: "Water Pump Deactivated",
+      pumpSuccessDeactivatedMessage: "The water pump deactivated successfully."
     },
     profile: {
       account: "ACCOUNT",
@@ -320,6 +327,13 @@ const translations = {
       activateConfirm:
         "Adakah anda pasti mahu mengaktifkan pam air di {{room}}?",
       activate: "Aktifkan",
+      pumpFailedTitle: "Kerosakan Pam Air",
+      pumpFailedMessage:
+        "Pam air mungkin tidak berfungsi dengan baik. Sila menghubungi admin untuk bantuan lebih lanjut.",
+      pumpSuccessActivatedTitle: "Pam Air Diaktifkan",
+      pumpSuccessActivatedMessage: "Pam air berjaya diaktifkan.",
+      pumpSuccessDeactivatedTitle: "Pam air Dinyahaktifkan",
+      pumpSuccessDeactivatedMessage: "Pam air berjaya dinyahaktifkan."
     },
     profile: {
       account: "AKAUN",

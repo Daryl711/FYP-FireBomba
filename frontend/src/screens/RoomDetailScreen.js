@@ -197,8 +197,8 @@ export default function RoomDetailScreen({ route, navigation }) {
   useEffect(() => {
     const fetchPumpStatus = async () => {
       try {
-        const status = await getPumpStatus(token);
-        setPumpActive(status);
+        const data = await getPumpStatus(token);
+        setPumpActive(Boolean(data.waterPumpStatus));
       } catch (err) {
         console.error("Failed to fetch pump status:", err);
       }
@@ -215,7 +215,6 @@ export default function RoomDetailScreen({ route, navigation }) {
 
     fetchPumpStatus();
     fetchCameraStatus();
-
   }, [token]);
 
   useEffect(() => {
@@ -348,6 +347,57 @@ export default function RoomDetailScreen({ route, navigation }) {
       second: "2-digit",
     });
 
+  const waitForPumpResult = async () => {
+    let networkError = false;
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      try {
+        const data = await getPumpStatus(token);
+        const operationStatus = data?.operationStatus;
+
+        if (operationStatus?.status === "FAILED") {
+          setPumpActive(Boolean(operationStatus.state));
+          setLastUpdated(new Date());
+          Alert.alert(
+            t("roomDetail.pumpFailedTitle"),
+            t("roomDetail.pumpFailedMessage"),
+          );
+          return;
+        }
+
+        if (operationStatus?.status === "SUCCEEDED") {
+          setPumpActive(Boolean(operationStatus.state));
+          setLastUpdated(new Date());
+
+          if (data.waterPumpStatus) {
+            Alert.alert(
+              t("roomDetail.pumpSuccessActivatedTitle"),
+              t("roomDetail.pumpSuccessActivatedMessage"),
+            );
+          } else {
+            Alert.alert(
+              t("roomDetail.pumpSuccessDeactivatedTitle"),
+              t("roomDetail.pumpSuccessDeactivatedMessage"),
+            );
+          }
+
+          return;
+        }
+      } catch (error) {
+        console.error(`Pump status attempt ${attempt + 1} failed:`, error);
+        networkError = true;
+      }
+
+      if (networkError) {
+        Alert.alert(
+          "Connection Error",
+          "Unable to communicate with the server. Please check your internet connection.",
+        );
+      }
+    }
+  };
+
   const handlePumpToggle = async () => {
     if (!pumpActive) {
       Alert.alert(
@@ -359,17 +409,19 @@ export default function RoomDetailScreen({ route, navigation }) {
             text: t("roomDetail.activate"),
             style: "destructive",
             onPress: async () => {
-              await controlWaterPumpStatus(token, 1);
+              await controlWaterPumpStatus(1);
               setPumpActive(true);
               setLastUpdated(new Date());
+              await waitForPumpResult();
             },
           },
         ],
       );
     } else {
-      await controlWaterPumpStatus(token, 0);
+      await controlWaterPumpStatus(0);
       setPumpActive(false);
       setLastUpdated(new Date());
+      await waitForPumpResult();
     }
   };
 
