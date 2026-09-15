@@ -115,7 +115,7 @@ const translations = {
       pumpSuccessActivatedTitle: "Water Pump Activated",
       pumpSuccessActivatedMessage: "The water pump activated successfully.",
       pumpSuccessDeactivatedTitle: "Water Pump Deactivated",
-      pumpSuccessDeactivatedMessage: "The water pump deactivated successfully."
+      pumpSuccessDeactivatedMessage: "The water pump deactivated successfully.",
     },
     profile: {
       account: "ACCOUNT",
@@ -333,7 +333,7 @@ const translations = {
       pumpSuccessActivatedTitle: "Pam Air Diaktifkan",
       pumpSuccessActivatedMessage: "Pam air berjaya diaktifkan.",
       pumpSuccessDeactivatedTitle: "Pam air Dinyahaktifkan",
-      pumpSuccessDeactivatedMessage: "Pam air berjaya dinyahaktifkan."
+      pumpSuccessDeactivatedMessage: "Pam air berjaya dinyahaktifkan.",
     },
     profile: {
       account: "AKAUN",
@@ -508,8 +508,11 @@ export function AppProvider({ children }) {
 
   const fetchSensorData = async () => {
     const result = await apiGetSensorReading();
-    if (Object.keys(result).length !== 0) {
-      setSensorReading(result);
+    if (result && typeof result === "object" && !Array.isArray(result)) {
+      setSensorReading({
+        ...result,
+        flame: result.flame_detected ?? false,
+      });
     }
   };
 

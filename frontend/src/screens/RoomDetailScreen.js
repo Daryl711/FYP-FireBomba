@@ -188,7 +188,6 @@ export default function RoomDetailScreen({ route, navigation }) {
   const [pumpActive, setPumpActive] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [camTime, setCamTime] = useState(new Date());
-  const [stream, setStream] = useState(null);
   const [cameraActive, setCameraActive] = useState(false);
 
   const spinAnim = useRef(new Animated.Value(0)).current;
@@ -255,17 +254,18 @@ export default function RoomDetailScreen({ route, navigation }) {
   }, [pumpActive, pumpPulse]);
 
   useEffect(() => {
-    if (sensorReading) {
+    if (sensorReading && Object.keys(sensorReading).length > 0) {
       setLastUpdated(new Date());
     }
   }, [sensorReading]);
 
-  const sensors = sensorReading || {
+  const sensors = {
     temperature: 0,
     smoke: 0,
     flame: false,
     co: 0,
     humidity: 0,
+    ...sensorReading,
   };
 
   useEffect(() => {

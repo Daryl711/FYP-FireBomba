@@ -1,13 +1,18 @@
 const db = require("../config/supabase");
 
 exports.getWaterPumpStatus = async (roomId) => {
-  const sql = `
-    SELECT activated_status FROM Actuators WHERE room_id = ?
-  `;
-  const [rows] = await db.query(sql, [roomId]);
+    const { data, error } = await supabase
+        .from("actuators")
+        .select("waterpump_enabled")
+        .eq("room_id", roomId)
+        .maybeSingle();
 
-  const activationStatus = rows[0].activated_status;
-  return activationStatus;
+    if (error) {
+        console.error("Error getting water pump status:", error);
+        throw error;
+    }
+
+    return data?.activated_status ?? false;
 };
 
 exports.updateWaterPumpStatus = async (waterPumpStatus, roomId) => {
