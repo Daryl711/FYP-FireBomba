@@ -1,4 +1,4 @@
-const db = require("../config/database");
+const db = require("../config/supabase");
 
 exports.getRoomData = async (roomId) => {
   const sql = "SELECT * FROM Rooms WHERE room_id = ?";
@@ -22,7 +22,7 @@ exports.getCameraStatus = async (roomId) => {
 
   const cameraStatus = rows[0].camera_enabled;
   return cameraStatus;
-}
+};
 
 exports.updateCameraStatus = async (cameraStatus, roomId) => {
   const sql =
