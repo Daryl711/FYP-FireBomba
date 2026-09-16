@@ -9,6 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 import LoginScreen from "../screens/LoginScreen";
 import SignUpScreen from "../screens/SignUpScreen";
 import HomeScreen from "../screens/HomeScreen";
+import BilikRoomsScreen from "../screens/BilikRoomsScreen";
 import RoomsScreen from "../screens/RoomsScreen";
 import RoomDetailScreen from "../screens/RoomDetailScreen";
 import AlertsScreen from "../screens/AlertsScreen";
@@ -68,6 +69,7 @@ function HomeStack() {
   return (
     <HomeStackNav.Navigator screenOptions={{ headerShown: false }}>
       <HomeStackNav.Screen name="HomeMain" component={HomeScreen} />
+      <HomeStackNav.Screen name="BilikRooms" component={BilikRoomsScreen} />
       <HomeStackNav.Screen name="HomeRoomDetail" component={RoomDetailScreen} />
     </HomeStackNav.Navigator>
   );
@@ -78,19 +80,13 @@ function ProfileStack() {
   return (
     <ProfileStackNav.Navigator screenOptions={{ headerShown: false }}>
       <ProfileStackNav.Screen name="ProfileMain" component={ProfileScreen} />
-      <ProfileStackNav.Screen
-        name="PersonalInfo"
-        component={ProfileScreen}
-      />
+      <ProfileStackNav.Screen name="PersonalInfo" component={ProfileScreen} />
       <ProfileStackNav.Screen name="Security" component={SecurityScreen} />
       <ProfileStackNav.Screen
         name="NotificationSettings"
         component={ProfileScreen}
       />
-      <ProfileStackNav.Screen
-        name="SystemSettings"
-        component={ProfileScreen}
-      />
+      <ProfileStackNav.Screen name="SystemSettings" component={ProfileScreen} />
     </ProfileStackNav.Navigator>
   );
 }
