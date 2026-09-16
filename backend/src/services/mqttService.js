@@ -4,7 +4,6 @@ const EventEmitter = require("events");
 
 const brokerUrl = `${mqttConfig.protocol}://${mqttConfig.host}:${mqttConfig.port}`;
 
-
 const mqttEvents = new EventEmitter();
 
 const client = mqtt.connect(brokerUrl, mqttConfig);
@@ -19,6 +18,16 @@ client.on("connect", () => {
       console.error("MQTT subscription error:", err);
     }
   });
+});
+
+client.on("error", (err) => {
+  console.error("========== MQTT ERROR ==========");
+  console.error(err);
+});
+
+client.on("disconnect", (packet) => {
+  console.log("========== MQTT DISCONNECT ==========");
+  console.log(packet);
 });
 
 client.on("offline", () => {
@@ -41,10 +50,6 @@ client.on("message", (topic, message) => {
   } catch (err) {
     console.error("Invalid JSON:", err.message);
   }
-});
-
-client.on("error", (err) => {
-  console.error("MQTT Error:", err);
 });
 
 const publishMessage = (topic, message) => {

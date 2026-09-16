@@ -1,14 +1,14 @@
-const path = require("path");
-const { createClient } = require("@supabase/supabase-js");
-require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
+import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-    throw new Error("Missing Supabase environment variables. Check frontend/src/.env for SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
+  throw new Error(
+    "Missing Supabase environment variables. Check your frontend .env file.",
+  );
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-module.exports = supabase;
+export default supabase;

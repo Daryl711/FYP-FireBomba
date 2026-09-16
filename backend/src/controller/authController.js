@@ -47,6 +47,8 @@ exports.signup = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
+
+    console.log("Did it pass through here?")
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -96,7 +98,6 @@ exports.login = async (req, res) => {
         room_id: profile.room_id,
       },
 
-      role: roleData.role,
 
       session: {
         access_token: session.access_token,

@@ -1,32 +1,47 @@
-const db = require("../config/supabase");
+const supabase = require("../config/supabase");
 
 exports.getRoomData = async (roomId) => {
-  const sql = "SELECT * FROM Rooms WHERE room_id = ?";
-  const [result] = await db.query(sql, [roomId]);
+  const { data, error } = await supabase
+    .from("Rooms")
+    .select("room_id, name, status")
+    .eq("room_id", roomId)
+    .single();
 
-  const name = result[0].name;
-  const status = result[0].status;
+  if (error) {
+    throw error;
+  }
 
   return {
-    roomId,
-    name,
-    status,
+    roomId: data.room_id,
+    name: data.name,
+    status: data.status,
   };
 };
 
 exports.getCameraStatus = async (roomId) => {
-  const sql = `
-    SELECT camera_enabled FROM Rooms WHERE room_id = ?
-  `;
-  const [rows] = await db.query(sql, [roomId]);
+  const { data, error } = await supabase
+    .from("Rooms")
+    .select("camera_enabled")
+    .eq("room_id", roomId)
+    .single();
 
-  const cameraStatus = rows[0].camera_enabled;
-  return cameraStatus;
+  if (error) {
+    throw error;
+  }
+
+  return data.camera_enabled;
 };
 
 exports.updateCameraStatus = async (cameraStatus, roomId) => {
-  const sql =
-    "UPDATE Rooms SET camera_enabled = ?, last_updated = NOW() WHERE room_id = ?";
-  const [result] = await db.query(sql, [cameraStatus, roomId]);
-  return;
+  const { error } = await supabase
+    .from("Rooms")
+    .update({
+      camera_enabled: cameraStatus,
+      last_updated: new Date().toISOString(),
+    })
+    .eq("room_id", roomId);
+
+  if (error) {
+    throw error;
+  }
 };
