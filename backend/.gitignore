@@ -4,4 +4,4 @@ package.json
 
 .env
 
-src/certs/
+/src/certs

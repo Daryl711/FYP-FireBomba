@@ -14,9 +14,8 @@ DHT dht(DHT_PIN, DHT_TYPE); // Define DHT version
 
 int flameValue; // Define integer variable for flame
 float tempValue, humidValue; // Define float variable for temperature and humidity
-float smokePPM, coPPM; // Define float variable for PPM measurement of smoke and CO
+float smokePPM, coPPM; // Define float variable for PPM measurement of smoke and carbon monoxide(CO)
 int flameDetected; // Define boolean variable for flame detected
-
 
 #define RL 10.0 // Load resistor on module ≈10k ohm
 
@@ -28,6 +27,7 @@ bool waterPumpActive = false;
 bool fireAlertSent = false; // prevent alert notification send spam
 bool alertNotificationTrigger = false;
 bool waterPumpPrevActive = false;
+bool manualControl = false;
 
 unsigned long sirenTimer = 0;
 int sirenFreq = 700;
@@ -204,7 +204,7 @@ void handleAlertNotification()
   }
 }
 
-// Function for active the fire alarm module
+// Function for active the fire alarm system
 void activeFireAlarm()
 {
   static bool restartGap = false;
@@ -270,6 +270,41 @@ void activeWaterPump(){
   waterPumpPrevActive = waterPumpActive;
 }
 
+// Function for read the manual control water pump signal
+String getValue(String data, String key) {
+  int start = data.indexOf(key);
+  if (start == -1) return "";
+
+  start += key.length();
+  int end = data.indexOf(",", start);
+  if (end == -1) end = data.length();
+
+  return data.substring(start, end);
+}
+
+// Function for manual active the water pump through Serial Messages for subscribed topic
+void manualControlWaterPump()
+{
+  if(Serial.available())
+  {
+    String command = Serial.readStringUntil('\n');
+    command.trim();
+
+    String manualActive = getValue(command, "Pump:");
+
+    if(manualActive == "ON")
+    {
+        manualControl = true;
+        Serial.println("Manual Pump ON");
+    }
+    else if(manualActive == "OFF")
+    {
+        manualControl = false;   // back to auto mode
+        Serial.println("Back to AUTO mode");
+    }
+  }
+}
+
 // Function to display the sensor readings from flame, DHT22, MQ7 and MQ2 sensor
 void displaySensorReadings(bool flame, int temp, int humid, float smoke, float co){
   // Format for transmit to ESP32
@@ -326,9 +361,20 @@ void loop() {
   coPPM = getCOPPM();
   flameDetected = checkFlame(flameValue); // Convert flame digital output 1 to false, 0 to true
 
-  checkFireCondition(); // Check fire condition to trigger the alarm and water pump
+  manualControlWaterPump();
+  
+  if(manualControl){
+    // Manual mode
+    digitalWrite(RELAY1_PIN, LOW);
+
+  }else{
+    // Auto mode
+    checkFireCondition(); // Check fire condition to trigger the alarm and water pump
+    activeWaterPump();
+  }
+  
   activeFireAlarm();
-  activeWaterPump();
   handleAlertNotification();
   displaySensorReadings(flameDetected, tempValue, humidValue, smokePPM, coPPM);
 }
+

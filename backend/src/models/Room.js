@@ -1,20 +1,43 @@
 const supabase = require("../config/supabase");
 
 exports.getRoomData = async (roomId) => {
-  const { data, error } = await supabase
-    .from("Rooms")
-    .select("room_id, name, status")
-    .eq("room_id", roomId)
-    .single();
+  const sql = `
+    SELECT
+      r.room_id AS roomId,
+      r.name,
+      r.status,
+      r.last_updated AS lastUpdated,
+      r.camera_enabled AS cameraEnabled,
+      r.space_type AS spaceType,
+      b.bilik_id AS bilikId,
+      b.bilik_number AS bilikNumber,
+      b.household_name AS householdName
+    FROM Rooms r
+    LEFT JOIN Bilik b ON b.bilik_id = r.bilik_id
+    WHERE r.bilik_id = (
+      SELECT bilik_id FROM Rooms WHERE room_id = ?
+    )
+    OR r.room_id = ?
+    ORDER BY r.room_id
+  `;
+  const [rows] = await db.query(sql, [roomId, roomId]);
 
-  if (error) {
-    throw error;
+  if (rows.length === 0) {
+    return { bilik: null, rooms: [] };
   }
 
+  const firstRoom = rows[0];
+  const hasBilik = firstRoom.bilikId !== null;
+
   return {
-    roomId: data.room_id,
-    name: data.name,
-    status: data.status,
+    bilik: hasBilik
+      ? {
+          bilikId: firstRoom.bilikId,
+          number: firstRoom.bilikNumber,
+          householdName: firstRoom.householdName,
+        }
+      : null,
+    rooms: rows.map(({ bilikId, bilikNumber, householdName, ...room }) => room),
   };
 };
 
