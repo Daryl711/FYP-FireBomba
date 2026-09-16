@@ -1,4 +1,5 @@
 #include <DHT.h>
+#include <Servo.h>
 
 // Define Sensor and Actuator PIN
 #define LED 13
@@ -11,6 +12,8 @@
 #define RELAY1_PIN 8
 
 DHT dht(DHT_PIN, DHT_TYPE); // Define DHT version 
+Servo flameServo;
+Servo pumpServo;
 
 int flameValue; // Define integer variable for flame
 float tempValue, humidValue; // Define float variable for temperature and humidity
@@ -35,6 +38,11 @@ bool sirenGoingUp = true;
 int sirenCycleCount = 0; // how many sweeps finished
 bool sirenRunning = false; // playing or paused
 unsigned long sirenPauseTimer = 0;
+
+int servoAngle = 0; // Initialise default servo angle
+int servoDirection = 5; // Set the rotate angle as 5 degree
+unsigned long previousServoTime = 0;
+const unsigned long rotateSpeed = 3;  // 10 ms
 
 // Function for get voltage from MQ sensor
 float getVoltage(int adcValue)
@@ -108,16 +116,6 @@ float getCOPPM()
   return ppm;
 }
 
-// void MQ7HeatingCycle() {
-//   Serial.println("MQ7 High Heating (60s)...");
-//   analogWrite(MQ7_HEATER, 255);   // 5V heater
-//   delay(60000);                   // 60 seconds
-
-//   Serial.println("MQ7 Low Heating (90s)...");
-//   analogWrite(MQ7_HEATER, 72);    // ≈1.4V using PWM
-//   delay(90000);                   // 90 seconds
-// }
-
 int checkFlame(int flame){
   if(flame == 1){
     return 0;
@@ -128,7 +126,7 @@ int checkFlame(int flame){
 
 // Function for check whether the thresholds for each sensor be trigger or not
 void checkFireCondition(){
-  if((flameValue == 0 || smokePPM >= 1000) && tempValue >= 55 || coPPM > 50){
+  if(((flameValue == 0 || smokePPM >= 1000) && tempValue >= 55) || coPPM > 50){
     fireAlarmActive = true;
     waterPumpActive = true;
   }else{
@@ -260,11 +258,13 @@ void activeWaterPump(){
     digitalWrite(RELAY1_PIN, HIGH);
   }
 
-  // Prepare to send to ESP32
-  if (waterPumpActive && !waterPumpPrevActive) {
-    Serial.println("WaterPump:ON");
-  } else if (!waterPumpActive && waterPumpPrevActive) {
-    Serial.println("WaterPump:OFF");
+  // Send messages only when pump status changes
+  if(waterPumpActive != waterPumpPrevActive){
+    if(waterPumpActive){
+      Serial.println("WaterPump:ON");
+    }else{
+      Serial.println("WaterPump:OFF");
+    }
   }
 
   waterPumpPrevActive = waterPumpActive;
@@ -289,18 +289,57 @@ void manualControlWaterPump()
   {
     String command = Serial.readStringUntil('\n');
     command.trim();
-
+    
     String manualActive = getValue(command, "Pump:");
 
     if(manualActive == "ON")
     {
         manualControl = true;
+        waterPumpActive = true;
+
         Serial.println("Manual Pump ON");
     }
     else if(manualActive == "OFF")
     {
-        manualControl = false;   // back to auto mode
+        manualControl = false;
+        waterPumpActive = false;
+
         Serial.println("Back to AUTO mode");
+    }
+  }
+}
+
+// Function for control the servo motor rotate
+void servoControl(unsigned long currentTime){
+  if(flameValue == 0)
+  {
+    flameServo.write(servoAngle);
+    pumpServo.write(servoAngle);
+  }
+  else
+  {
+    pumpServo.write(0); // return to default angle
+
+    if (currentTime - previousServoTime >= rotateSpeed)
+    {
+      previousServoTime = currentTime;
+      servoAngle += servoDirection;
+
+      // Reach 150°
+      if (servoAngle >= 150)
+      {
+          servoAngle = 150;
+          servoDirection = -5;
+      }
+
+      // Reach 0°
+      if (servoAngle <= 0)
+      {
+          servoAngle = 0;
+          servoDirection = 5;
+      }
+    
+      flameServo.write(servoAngle);
     }
   }
 }
@@ -342,15 +381,24 @@ void setup() {
   pinMode(MQ2_PIN, INPUT);
   pinMode(MQ7_PIN, INPUT);
   pinMode(RELAY1_PIN, OUTPUT);
+  flameServo.attach(9);
+  pumpServo.attach(10);
 
   // Set default relay as off
   digitalWrite(RELAY1_PIN, HIGH); // OFF relay
+
+  // Set default motor angle
+  flameServo.write(servoAngle);
+  pumpServo.write(servoAngle);
 
   // Calibrate the MQ sensors once when the power up
   calibrateMQSensors();
 }
 
 void loop() {
+  // Initialise the run time for servo motor
+  unsigned long runTime = millis();
+
   // Read digital data pin value from flame and DHT11 sensor
   flameValue = digitalRead(FLAME_PIN);
   tempValue = dht.readTemperature();
@@ -361,20 +409,19 @@ void loop() {
   coPPM = getCOPPM();
   flameDetected = checkFlame(flameValue); // Convert flame digital output 1 to false, 0 to true
 
+  // Check manual command
   manualControlWaterPump();
   
-  if(manualControl){
-    // Manual mode
-    digitalWrite(RELAY1_PIN, LOW);
-
-  }else{
-    // Auto mode
-    checkFireCondition(); // Check fire condition to trigger the alarm and water pump
-    activeWaterPump();
+  if(!manualControl){
+    checkFireCondition();
   }
-  
+
+  activeWaterPump();
+
+  servoControl(runTime);
   activeFireAlarm();
   handleAlertNotification();
+  
   displaySensorReadings(flameDetected, tempValue, humidValue, smokePPM, coPPM);
 }
 
