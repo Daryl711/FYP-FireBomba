@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS rooms (
     bilik_id INTEGER,
 
     CONSTRAINT rooms_space_type_check
-        CHECK (space_type IN ('BILIK_ROOM', 'RUAI', 'TANJU')),
+        CHECK (space_type IN ('BILIK_ROOM', 'DAPUR', 'SADAU')),
 
     CONSTRAINT rooms_bilik_fk
         FOREIGN KEY (bilik_id)
@@ -46,15 +46,15 @@ CREATE TABLE IF NOT EXISTS rooms (
 
 CREATE TABLE users (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    room_id INTEGER NOT NULL,
+    bilik_id INTEGER NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     full_name VARCHAR(100) NOT NULL,
     role VARCHAR(20) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT users_room_fk
-        FOREIGN KEY (room_id)
-        REFERENCES rooms(room_id)
+    CONSTRAINT users_bilik_fk
+        FOREIGN KEY (bilik_id)
+        REFERENCES Bilik(bilik_id)
         ON DELETE CASCADE
 );
 
@@ -130,3 +130,28 @@ CREATE TABLE IF NOT EXISTS sensor_aggregates (
         REFERENCES rooms(room_id)
         ON DELETE CASCADE
 );
+
+-- Mock biliks
+INSERT INTO bilik (bilik_number, household_name)
+VALUES
+    ('BILIK-01', 'Household Ali'),
+    ('BILIK-02', 'Household Abu'),
+    ('BILIK-03', 'Household Ahmad');
+
+
+
+INSERT INTO rooms
+    (name, status, last_updated, camera_enabled, space_type, bilik_id)
+VALUES
+    -- Bilik 1
+    ('Ali Bedroom', 'NORMAL', '2026-09-16 20:00:00+08', TRUE, 'BILIK_ROOM', 1),
+    ('Ali Kitchen', 'NORMAL', '2026-09-16 20:00:00+08', TRUE, 'DAPUR', 1),
+
+    -- Bilik 2
+    ('Abu Bedroom', 'NORMAL', '2026-09-16 20:01:00+08', TRUE, 'BILIK_ROOM', 2),
+    ('Abu Kitchen', 'NORMAL', '2026-09-16 20:01:00+08', FALSE, 'DAPUR', 2),
+
+    -- Bilik 3
+    ('Ahmad Bedroom', 'NORMAL', '2026-09-16 20:02:00+08', TRUE, 'BILIK_ROOM', 3),
+    ('Ahmad Kitchen', 'NORMAL', '2026-09-16 20:02:00+08', FALSE, 'DAPUR', 3);
+

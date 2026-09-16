@@ -148,10 +148,10 @@ export async function logoutUser(refreshToken) {
 
 // ─── Protected endpoints (auto-refresh on 401) ───────────────────────────────
 
-export async function getSensorReading() {
+export async function getSensorReading(roomId) {
   try {
     const response = await authFetch(
-      `${API_ROOT}/room-detail/get-latest-readings`,
+      `${API_ROOT}/room-detail/get-latest-readings?roomId=${roomId}`,
     );
     return await safeParseResponse(response);
   } catch (error) {
@@ -160,10 +160,10 @@ export async function getSensorReading() {
   }
 }
 
-export async function getSensorAggregates(limit = 10) {
+export async function getSensorAggregates(roomId, limit = 10) {
   try {
     const response = await authFetch(
-      `${API_ROOT}/room-detail/sensor-aggregates?limit=${limit}`,
+      `${API_ROOT}/room-detail/sensor-aggregates?roomId=${roomId}&limit=${limit}`,
     );
     const data = await safeParseResponse(response);
     return data.data || [];
@@ -182,9 +182,19 @@ export async function getAlerts() {
   }
 }
 
-export async function getRoomData() {
+export async function getBilikData() {
   try {
-    const response = await authFetch(`${API_ROOT}/home/room-data`);
+    const response = await authFetch(`${API_ROOT}/home/bilik-data`);
+    return await safeParseResponse(response);
+  } catch (error) {
+    console.error(error);
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+export async function getRoomsByBilik(bilikId) {
+  try {
+    const response = await authFetch(`${API_ROOT}/home/bilik/${bilikId}/rooms`);
     return await safeParseResponse(response);
   } catch (error) {
     console.error(error);
@@ -236,10 +246,10 @@ export async function hideAllAlerts() {
   }
 }
 
-export async function getPumpStatus() {
+export async function getPumpStatus(roomId) {
   try {
     const response = await authFetch(
-      `${API_ROOT}/room-detail/get-water-pump-status`,
+      `${API_ROOT}/room-detail/get-water-pump-status?roomId=${roomId}`,
     );
     const data = await safeParseResponse(response);
     return data;
@@ -248,13 +258,13 @@ export async function getPumpStatus() {
   }
 }
 
-export async function controlWaterPumpStatus(waterPumpStatus) {
+export async function controlWaterPumpStatus(roomId, waterPumpStatus) {
   try {
     const response = await authFetch(
       `${API_ROOT}/room-detail/control-water-pump`,
       {
         method: "PUT",
-        body: JSON.stringify({ waterPumpStatus }),
+        body: JSON.stringify({ roomId, waterPumpStatus }),
       },
     );
     return await safeParseResponse(response);

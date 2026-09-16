@@ -1,4 +1,4 @@
-const db = require("../config/supabase");
+const supabase = require("../config/supabase");
 
 exports.getWaterPumpStatus = async (roomId) => {
   const { data, error } = await supabase

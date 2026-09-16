@@ -74,7 +74,7 @@ exports.login = async (req, res) => {
     // 3. Get application profile
     const { data: profile, error: profileError } = await supabase
       .from("users")
-      .select("full_name, room_id")
+      .select("full_name, bilik_id")
       .eq("user_id", user.id)
       .single();
 

@@ -1,44 +1,63 @@
 const supabase = require("../config/supabase");
 
-exports.getRoomData = async (roomId) => {
-  const sql = `
-    SELECT
-      r.room_id AS roomId,
-      r.name,
-      r.status,
-      r.last_updated AS lastUpdated,
-      r.camera_enabled AS cameraEnabled,
-      r.space_type AS spaceType,
-      b.bilik_id AS bilikId,
-      b.bilik_number AS bilikNumber,
-      b.household_name AS householdName
-    FROM Rooms r
-    LEFT JOIN Bilik b ON b.bilik_id = r.bilik_id
-    WHERE r.bilik_id = (
-      SELECT bilik_id FROM Rooms WHERE room_id = ?
-    )
-    OR r.room_id = ?
-    ORDER BY r.room_id
-  `;
-  const [rows] = await db.query(sql, [roomId, roomId]);
+const mapBilik = (bilik) =>
+  bilik
+    ? {
+        bilikId: bilik.bilik_id,
+        number: bilik.bilik_number,
+        householdName: bilik.household_name,
+      }
+    : null;
 
-  if (rows.length === 0) {
-    return { bilik: null, rooms: [] };
+const mapRoom = (room) => ({
+  roomId: room.room_id,
+  name: room.name,
+  status: room.status,
+  lastUpdated: room.last_updated,
+  cameraEnabled: room.camera_enabled,
+  spaceType: room.space_type,
+});
+
+const getUserBilikId = async (userId) => {
+  const { data, error } = await supabase
+    .from("users")
+    .select("bilik_id")
+    .eq("user_id", userId)
+    .single();
+
+  if (error) throw error;
+  return data.bilik_id;
+};
+
+exports.getBilikData = async (userId) => {
+  const bilikId = await getUserBilikId(userId);
+
+  const { data, error } = await supabase
+    .from("bilik")
+    .select("bilik_id, bilik_number, household_name")
+    .eq("bilik_id", bilikId)
+    .single();
+
+  if (error) throw error;
+  return mapBilik(data);
+};
+
+exports.getRoomsByBilik = async (bilikId, userId) => {
+  const userBilikId = await getUserBilikId(userId);
+
+  if (String(userBilikId) !== String(bilikId)) {
+    const error = new Error("Bilik does not belong to the authenticated user");
+    error.status = 403;
+    throw error;
   }
 
-  const firstRoom = rows[0];
-  const hasBilik = firstRoom.bilikId !== null;
+  const { data, error } = await supabase
+    .from("rooms")
+    .select("room_id, name, status, last_updated, camera_enabled, space_type")
+    .eq("bilik_id", Number(bilikId))
+    .order("room_id");
 
-  return {
-    bilik: hasBilik
-      ? {
-          bilikId: firstRoom.bilikId,
-          number: firstRoom.bilikNumber,
-          householdName: firstRoom.householdName,
-        }
-      : null,
-    rooms: rows.map(({ bilikId, bilikNumber, householdName, ...room }) => room),
-  };
+  return (data || []).map(mapRoom);
 };
 
 exports.getCameraStatus = async (roomId) => {

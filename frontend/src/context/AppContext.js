@@ -15,8 +15,7 @@ import {
   markAllAlertsRead as apiMarkAllRead,
   deleteAlert as apiDeleteAlert,
   hideAllAlerts as apiHideAllAlerts,
-  getSensorReading as apiGetSensorReading,
-  getRoomData as apiGetRoomData,
+  getBilikData as apiGetBilikData,
   logoutUser,
   saveTokens,
   getAccessToken,
@@ -443,13 +442,11 @@ export function AppProvider({ children }) {
   const [token, setToken] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [language, setLanguage] = useState("en");
-  const [sensorReading, setSensorReading] = useState({});
   const [notifications, setNotifications] = useState([]);
-  const [roomData, setRoomData] = useState(null);
+  const [roomData, setRoomData] = useState([]);
   const [bilik, setBilik] = useState(null);
 
   const alertRef = useRef(null);
-  const sensorDataRef = useRef(null);
   const soundRef = useRef(null);
   const prevUnreadRef = useRef(0);
 
@@ -507,42 +504,27 @@ export function AppProvider({ children }) {
     }
   };
 
-  const fetchSensorData = async () => {
-    const result = await apiGetSensorReading();
-    if (result && typeof result === "object" && !Array.isArray(result)) {
-      setSensorReading({
-        ...result,
-        flame: result.flame_detected ?? false,
-      });
-    }
-  };
-
   // Start polling when the user logs in
-  useEffect(() => {
-    if (token) {
-      fetchAlerts();
-      alertRef.current = setInterval(() => fetchAlerts(), 10000);
-      sensorDataRef.current = setInterval(() => fetchSensorData(), 5000);
-    }
-    return () => {
-      clearInterval(alertRef.current);
-      clearInterval(sensorDataRef.current);
-    };
-  }, [token]);
+  // useEffect(() => {
+  //   if (token) {
+  //     fetchAlerts();
+  //     alertRef.current = setInterval(() => fetchAlerts(), 10000);
+  //   }
+  //   return () => {
+  //     clearInterval(alertRef.current);
+  //   };
+  // }, [token]);
 
   useEffect(() => {
     const fetchData = async () => {
       if (token) {
-        const fetchedRoomData = await apiGetRoomData();
-        if (fetchedRoomData?.error) {
-          setRoomData(fetchedRoomData);
+        const fetchedBilik = await apiGetBilikData();
+        if (fetchedBilik?.error) {
+          setRoomData([]);
           setBilik(null);
           return;
         }
-        setRoomData(
-          Array.isArray(fetchedRoomData?.rooms) ? fetchedRoomData.rooms : [],
-        );
-        setBilik(fetchedRoomData?.bilik ?? null);
+        setBilik(fetchedBilik);
       }
     };
 
@@ -562,7 +544,6 @@ export function AppProvider({ children }) {
 
   const logout = async () => {
     clearInterval(alertRef.current);
-    clearInterval(sensorDataRef.current);
     prevUnreadRef.current = 0;
     const refreshToken = await getRefreshToken();
     await logoutUser(refreshToken);
@@ -630,7 +611,6 @@ export function AppProvider({ children }) {
       roomData,
       bilik,
       notifications,
-      sensorReading,
       unreadCount,
       markAllRead,
       markNotificationRead,

@@ -176,13 +176,14 @@ const hStyles = StyleSheet.create({
 });
 
 export default function RoomDetailScreen({ route, navigation }) {
-  const { roomData, t, sensorReading, token } = useApp();
+  const { t, token } = useApp();
   const { room } = route?.params || {};
 
   const name = room?.name || "Room";
 
   const [sensorLoading, setSensorLoading] = useState(false);
   const [sensorError, setSensorError] = useState(null);
+  const [sensorReading, setSensorReading] = useState({});
   const [sensorHistory, setSensorHistory] = useState([]);
   const [historyWindowStart, setHistoryWindowStart] = useState(0);
   const [pumpActive, setPumpActive] = useState(false);
@@ -196,7 +197,7 @@ export default function RoomDetailScreen({ route, navigation }) {
   useEffect(() => {
     const fetchPumpStatus = async () => {
       try {
-        const data = await getPumpStatus(token);
+        const data = await getPumpStatus(room.roomId);
         setPumpActive(Boolean(data.waterPumpStatus));
       } catch (err) {
         console.error("Failed to fetch pump status:", err);
@@ -214,7 +215,37 @@ export default function RoomDetailScreen({ route, navigation }) {
 
     fetchPumpStatus();
     fetchCameraStatus();
-  }, [token]);
+  }, [room?.roomId]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadSensorReading = async () => {
+      if (!room?.roomId) return;
+      const result = await getSensorReading(room.roomId);
+      if (!mounted) return;
+      if (result?.error) {
+        setSensorError(result.error);
+        return;
+      }
+      if (result && typeof result === "object") {
+        setSensorReading({
+          ...result,
+          flame: result.flame ?? result.flame_detected ?? false,
+        });
+        setSensorError(null);
+        setLastUpdated(new Date());
+      }
+    };
+
+    loadSensorReading();
+    const interval = setInterval(loadSensorReading, 5000);
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [room?.roomId]);
 
   useEffect(() => {
     Animated.loop(
@@ -275,7 +306,7 @@ export default function RoomDetailScreen({ route, navigation }) {
       setSensorLoading(true);
       setSensorError(null);
 
-      const data = await getSensorAggregates(20);
+      const data = await getSensorAggregates(room.roomId, 20);
 
       if (!isMounted) return;
 
@@ -298,7 +329,7 @@ export default function RoomDetailScreen({ route, navigation }) {
       isMounted = false;
       clearInterval(refreshInterval);
     };
-  }, []);
+  }, [room?.roomId]);
 
   useEffect(() => {
     if (sensorHistory.length < 10) return undefined;
@@ -353,7 +384,7 @@ export default function RoomDetailScreen({ route, navigation }) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       try {
-        const data = await getPumpStatus();
+        const data = await getPumpStatus(room.roomId);
         const operationStatus = data?.operationStatus;
 
         if (operationStatus?.status === "FAILED") {
@@ -408,7 +439,7 @@ export default function RoomDetailScreen({ route, navigation }) {
             text: t("roomDetail.activate"),
             style: "destructive",
             onPress: async () => {
-              await controlWaterPumpStatus(1);
+              await controlWaterPumpStatus(room.roomId, 1);
               setPumpActive(true);
               setLastUpdated(new Date());
               await waitForPumpResult();
@@ -417,7 +448,7 @@ export default function RoomDetailScreen({ route, navigation }) {
         ],
       );
     } else {
-      await controlWaterPumpStatus(0);
+      await controlWaterPumpStatus(room.roomId, 0);
       setPumpActive(false);
       setLastUpdated(new Date());
       await waitForPumpResult();
@@ -432,7 +463,7 @@ export default function RoomDetailScreen({ route, navigation }) {
   const coPct = Math.min((sensors.co / THRESHOLDS.co) * 100, 100);
   const humidityPct = Math.min(sensors.humidity ?? 0, 100);
 
-  if (!roomData) {
+  if (!room) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.unavailableWrap}>
@@ -472,7 +503,7 @@ export default function RoomDetailScreen({ route, navigation }) {
             styles.statusDot,
             {
               backgroundColor:
-                roomData.status === "warning" ? COLORS.amber : COLORS.green,
+                room?.status === "warning" ? COLORS.amber : COLORS.green,
             },
           ]}
         />

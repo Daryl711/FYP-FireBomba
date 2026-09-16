@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -9,9 +9,31 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
+import { getRoomsByBilik } from "../services/api";
 
 export default function BilikRoomsScreen({ route, navigation }) {
-  const { bilik, rooms = [] } = route?.params || {};
+  const { bilik } = route?.params || {};
+  const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadRooms = async () => {
+      if (!bilik?.bilikId) {
+        setLoading(false);
+        return;
+      }
+      const result = await getRoomsByBilik(bilik.bilikId);
+      if (mounted) {
+        setRooms(Array.isArray(result) ? result : []);
+        setLoading(false);
+      }
+    };
+    loadRooms();
+    return () => {
+      mounted = false;
+    };
+  }, [bilik?.bilikId]);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -33,6 +55,7 @@ export default function BilikRoomsScreen({ route, navigation }) {
 
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.sectionTitle}>Rooms</Text>
+        {loading && <Text style={styles.emptyText}>Loading rooms...</Text>}
         <View style={styles.roomCard}>
           {rooms.map((room, index) => (
             <React.Fragment key={room.roomId}>

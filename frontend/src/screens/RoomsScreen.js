@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -10,9 +10,24 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
+import { getRoomsByBilik } from "../services/api";
 
 export default function RoomsScreen({ navigation }) {
-  const { roomData, t } = useApp();
+  const { bilik, t } = useApp();
+  const [roomData, setRoomData] = useState([]);
+
+  useEffect(() => {
+    let mounted = true;
+    if (!bilik?.bilikId) return undefined;
+
+    getRoomsByBilik(bilik.bilikId).then((result) => {
+      if (mounted && Array.isArray(result)) setRoomData(result);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [bilik?.bilikId]);
   // const safeCount = rooms.filter((r) => r.status === 'safe').length;
   // const warnCount = rooms.filter((r) => r.status === 'warning').length;
 
@@ -36,7 +51,7 @@ export default function RoomsScreen({ navigation }) {
                 style={styles.roomRow}
                 onPress={() =>
                   navigation.navigate("ListRoomDetail", {
-                    room
+                    room,
                   })
                 }
                 activeOpacity={0.75}
@@ -47,13 +62,11 @@ export default function RoomsScreen({ navigation }) {
                 </View>
                 <Ionicons
                   name={
-                    roomData.status === "warning"
-                      ? "warning"
-                      : "checkmark-circle"
+                    room.status === "warning" ? "warning" : "checkmark-circle"
                   }
                   size={24}
                   color={
-                    roomData.status === "warning" ? COLORS.amber : COLORS.green
+                    room.status === "warning" ? COLORS.amber : COLORS.green
                   }
                 />
               </TouchableOpacity>
@@ -64,7 +77,9 @@ export default function RoomsScreen({ navigation }) {
         {/* Summary Footer */}
         <View style={styles.footer}>
           <View style={styles.footerStat}>
-            <Text style={[styles.footerVal, { color: COLORS.blue }]}>{roomData.length}</Text>
+            <Text style={[styles.footerVal, { color: COLORS.blue }]}>
+              {roomData.length}
+            </Text>
             <Text style={styles.footerLbl}>{t("rooms.totalRooms")}</Text>
           </View>
           <View style={styles.footerDivider} />
