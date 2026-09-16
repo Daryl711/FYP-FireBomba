@@ -4,19 +4,33 @@ const EventEmitter = require("events");
 
 const brokerUrl = `${mqttConfig.protocol}://${mqttConfig.host}:${mqttConfig.port}`;
 
+
 const mqttEvents = new EventEmitter();
 
 const client = mqtt.connect(brokerUrl, mqttConfig);
 
-//leave it for now, might change
 client.on("connect", () => {
-  console.log("Connected to MQTT broker");
+  console.log("Connected to AWS IoT Core MQTT broker");
 
-  client.subscribe("firebomba/room/#", (err) => {
+  client.subscribe("firebomba/room/+/pump/status", { qos: 1 }, (err) => {
     if (!err) {
-      console.log("Subscribed to firebomba/room/#");
+      console.log("Subscribed to firebomba/room/+/pump/status");
+    } else {
+      console.error("MQTT subscription error:", err);
     }
   });
+});
+
+client.on("offline", () => {
+  console.log("========== MQTT OFFLINE ==========");
+});
+
+client.on("close", () => {
+  console.log("========== MQTT CLOSED ==========");
+});
+
+client.on("reconnect", () => {
+  console.log("========== MQTT RECONNECTING ==========");
 });
 
 client.on("message", (topic, message) => {

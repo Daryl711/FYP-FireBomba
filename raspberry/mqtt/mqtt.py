@@ -1,9 +1,14 @@
 import os
 import json
 import re
+from pathlib import Path
 
 import paho.mqtt.client as mqtt
-from raspberry.mqtt.database import get_room_id, insert_sensor_reading
+from dotenv import load_dotenv
+from mqtt.database import get_room_id, insert_sensor_reading
+
+
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 CLOUD_ENDPOINT = os.environ["AWS_IOT_ENDPOINT"]
 CLOUD_PORT = int(os.getenv("AWS_IOT_PORT", "8883"))
@@ -124,8 +129,7 @@ def configure_clients():
 
 def main():
 	configure_clients()
-	local_client.connect(LOCAL_BROKER, LOCAL_PORT, keepalive=60)
-	cloud_client.connect(CLOUD_ENDPOINT, CLOUD_PORT, keepalive=60)
+	connect_clients()
 
 	local_client.loop_start()
 	try:
@@ -135,6 +139,11 @@ def main():
 		local_client.loop_stop()
 		local_client.disconnect()
 		cloud_client.disconnect()
+
+
+def connect_clients():
+	local_client.connect(LOCAL_BROKER, LOCAL_PORT, keepalive=60)
+	cloud_client.connect(CLOUD_ENDPOINT, CLOUD_PORT, keepalive=60)
 
 
 if __name__ == "__main__":
