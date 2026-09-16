@@ -8,6 +8,7 @@ const mqttEvents = new EventEmitter();
 
 const client = mqtt.connect(brokerUrl, mqttConfig);
 
+//leave it for now, might change
 client.on("connect", () => {
   console.log("Connected to MQTT broker");
 
