@@ -115,7 +115,7 @@ const translations = {
       pumpSuccessActivatedTitle: "Water Pump Activated",
       pumpSuccessActivatedMessage: "The water pump activated successfully.",
       pumpSuccessDeactivatedTitle: "Water Pump Deactivated",
-      pumpSuccessDeactivatedMessage: "The water pump deactivated successfully."
+      pumpSuccessDeactivatedMessage: "The water pump deactivated successfully.",
     },
     profile: {
       account: "ACCOUNT",
@@ -333,7 +333,7 @@ const translations = {
       pumpSuccessActivatedTitle: "Pam Air Diaktifkan",
       pumpSuccessActivatedMessage: "Pam air berjaya diaktifkan.",
       pumpSuccessDeactivatedTitle: "Pam air Dinyahaktifkan",
-      pumpSuccessDeactivatedMessage: "Pam air berjaya dinyahaktifkan."
+      pumpSuccessDeactivatedMessage: "Pam air berjaya dinyahaktifkan.",
     },
     profile: {
       account: "AKAUN",
@@ -446,6 +446,7 @@ export function AppProvider({ children }) {
   const [sensorReading, setSensorReading] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [roomData, setRoomData] = useState(null);
+  const [bilik, setBilik] = useState(null);
 
   const alertRef = useRef(null);
   const sensorDataRef = useRef(null);
@@ -530,7 +531,15 @@ export function AppProvider({ children }) {
     const fetchData = async () => {
       if (token) {
         const fetchedRoomData = await apiGetRoomData();
-        setRoomData([fetchedRoomData]);
+        if (fetchedRoomData?.error) {
+          setRoomData(fetchedRoomData);
+          setBilik(null);
+          return;
+        }
+        setRoomData(
+          Array.isArray(fetchedRoomData?.rooms) ? fetchedRoomData.rooms : [],
+        );
+        setBilik(fetchedRoomData?.bilik ?? null);
       }
     };
 
@@ -616,6 +625,7 @@ export function AppProvider({ children }) {
       login,
       logout,
       roomData,
+      bilik,
       notifications,
       sensorReading,
       unreadCount,
@@ -632,7 +642,7 @@ export function AppProvider({ children }) {
         fireEvents: 2,
       },
     };
-  }, [language, notifications, user, token, authReady]);
+  }, [language, notifications, user, token, authReady, roomData, bilik]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

@@ -1,16 +1,43 @@
 const db = require("../config/database");
 
 exports.getRoomData = async (roomId) => {
-  const sql = "SELECT * FROM Rooms WHERE room_id = ?";
-  const [result] = await db.query(sql, [roomId]);
+  const sql = `
+    SELECT
+      r.room_id AS roomId,
+      r.name,
+      r.status,
+      r.last_updated AS lastUpdated,
+      r.camera_enabled AS cameraEnabled,
+      r.space_type AS spaceType,
+      b.bilik_id AS bilikId,
+      b.bilik_number AS bilikNumber,
+      b.household_name AS householdName
+    FROM Rooms r
+    LEFT JOIN Bilik b ON b.bilik_id = r.bilik_id
+    WHERE r.bilik_id = (
+      SELECT bilik_id FROM Rooms WHERE room_id = ?
+    )
+    OR r.room_id = ?
+    ORDER BY r.room_id
+  `;
+  const [rows] = await db.query(sql, [roomId, roomId]);
 
-  const name = result[0].name;
-  const status = result[0].status;
+  if (rows.length === 0) {
+    return { bilik: null, rooms: [] };
+  }
+
+  const firstRoom = rows[0];
+  const hasBilik = firstRoom.bilikId !== null;
 
   return {
-    roomId,
-    name,
-    status,
+    bilik: hasBilik
+      ? {
+          bilikId: firstRoom.bilikId,
+          number: firstRoom.bilikNumber,
+          householdName: firstRoom.householdName,
+        }
+      : null,
+    rooms: rows.map(({ bilikId, bilikNumber, householdName, ...room }) => room),
   };
 };
 
@@ -22,7 +49,7 @@ exports.getCameraStatus = async (roomId) => {
 
   const cameraStatus = rows[0].camera_enabled;
   return cameraStatus;
-}
+};
 
 exports.updateCameraStatus = async (cameraStatus, roomId) => {
   const sql =

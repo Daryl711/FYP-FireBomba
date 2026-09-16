@@ -15,9 +15,15 @@ import { useNavigation } from "@react-navigation/native";
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const { roomData, notifications, systemStatus, user, realtimeError, t } =
-    useApp();
-
+  const {
+    roomData,
+    bilik,
+    notifications,
+    systemStatus,
+    user,
+    realtimeError,
+    t,
+  } = useApp();
 
   // ── Loading gate ───────────────────────────────────────────────────────────
   // roomData is null/undefined while the context is still fetching
@@ -46,11 +52,6 @@ export default function HomeScreen() {
     if (navigation?.navigate) {
       navigation.navigate(route, params);
     }
-  };
-
-  const navigateToRoomDetail = (room) => {
-    if (!room) return;
-    navigation.navigate("HomeRoomDetail", { room });
   };
 
   // Safe to access now that roomData is guaranteed to be an array
@@ -191,39 +192,77 @@ export default function HomeScreen() {
           ) : null}
         </View>
 
-        {/* Room Overview */}
+        {/* Bilik and its rooms */}
         <View style={styles.section}>
           <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>{t("home.roomOverview")}</Text>
+            <Text style={styles.sectionTitle}>
+              {bilik?.number || t("home.roomOverview")}
+            </Text>
             <TouchableOpacity onPress={() => navigateTo("Rooms")}>
               <Text style={styles.sectionLink}>{t("home.viewAll")}</Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.roomGrid}>
-            {roomData.map((room) => (
-              <TouchableOpacity
-                key={room.roomId}
-                style={styles.roomMini}
-                onPress={() => navigateToRoomDetail(room)}
-                activeOpacity={0.75}
-              >
-                <View style={styles.roomMiniTop}>
-                  <Text style={styles.roomMiniName}>{room.name}</Text>
-                  <Ionicons
-                    name={
-                      room.status === "warning"
-                        ? "warning"
-                        : "checkmark-circle"
-                    }
-                    size={20}
-                    color={
-                      room.status === "warning" ? COLORS.amber : COLORS.green
-                    }
-                  />
+          <TouchableOpacity
+            style={styles.bilikCard}
+            onPress={() =>
+              navigation.navigate("BilikRooms", { bilik, rooms: roomData })
+            }
+            activeOpacity={0.8}
+          >
+            <View style={styles.bilikHeader}>
+              <View style={styles.bilikIcon}>
+                <Ionicons
+                  name="home-outline"
+                  size={22}
+                  color={COLORS.primary}
+                />
+              </View>
+              <View style={styles.bilikText}>
+                <Text style={styles.bilikName}>{bilik?.number || "Bilik"}</Text>
+                <Text style={styles.bilikSubtitle}>
+                  {bilik?.householdName || `${roomData.length} rooms`}
+                </Text>
+              </View>
+              <Ionicons name="layers-outline" size={20} color={COLORS.text3} />
+            </View>
+            <View style={styles.roomList}>
+              {roomData.map((room) => (
+                <View key={room.roomId} style={styles.roomRow}>
+                  <View style={styles.roomTypeIcon}>
+                    <Ionicons
+                      name="grid-outline"
+                      size={18}
+                      color={COLORS.blue}
+                    />
+                  </View>
+                  <View style={styles.roomRowText}>
+                    <Text style={styles.roomName}>{room.name}</Text>
+                    <Text style={styles.roomType}>
+                      {room.spaceType || "Room"}
+                    </Text>
+                  </View>
+                  <View style={styles.roomRowEnd}>
+                    <Ionicons
+                      name={
+                        room.status === "warning"
+                          ? "warning"
+                          : "checkmark-circle"
+                      }
+                      size={20}
+                      color={
+                        room.status === "warning" ? COLORS.amber : COLORS.green
+                      }
+                    />
+                    <Ionicons
+                      name="chevron-forward"
+                      size={17}
+                      color={COLORS.text3}
+                    />
+                  </View>
                 </View>
-              </TouchableOpacity>
-            ))}
-          </View>
+              ))}
+            </View>
+          </TouchableOpacity>
         </View>
 
         <View style={{ height: SPACING.xxl }} />
@@ -426,34 +465,76 @@ const styles = StyleSheet.create({
     color: COLORS.text2,
   },
 
-  // ── Room grid ────────────────────────────────────────────────────────────
-  roomGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: SPACING.md,
-  },
-  roomMini: {
+  // ── Bilik and room list ──────────────────────────────────────────────────
+  bilikCard: {
     backgroundColor: COLORS.white,
     borderRadius: RADIUS.lg,
-    padding: SPACING.md,
-    width: "47.5%",
+    overflow: "hidden",
     ...SHADOW.small,
   },
-  roomMiniTop: {
+  bilikHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
+    padding: SPACING.md,
+    gap: SPACING.md,
   },
-  roomMiniName: {
+  bilikIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: COLORS.primaryLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bilikText: {
+    flex: 1,
+  },
+  bilikName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.text,
+  },
+  bilikSubtitle: {
+    fontSize: 12,
+    color: COLORS.text2,
+    marginTop: 2,
+  },
+  roomList: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  roomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: SPACING.md,
+    gap: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  roomTypeIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: COLORS.blueLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  roomRowText: {
+    flex: 1,
+  },
+  roomName: {
     fontSize: 14,
     fontWeight: "700",
     color: COLORS.text,
-    flex: 1,
-    marginRight: 4,
   },
-  roomMiniTemp: {
-    fontSize: 12,
+  roomType: {
+    fontSize: 11,
     color: COLORS.text2,
-    marginTop: 6,
+    marginTop: 2,
+  },
+  roomRowEnd: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.sm,
   },
 });

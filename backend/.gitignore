@@ -4,4 +4,4 @@ package.json
 
 .env
 
-ca.crt
+/src/certs
