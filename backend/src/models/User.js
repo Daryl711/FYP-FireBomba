@@ -1,28 +1,22 @@
-const db = require("../config/database");
-
+const db = require("../config/supabase");
 
 exports.checkEmail = async (email) => {
   const sql = "SELECT * FROM Users WHERE email = ?";
-  const [result] = await db.query(
-    sql, [email],
-  );
+  const [result] = await db.query(sql, [email]);
 
   if (result.length > 0) {
     return true;
-  } 
+  }
   return false;
+};
 
-}
-
-exports.addUser = async(fullName, email, hashedPassword) => {
-  const sql = "INSERT INTO Users (room_id, full_name, email, password) VALUES (?, ?, ?, ?)";
-  const [result] = await db.query(
-    sql, [1, fullName, email, hashedPassword],
-  );
+exports.addUser = async (fullName, email, hashedPassword) => {
+  const sql =
+    "INSERT INTO Users (room_id, full_name, email, password) VALUES (?, ?, ?, ?)";
+  const [result] = await db.query(sql, [1, fullName, email, hashedPassword]);
 
   return result.insertId;
-}
-
+};
 
 exports.getUserDetails = async (email) => {
   const sql = "SELECT * FROM Users WHERE email = ?";

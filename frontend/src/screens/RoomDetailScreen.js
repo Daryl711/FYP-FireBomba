@@ -188,7 +188,6 @@ export default function RoomDetailScreen({ route, navigation }) {
   const [pumpActive, setPumpActive] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [camTime, setCamTime] = useState(new Date());
-  const [stream, setStream] = useState(null);
   const [cameraActive, setCameraActive] = useState(false);
 
   const spinAnim = useRef(new Animated.Value(0)).current;
@@ -255,17 +254,18 @@ export default function RoomDetailScreen({ route, navigation }) {
   }, [pumpActive, pumpPulse]);
 
   useEffect(() => {
-    if (sensorReading) {
+    if (sensorReading && Object.keys(sensorReading).length > 0) {
       setLastUpdated(new Date());
     }
   }, [sensorReading]);
 
-  const sensors = sensorReading || {
+  const sensors = {
     temperature: 0,
     smoke: 0,
     flame: false,
     co: 0,
     humidity: 0,
+    ...sensorReading,
   };
 
   useEffect(() => {
@@ -353,11 +353,11 @@ export default function RoomDetailScreen({ route, navigation }) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       try {
-        const data = await getPumpStatus(token);
+        const data = await getPumpStatus();
         const operationStatus = data?.operationStatus;
 
         if (operationStatus?.status === "FAILED") {
-          setPumpActive(Boolean(operationStatus.state));
+          setPumpActive(!pumpActive);
           setLastUpdated(new Date());
           Alert.alert(
             t("roomDetail.pumpFailedTitle"),
@@ -367,9 +367,6 @@ export default function RoomDetailScreen({ route, navigation }) {
         }
 
         if (operationStatus?.status === "SUCCEEDED") {
-          setPumpActive(Boolean(operationStatus.state));
-          setLastUpdated(new Date());
-
           if (data.waterPumpStatus) {
             Alert.alert(
               t("roomDetail.pumpSuccessActivatedTitle"),
@@ -390,6 +387,8 @@ export default function RoomDetailScreen({ route, navigation }) {
       }
 
       if (networkError) {
+        setPumpActive(!pumpActive);
+        setLastUpdated(new Date());
         Alert.alert(
           "Connection Error",
           "Unable to communicate with the server. Please check your internet connection.",

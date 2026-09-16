@@ -509,8 +509,11 @@ export function AppProvider({ children }) {
 
   const fetchSensorData = async () => {
     const result = await apiGetSensorReading();
-    if (Object.keys(result).length !== 0) {
-      setSensorReading(result);
+    if (result && typeof result === "object" && !Array.isArray(result)) {
+      setSensorReading({
+        ...result,
+        flame: result.flame_detected ?? false,
+      });
     }
   };
 
