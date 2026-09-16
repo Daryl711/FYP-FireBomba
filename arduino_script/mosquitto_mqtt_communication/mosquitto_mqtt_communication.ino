@@ -54,7 +54,6 @@ void connectMosquittoMQTT(){
       attempts++;
     }
   }
-  Serial.println("MQTT connection failed, Will retry in loop.");
 }
 
 void connectWifi(){
