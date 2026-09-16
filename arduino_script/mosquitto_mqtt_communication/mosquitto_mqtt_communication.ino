@@ -2,6 +2,7 @@
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <esp_log.h>
+#include <ArduinoJson.h>
 
 // Setup for Received and Transmit PIN
 #define RXD2 44
@@ -11,29 +12,21 @@
 const char* ssid = "YOUR WIFI NAME";
 const char* password = "YOUR WIFI PASSWORD";
 
-// Mosquitto Setup
+// Mosquitto broker Setup
 const char* mqtt_server = "YOUR MQTT SERVER IP ADDRESS"; // need to change to your ip address of mqtt server
 const char* mqtt_user = "YOUR MQTT USERNAME";
 const char* mqtt_pass = "YOUR MQTT PASSWORD";
 const int   mqtt_port   = 0; // TLS port, change to your mqtt server port
 
-// ================= CA CERTIFICATE =================
-const char* root_ca = R"EOF(
------BEGIN CERTIFICATE-----
-PUT YOUR CA CERTIFICATE HERE
------END CERTIFICATE-----
-)EOF";
-
 // Secure WiFi client
-WiFiClientSecure esp32s3Client;
+WiFiClient esp32s3Client;
 PubSubClient client(esp32s3Client);
 
 void connectMosquittoMQTT(){
   Serial.println("Connecting to MQTT...");
 
-  esp32s3Client.setCACert(root_ca);
   client.setBufferSize(512);
-  client.setServer(mqtt_server, 8883);
+  client.setServer(mqtt_server, 1883);
 
   int attempts = 0;
 
@@ -42,6 +35,8 @@ void connectMosquittoMQTT(){
     
     if(client.connect("ESP32S3Client", mqtt_user, mqtt_pass)){
       Serial.println("MQTT CONNECTED!");
+      client.subscribe("firebomba/room/1/pump/command");
+
     }else{
       Serial.print("\nFAILED, rc= ");
 
@@ -88,6 +83,55 @@ void connectWifi(){
   }
 }
 
+// Function for water pump manual control
+void manualControlMessage(char* topic, byte* payload, unsigned int length) {
+  String msg = "";
+
+  // Read MQTT payload
+  for (int i = 0; i < length; i++) {
+    msg += (char)payload[i];
+  }
+
+  Serial.print("MQTT Received: ");
+  Serial.println(msg);
+
+  // Create JSON document
+  JsonDocument doc;
+
+  // Parse JSON
+  DeserializationError error = deserializeJson(doc, msg);
+
+  if (error) {
+    Serial.print("JSON parsing failed: ");
+    Serial.println(error.c_str());
+    return;
+  }
+
+  // Get command from JSON
+  int command = doc["command"];
+
+  Serial.print("Command: ");
+  Serial.println(command);
+
+  // Convert command to Pump:ON / Pump:OFF
+  if (command == 1) {
+
+    Serial.println("Sending to Arduino: Pump:ON");
+    Serial2.println("Pump:ON");
+
+  } 
+  else if (command == 0) {
+
+    Serial.println("Sending to Arduino: Pump:OFF");
+    Serial2.println("Pump:OFF");
+
+  } 
+  else {
+
+    Serial.println("Invalid pump command!");
+  }
+}
+
 // Publish timing setup 5 seconds per time publish
 unsigned long lastPublishTime = 0;
 const unsigned long publishInterval = 5000;  // 5 seconds
@@ -110,8 +154,12 @@ void setup() {
 
   connectWifi();
 
+  // Initialise Serial 2 for communicate and send messages to Arduino Uno
   Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
   Serial.println("Waiting Arduino data...");
+
+  // Set call back for active the regarding function when received mqtt messages from subscribe topic
+  client.setCallback(manualControlMessage); 
 }
 
 void loop() {
@@ -135,20 +183,31 @@ void loop() {
     if (c == '\n') {
       Serial.println("Data from Arduino:");
       Serial.println(serialData);
-
+      
       if (serialData.startsWith("WaterPump:")) {
         String pumpState = serialData.substring(10);
         pumpState.trim();
-        String pumpPayload = "{\"command\":";
-        pumpPayload += (pumpState == "ON") ? "1" : "0";
+
+        String pumpPayload = "{";
+
+        if (pumpState == "ON") {
+          pumpPayload += "\"status\":\"SUCCEEDED\",";
+          pumpPayload += "\"state\": 1";
+
+        }else{
+          pumpPayload += "\"status\":\"FAILED\",";
+          pumpPayload += "\"state\": 0";
+        } 
+
         pumpPayload += "}";
 
-        Serial.println("Publishing water pump command:");
+        Serial.println("Publishing water pump status:");
         Serial.println(pumpPayload);
+
         client.publish("firebomba/room/1/pump/status", pumpPayload.c_str());
 
         serialData = "";
-        continue; // skip sensor/alert parsing for this line
+        continue;
       }
 
       // Parse sensor values
@@ -160,8 +219,9 @@ void loop() {
 
       // Build JSON store sensor readings
       sensorPayload = "{";
+      sensorPayload += "\"deviceId\":\"ESP32S3-01\",";
       sensorPayload += "\"roomId\":\"1\",";
-      sensorPayload += "\"flame\":" + flame + ",";
+      sensorPayload += "\"flame_detected\":" + flame + ",";
       sensorPayload += "\"temperature\":" + temp + ",";
       sensorPayload += "\"humidity\":" + humid + ",";
       sensorPayload += "\"smoke\":" + smoke + ",";
