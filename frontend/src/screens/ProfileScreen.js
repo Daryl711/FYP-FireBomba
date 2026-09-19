@@ -73,7 +73,7 @@ function PrefRow({ item, onPress }) {
 }
 
 export default function ProfileScreen({ navigation }) {
-  const { user, logout, unreadCount, roomData, systemStatus, language, setLanguage, t } = useApp();
+  const { user, logout, unreadCount, roomData, systemStatus, language, setLanguage, t, openTutorial } = useApp();
 
   const handleLogout = () => {
     Alert.alert(t("profile.signOutTitle"), t("profile.signOutConfirm"), [
@@ -231,6 +231,21 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>{t("profile.about")}</Text>
           <View style={styles.prefCard}>
+            <TouchableOpacity
+              style={styles.prefRow}
+              onPress={openTutorial}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.prefIcon, { backgroundColor: COLORS.blueLight }]}>
+                <Ionicons name="book-outline" size={20} color={COLORS.blue} />
+              </View>
+              <View style={styles.prefText}>
+                <Text style={styles.prefName}>{t("tutorial.replay")}</Text>
+                <Text style={styles.prefDesc}>{t("tutorial.replaySubtitle")}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.text3} />
+            </TouchableOpacity>
+            <View style={styles.divider} />
             <View style={styles.prefRow}>
               <View
                 style={[

@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { Audio } from "expo-av";
+import * as SecureStore from "expo-secure-store";
 import {
   getAlerts,
   markAlertRead as apiMarkAlertRead,
@@ -244,6 +245,63 @@ const translations = {
       connectError:
         "Error: Could not connect to the server. Make sure your backend is running!",
     },
+    tutorial: {
+      skip: "Skip",
+      back: "Back",
+      next: "Next",
+      done: "Get Started",
+      stepCounter: "Step {{current}} of {{total}}",
+      replay: "App Tutorial",
+      replaySubtitle: "Replay the guided walkthrough",
+      categories: {
+        monitoring: "Monitoring",
+        control: "Control",
+        alerts: "Alerts",
+        account: "Account",
+      },
+      steps: {
+        welcome: {
+          title: "Welcome to FireBomba",
+          desc: "This quick guide shows you every part of the app and which category it belongs to. It takes less than a minute. You can replay it anytime from your Profile.",
+        },
+        home: {
+          title: "Home — your dashboard",
+          desc: "The Home tab is your monitoring hub. It shows how many rooms are active, current warnings, and a live overview of your whole home at a glance.",
+        },
+        systemStatus: {
+          title: "System Status",
+          desc: "Part of monitoring: this panel shows sensors online, uptime, and fire events. A green badge means everything is operating normally.",
+        },
+        recentAlerts: {
+          title: "Recent Alerts",
+          desc: "Also on Home: the latest warnings from all your rooms appear here. Tap 'View all' to jump to the full Alerts list.",
+        },
+        rooms: {
+          title: "Rooms tab",
+          desc: "Under monitoring: the Rooms tab lists every room with its temperature and safety status. A warning icon means a sensor threshold was crossed.",
+        },
+        roomDetail: {
+          title: "Room details",
+          desc: "Tap any room to open its detail view — live camera feed plus temperature, smoke, carbon monoxide, and flame sensor readings, with a history chart.",
+        },
+        waterPump: {
+          title: "Water Pump — control",
+          desc: "Inside each room is the water pump control. This belongs to the Control category: it lets you manually activate fire suppression. Use it only during a real emergency.",
+        },
+        alerts: {
+          title: "Alerts tab",
+          desc: "The Alerts tab is your notification centre. Fire events and sensor warnings are listed here in order. A red badge shows how many are unread — tap one to mark it read.",
+        },
+        profile: {
+          title: "Profile tab",
+          desc: "The Profile tab holds everything about your account: personal info, language, notification preferences, and system settings.",
+        },
+        security: {
+          title: "Security settings",
+          desc: "Under your account: Security lets you manage camera detection per room and other safety settings. You can find this tutorial again here in Profile anytime.",
+        },
+      },
+    },
   },
   ms: {
     nav: {
@@ -414,6 +472,63 @@ const translations = {
       connectError:
         "Ralat: Tidak dapat menyambung ke pelayan. Pastikan backend anda sedang berjalan!",
     },
+    tutorial: {
+      skip: "Langkau",
+      back: "Kembali",
+      next: "Seterusnya",
+      done: "Mula",
+      stepCounter: "Langkah {{current}} daripada {{total}}",
+      replay: "Tutorial Aplikasi",
+      replaySubtitle: "Main semula panduan aplikasi",
+      categories: {
+        monitoring: "Pemantauan",
+        control: "Kawalan",
+        alerts: "Amaran",
+        account: "Akaun",
+      },
+      steps: {
+        welcome: {
+          title: "Selamat Datang ke FireBomba",
+          desc: "Panduan ringkas ini menunjukkan setiap bahagian aplikasi dan kategori yang berkaitan. Ia mengambil masa kurang seminit. Anda boleh main semula bila-bila masa dari Profil.",
+        },
+        home: {
+          title: "Laman Utama — papan pemuka anda",
+          desc: "Tab Laman Utama ialah pusat pemantauan anda. Ia menunjukkan bilik aktif, amaran semasa, dan gambaran keseluruhan rumah anda sekali imbas.",
+        },
+        systemStatus: {
+          title: "Status Sistem",
+          desc: "Sebahagian daripada pemantauan: panel ini menunjukkan sensor dalam talian, masa operasi, dan kejadian kebakaran. Lencana hijau bermakna semuanya beroperasi normal.",
+        },
+        recentAlerts: {
+          title: "Amaran Terkini",
+          desc: "Juga di Laman Utama: amaran terkini dari semua bilik anda muncul di sini. Ketik 'Lihat semua' untuk pergi ke senarai Amaran penuh.",
+        },
+        rooms: {
+          title: "Tab Bilik",
+          desc: "Di bawah pemantauan: tab Bilik menyenaraikan setiap bilik dengan suhu dan status keselamatannya. Ikon amaran bermakna satu ambang sensor telah dilepasi.",
+        },
+        roomDetail: {
+          title: "Butiran bilik",
+          desc: "Ketik mana-mana bilik untuk membuka paparan butirannya — paparan kamera langsung serta bacaan suhu, asap, karbon monoksida, dan sensor api, dengan carta sejarah.",
+        },
+        waterPump: {
+          title: "Pam Air — kawalan",
+          desc: "Dalam setiap bilik terdapat kawalan pam air. Ini tergolong dalam kategori Kawalan: ia membolehkan anda mengaktifkan pemadaman kebakaran secara manual. Gunakan hanya semasa kecemasan sebenar.",
+        },
+        alerts: {
+          title: "Tab Amaran",
+          desc: "Tab Amaran ialah pusat notifikasi anda. Kejadian kebakaran dan amaran sensor disenaraikan di sini mengikut urutan. Lencana merah menunjukkan bilangan yang belum dibaca — ketik satu untuk menandakannya dibaca.",
+        },
+        profile: {
+          title: "Tab Profil",
+          desc: "Tab Profil menyimpan segala tentang akaun anda: maklumat peribadi, bahasa, keutamaan notifikasi, dan tetapan sistem.",
+        },
+        security: {
+          title: "Tetapan keselamatan",
+          desc: "Di bawah akaun anda: Keselamatan membolehkan anda mengurus pengesanan kamera bagi setiap bilik dan tetapan keselamatan lain. Anda boleh mencari tutorial ini semula di sini dalam Profil bila-bila masa.",
+        },
+      },
+    },
   },
 };
 
@@ -446,6 +561,7 @@ export function AppProvider({ children }) {
   const [sensorReading, setSensorReading] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [roomData, setRoomData] = useState(null);
+  const [tutorialVisible, setTutorialVisible] = useState(false);
 
   const alertRef = useRef(null);
   const sensorDataRef = useRef(null);
@@ -537,6 +653,34 @@ export function AppProvider({ children }) {
     fetchData();
   }, [token]);
 
+  // ---- First-launch tutorial ----------------------------------------
+  // We persist a "seen" flag in SecureStore so the walkthrough only
+  // auto-opens once, the first time a user reaches the app after signing in.
+  const TUTORIAL_SEEN_KEY = "firebomba_tutorial_seen";
+
+  const maybeShowTutorialOnFirstLaunch = async () => {
+    try {
+      const seen = await SecureStore.getItemAsync(TUTORIAL_SEEN_KEY);
+      if (!seen) {
+        setTutorialVisible(true);
+      }
+    } catch {
+      // SecureStore unavailable — show it once this session anyway
+      setTutorialVisible(true);
+    }
+  };
+
+  const openTutorial = () => setTutorialVisible(true);
+
+  const closeTutorial = async () => {
+    setTutorialVisible(false);
+    try {
+      await SecureStore.setItemAsync(TUTORIAL_SEEN_KEY, "true");
+    } catch {
+      // ignore write failures — worst case it shows again next launch
+    }
+  };
+
   // Accepts { userId, fullName, email } from login response + both tokens
   const login = async (userData, accessToken, refreshToken) => {
     await saveTokens(accessToken, refreshToken);
@@ -546,6 +690,8 @@ export function AppProvider({ children }) {
       email: userData.email,
     });
     setToken(accessToken);
+    // Open the walkthrough on the very first login only
+    maybeShowTutorialOnFirstLaunch();
   };
 
   const logout = async () => {
@@ -624,6 +770,9 @@ export function AppProvider({ children }) {
       clearNotification,
       clearAllNotifications,
       refreshAlerts: () => token && fetchAlerts(),
+      tutorialVisible,
+      openTutorial,
+      closeTutorial,
       realtimeError: null,
       systemStatus: {
         allOperational: false,
@@ -632,7 +781,7 @@ export function AppProvider({ children }) {
         fireEvents: 2,
       },
     };
-  }, [language, notifications, user, token, authReady]);
+  }, [language, notifications, user, token, authReady, tutorialVisible]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
