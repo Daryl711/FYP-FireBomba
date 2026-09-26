@@ -1,5 +1,6 @@
 const cron = require("node-cron");
 const db = require("../config/database");
+const OtpCode = require("../models/OtpCode");
 
 // Every day at midnight
 cron.schedule("0 0 * * *", async () => {
@@ -26,6 +27,7 @@ cron.schedule("0 0 * * *", async () => {
         if (expiredSessions.affectedRows > 0) {
             console.log(`Cleanup: removed ${expiredSessions.affectedRows} expired session(s)`);
         }
+        await OtpCode.deleteExpired();
 
 
     } catch (err) {

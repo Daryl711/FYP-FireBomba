@@ -26,6 +26,13 @@ const writeItem = async (key, value) => {
 };
 
 export const saveTokens = async (accessToken, refreshToken) => {
+  if (typeof accessToken !== "string" || typeof refreshToken !== "string") {
+    throw new Error(
+      "saveTokens called without both tokens - if the server replied with " +
+        "otpRequired, send the user to the OTP screen instead of logging in.",
+    );
+  }
+
   await writeItem(ACCESS_TOKEN_KEY, accessToken);
   await writeItem(REFRESH_TOKEN_KEY, refreshToken);
 };
@@ -253,12 +260,13 @@ async function authFetch(url, options = {}) {
 
 // ─── Auth endpoints ───────────────────────────────────────────────────────────
 
-export async function registerUser(fullName, email, password) {
+// phone is required by the backend; email is optional and omitted when blank.
+export async function registerUser(fullName, email, password, phone) {
   try {
     const response = await fetch(`${API_ROOT}/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fullName, email, password }),
+      body: JSON.stringify({ fullName, phone, password, email: email || null }),
     });
     return await safeParseResponse(response);
   } catch (error) {
@@ -266,14 +274,15 @@ export async function registerUser(fullName, email, password) {
   }
 }
 
+// identifier may be an email or a phone number; the backend works out which.
 // rememberMe picks the session length the server hands back: 30 days when
 // ticked, 7 when not.
-export async function loginUser(email, password, rememberMe = false) {
+export async function loginUser(identifier, password, rememberMe = false) {
   try {
     const response = await fetch(`${API_ROOT}/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, rememberMe }),
+      body: JSON.stringify({ identifier, password, rememberMe }),
     });
     return await safeParseResponse(response);
   } catch (error) {
@@ -431,6 +440,33 @@ export async function getCameraStatus() {
   try {
     const response = await authFetch(`${API_ROOT}/settings/get-camera-status`, {
       method: "GET",
+    });
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+// Step 2 of login when the server replies with otpRequired.
+export async function verifyLoginOtp(challengeToken, code) {
+  try {
+    const response = await fetch(`${API_ROOT}/login/verify-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ challengeToken, code }),
+    });
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+export async function resendLoginOtp(challengeToken) {
+  try {
+    const response = await fetch(`${API_ROOT}/login/resend-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ challengeToken }),
     });
     return await safeParseResponse(response);
   } catch (error) {
