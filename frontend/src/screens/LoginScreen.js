@@ -51,10 +51,16 @@ export default function LoginScreen({ navigation }) {
             // 4. Check for errors from the server (e.g. "Wrong password")
             if (result.error) {
                 Alert.alert(t('login.loginFailed'), result.error);
+            } else if (result.otpRequired) {
+                // 5a. Two-factor is on: no tokens yet, finish on the OTP screen.
+                navigation.navigate('Otp', {
+                    challengeToken: result.challengeToken,
+                    phoneHint: result.phoneHint,
+                });
             } else {
-                // 5. Save user + both tokens to context and SecureStore.
-                //    The root navigator swaps to the app as soon as the token
-                //    lands in context, so there is nothing to navigate to here.
+                // 5b. Save user + both tokens to context and SecureStore.
+                //     The root navigator swaps to the app as soon as the token
+                //     lands in context, so there is nothing to navigate to here.
                 await login(result.user, result.accessToken, result.refreshToken, {
                     sessionExpiresAt: result.sessionExpiresAt,
                     rememberMe: result.rememberMe ?? rememberMe,
@@ -93,16 +99,16 @@ export default function LoginScreen({ navigation }) {
 
                     {/* Sign in email and password fields */}
                     <View style={styles.card}>
-                        {/* Email */}
+                        {/* Email or phone */}
                         <View style={styles.fieldGroup}>
                             <Text style={styles.fieldLabel}>{t('login.email')}</Text>
                             <View style={styles.inputWrap}>
-                                <Ionicons name="mail-outline" size={18} color={COLORS.text3} style={styles.inputIcon} />
+                                <Ionicons name="person-outline" size={18} color={COLORS.text3} style={styles.inputIcon} />
                                 <TextInput
                                     style={styles.input}
                                     placeholder={t('login.emailPlaceholder')}
                                     placeholderTextColor={COLORS.text3}
-                                    keyboardType="email-address"
+                                    keyboardType="default"
                                     autoCapitalize="none"
                                     value={email}
                                     onChangeText={setEmail}
