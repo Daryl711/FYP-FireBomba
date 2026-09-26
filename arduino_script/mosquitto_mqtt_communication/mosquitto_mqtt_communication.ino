@@ -218,7 +218,7 @@ void loop() {
 
       // Build JSON store sensor readings
       sensorPayload = "{";
-      sensorPayload += "\"deviceId\":\"ESP32S3-01\",";
+      sensorPayload += "\"deviceId\":\"ESP32_ROOM_01\",";
       sensorPayload += "\"roomId\":\"1\",";
       sensorPayload += "\"flame_detected\":" + flame + ",";
       sensorPayload += "\"temperature\":" + temp + ",";
@@ -319,3 +319,4 @@ String getValue(String data, String key) {
 
   return data.substring(start, end);
 }
+
