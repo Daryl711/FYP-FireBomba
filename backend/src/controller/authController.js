@@ -230,6 +230,16 @@ exports.login = async (req, res) => {
     // The session Supabase just opened is parked with the code and only
     // handed over once the code comes back.
     if (OTP_LOGIN_ENABLED && profile.phone) {
+      // The password was right, so saying why is safe. The session Supabase
+      // just opened is never handed over, so it is closed straight away.
+      if (await OtpCode.isOverDailyLimit(user.id)) {
+        await revokeSessions([session]);
+        return res.status(429).json({
+          error: "Too many verification codes sent today, please try again tomorrow",
+          code: "SMS_DAILY_LIMIT",
+        });
+      }
+
       const { code, droppedSessions } = await OtpCode.create(user.id, "login", profile.phone, {
         pendingSession: session,
       });
@@ -495,6 +505,13 @@ exports.resendLoginOtp = async (req, res) => {
       });
     }
 
+    if (await OtpCode.isOverDailyLimit(decoded.userId)) {
+      return res.status(429).json({
+        error: "Too many verification codes sent today, please try again tomorrow",
+        code: "SMS_DAILY_LIMIT",
+      });
+    }
+
     const profile = await UserProfile.getById(decoded.userId);
     if (!profile?.phone) {
       return res.status(400).json({ error: "No phone number on file" });
@@ -551,7 +568,8 @@ exports.forgotPassword = async (req, res) => {
     }
 
     const { inCooldown } = await OtpCode.isInCooldown(profile.user_id, "reset");
-    if (inCooldown) {
+    // Same generic answer when capped, so this never reveals the account exists.
+    if (inCooldown || (await OtpCode.isOverDailyLimit(profile.user_id))) {
       return res.status(200).json(genericResponse);
     }
 

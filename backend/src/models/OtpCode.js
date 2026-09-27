@@ -13,6 +13,9 @@ const OTP_LENGTH = 6;
 const OTP_TTL_MINUTES = 5;
 const MAX_ATTEMPTS = 5;
 const RESEND_COOLDOWN_SECONDS = 60;
+// Every code is one SMS, and every SMS costs money. Caps what one account can
+// trigger per 24h across login, resend and password reset combined.
+const DAILY_SMS_LIMIT = Number(process.env.SMS_DAILY_LIMIT_PER_USER || 10);
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const isAllDigits = (value) => /^[0-9]+$/.test(value);
@@ -99,6 +102,19 @@ exports.isInCooldown = async (userId, purpose) => {
   const retryAfter = Math.ceil(RESEND_COOLDOWN_SECONDS - elapsedSeconds);
 
   return { inCooldown: retryAfter > 0, retryAfter: Math.max(retryAfter, 0) };
+};
+
+// Counts codes issued in the last 24h. create() deletes anything older, so the
+// table never holds more than this window per user.
+exports.isOverDailyLimit = async (userId) => {
+  const { count, error } = await supabase
+    .from("otp_codes")
+    .select("otp_id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("created_at", new Date(Date.now() - DAY_MS).toISOString());
+  if (error) throw error;
+
+  return count >= DAILY_SMS_LIMIT;
 };
 
 // Returns the PLAINTEXT code so the caller can SMS it. Only the hash is stored.
