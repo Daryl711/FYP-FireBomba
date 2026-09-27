@@ -122,7 +122,8 @@ function RoomCameraRow({ room, enabled, onToggle, t }) {
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function SecurityScreen({ navigation }) {
-  const { roomData, t } = useApp();
+  const { roomData, t, biometricSupport, biometricEnabled, updateBiometricEnabled } =
+    useApp();
 
 
   const [cameraStates, setCameraStates] = useState({});
@@ -223,6 +224,48 @@ export default function SecurityScreen({ navigation }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Biometric login */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionLabel}>
+              {t("security.biometricSection")}
+            </Text>
+          </View>
+
+          <View style={styles.biometricRow}>
+            <View style={styles.biometricIcon}>
+              <Ionicons
+                name={
+                  biometricSupport.type === "face"
+                    ? "scan-outline"
+                    : "finger-print"
+                }
+                size={20}
+                color={COLORS.primary}
+              />
+            </View>
+
+            <View style={styles.biometricCopy}>
+              <Text style={styles.biometricTitle}>
+                {t("security.biometricLabel")}
+              </Text>
+              <Text style={styles.biometricHint}>
+                {biometricSupport.available
+                  ? t("security.biometricHint")
+                  : t("security.biometricUnavailable")}
+              </Text>
+            </View>
+
+            <Switch
+              value={biometricSupport.available && biometricEnabled}
+              onValueChange={updateBiometricEnabled}
+              disabled={!biometricSupport.available}
+              trackColor={{ false: "#E5E5E5", true: COLORS.primary }}
+              thumbColor="#fff"
+            />
+          </View>
+        </View>
+
         {/* Camera Detection Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -290,6 +333,24 @@ export default function SecurityScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  biometricRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    gap: SPACING.md,
+  },
+  biometricIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#FFF1F1",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  biometricCopy: { flex: 1, gap: 2 },
+  biometricTitle: { fontSize: 14, fontWeight: "600", color: COLORS.text },
+  biometricHint: { fontSize: 12, color: COLORS.text3 },
   container: {
     flex: 1,
     backgroundColor: COLORS.bg,

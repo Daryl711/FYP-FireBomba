@@ -46,10 +46,17 @@ export default function LoginScreen({ navigation }) {
 
     try {
       // 3. Call your Express Backend API
-      const result = await loginUser(email.trim(), password);
+      //    rememberMe decides the session length: 30 days ticked, 7 not.
+      const result = await loginUser(email.trim(), password, rememberMe);
       // 4. Check for errors from the server (e.g. "Wrong password")
       if (result.error) {
         Alert.alert(t("login.loginFailed"), result.error);
+      } else if (result.otpRequired) {
+        // 5a. Two-factor is on: no session yet, finish on the OTP screen.
+        navigation.navigate("Otp", {
+          challengeToken: result.challengeToken,
+          phoneHint: result.phoneHint,
+        });
       } else {
         // 5. Save the session tokens to context and SecureStore
         const session = result.session;
@@ -61,12 +68,12 @@ export default function LoginScreen({ navigation }) {
           return;
         }
 
-        await login(result.user, session.access_token, session.refresh_token);
-
-        // 6. Navigate to Home
-        if (navigation?.replace) {
-          navigation.replace("Main");
-        }
+        // The root navigator swaps to the app as soon as the token lands in
+        // context, so there is nothing to navigate to here.
+        await login(result.user, session.access_token, session.refresh_token, {
+          sessionExpiresAt: result.sessionExpiresAt,
+          rememberMe: result.rememberMe ?? rememberMe,
+        });
       }
     } catch (error) {
       Alert.alert(t("login.errorTitle"), t("login.connectError"));
@@ -106,16 +113,17 @@ export default function LoginScreen({ navigation }) {
               <Text style={styles.fieldLabel}>{t("login.email")}</Text>
               <View style={styles.inputWrap}>
                 <Ionicons
-                  name="mail-outline"
+                  name="person-outline"
                   size={18}
                   color={COLORS.text3}
                   style={styles.inputIcon}
                 />
+                {/* Email or phone number - the backend works out which */}
                 <TextInput
                   style={styles.input}
                   placeholder={t("login.emailPlaceholder")}
                   placeholderTextColor={COLORS.text3}
-                  keyboardType="email-address"
+                  keyboardType="default"
                   autoCapitalize="none"
                   value={email}
                   onChangeText={setEmail}

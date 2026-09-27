@@ -1,6 +1,6 @@
 // src/navigation/AppNavigator.js
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -8,6 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import LoginScreen from "../screens/LoginScreen";
 import SignUpScreen from "../screens/SignUpScreen";
+import OtpScreen from "../screens/OtpScreen";
 import HomeScreen from "../screens/HomeScreen";
 import BilikRoomsScreen from "../screens/BilikRoomsScreen";
 import RoomsScreen from "../screens/RoomsScreen";
@@ -15,6 +16,7 @@ import RoomDetailScreen from "../screens/RoomDetailScreen";
 import AlertsScreen from "../screens/AlertsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SecurityScreen from "../screens/SecurityScreen";
+import UnlockScreen from "../screens/UnlockScreen";
 
 import { useApp } from "../context/AppContext";
 import { COLORS } from "../../constants/theme";
@@ -157,17 +159,49 @@ function MainTabs() {
 }
 
 // Root Navigator
+//
+// Which screens exist is derived from auth state rather than navigated to, so
+// the app moves on its own when a session is unlocked or expires - including
+// the 30/7-day auto-logout, which can fire while the app is already open.
 export default function AppNavigator() {
+  const { authReady, token, needsUnlock } = useApp();
+
+  // Held until the stored session has been read, otherwise the login screen
+  // flashes before the unlock screen replaces it.
+  if (!authReady) {
+    return (
+      <View style={splash.container}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer>
-      <RootStack.Navigator
-        screenOptions={{ headerShown: false }}
-        initialRouteName="Login"
-      >
-        <RootStack.Screen name="Login" component={LoginScreen} />
-        <RootStack.Screen name="SignUp" component={SignUpScreen} />
-        <RootStack.Screen name="Main" component={MainTabs} />
+      <RootStack.Navigator screenOptions={{ headerShown: false }}>
+        {token ? (
+          <RootStack.Screen name="Main" component={MainTabs} />
+        ) : needsUnlock ? (
+          <RootStack.Screen name="Unlock" component={UnlockScreen} />
+        ) : (
+          <>
+            <RootStack.Screen name="Login" component={LoginScreen} />
+            <RootStack.Screen name="SignUp" component={SignUpScreen} />
+            {/* Sits in the logged-out group: the password is checked but no
+                session exists until the SMS code comes back. */}
+            <RootStack.Screen name="Otp" component={OtpScreen} />
+          </>
+        )}
       </RootStack.Navigator>
     </NavigationContainer>
   );
 }
+
+const splash = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF9F9",
+  },
+});

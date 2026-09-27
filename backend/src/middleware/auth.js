@@ -16,8 +16,11 @@ module.exports = async (req, res, next) => {
             error
         } = await supabase.auth.getUser(token);
 
+        // Must be 401, not 403: the app only tries a silent refresh on a 401,
+        // so a 403 here dropped the user once the 1-hour access token expired
+        // instead of quietly renewing it.
         if (error || !user) {
-            return res.status(403).json({
+            return res.status(401).json({
                 error: "Invalid or expired token."
             });
         }

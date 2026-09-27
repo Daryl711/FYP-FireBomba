@@ -102,7 +102,10 @@ export default function ProfileScreen({ navigation }) {
             return;
           }
 
-          navigation.replace("Login");
+          // Clears the stored session too, so the next launch asks for the
+          // password instead of offering biometric unlock. The root navigator
+          // returns to the login screen by itself once the token is gone.
+          await logout();
         },
       },
     ]);

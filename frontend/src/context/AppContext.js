@@ -18,11 +18,17 @@ import {
   getSensorReading as apiGetSensorReading,
   getRoomData as apiGetRoomData,
   logoutUser,
-  saveTokens,
-  getAccessToken,
+  saveSession,
   getRefreshToken,
   clearTokens,
+  getStoredSession,
+  isSessionExpired,
+  refreshSession,
+  setOnSessionExpired,
+  getBiometricPreference,
+  setBiometricPreference,
 } from "../services/api";
+import { getBiometricSupport, promptBiometrics } from "../services/biometrics";
 
 const AppContext = createContext(null);
 
@@ -148,6 +154,12 @@ const translations = {
     },
     security: {
       title: "Security Settings",
+      biometricSection: "Biometric Login",
+      biometricLabel: "Unlock with biometrics",
+      biometricHint:
+        "Ask for Face ID or your fingerprint when you reopen the app",
+      biometricUnavailable: "No biometrics are set up on this device",
+
       active: "active camera(s)",
       cameraDetection: "Allow camera detection",
       disableTitle: "Disable camera detection feature",
@@ -168,8 +180,8 @@ const translations = {
     login: {
       title: "Welcome Back",
       subtitle: "Sign in to your account",
-      email: "Email",
-      emailPlaceholder: "Enter your email",
+      email: "Email or Phone Number",
+      emailPlaceholder: "you@example.com or 012-345 6789",
       password: "Password",
       passwordPlaceholder: "Enter your password",
       rememberMe: "Remember me",
@@ -178,10 +190,43 @@ const translations = {
       noAccount: "Don't have an account?",
       signUp: "Sign Up",
       missingFieldsTitle: "Missing Fields",
-      missingFieldsMessage: "Please enter both email and password.",
+      missingFieldsMessage: "Please enter your email or phone number, and your password.",
       loginFailed: "Login Failed",
       errorTitle: "Error",
       connectError: "Could not connect to the server. Is your backend running?",
+    },
+    unlock: {
+      title: "Welcome Back",
+      signedInAs: "Signed in as",
+      subtitleFace: "Use Face ID to continue",
+      subtitleFingerprint: "Use your fingerprint to continue",
+      subtitleGeneric: "Use biometrics to continue",
+      prompt: "Unlock FireBomba",
+      unlockButton: "Unlock",
+      retry: "Try Again",
+      usePassword: "Use email and password instead",
+      usePasscode: "Use device passcode",
+      failed: "We could not verify you. Please try again.",
+      cancelled: "Unlock cancelled.",
+      networkError:
+        "Could not reach the server. Check your connection and try again.",
+      expiredTitle: "Session Expired",
+      sessionExpired:
+        "Your session has ended. Please sign in with your email and password.",
+    },
+    otp: {
+      title: "Enter Verification Code",
+      subtitle: "We sent a 6-digit code by SMS to {{phone}}",
+      verify: "Verify",
+      resend: "Resend code",
+      resendIn: "Resend code in {{seconds}}s",
+      enterFullCode: "Please enter all 6 digits.",
+      invalidTitle: "Verification Failed",
+      expiredTitle: "Session Expired",
+      errorTitle: "Error",
+      connectError: "Could not connect to the server. Is your backend running?",
+      resentTitle: "Code Sent",
+      resentMessage: "A new code has been sent to your phone.",
     },
     signup: {
       title: "Create Account",
@@ -367,8 +412,8 @@ const translations = {
     login: {
       title: "Selamat Kembali",
       subtitle: "Log masuk ke akaun anda",
-      email: "E-mel",
-      emailPlaceholder: "Masukkan e-mel anda",
+      email: "E-mel atau Nombor Telefon",
+      emailPlaceholder: "anda@contoh.com atau 012-345 6789",
       password: "Kata Laluan",
       passwordPlaceholder: "Masukkan kata laluan anda",
       rememberMe: "Ingat saya",
@@ -377,11 +422,44 @@ const translations = {
       noAccount: "Tiada akaun?",
       signUp: "Daftar",
       missingFieldsTitle: "Medan Tidak Lengkap",
-      missingFieldsMessage: "Sila masukkan e-mel dan kata laluan.",
+      missingFieldsMessage: "Sila masukkan e-mel atau nombor telefon anda, dan kata laluan.",
       loginFailed: "Log Masuk Gagal",
       errorTitle: "Ralat",
       connectError:
         "Tidak dapat menyambung ke pelayan. Adakah backend anda sedang berjalan?",
+    },
+    unlock: {
+      title: "Selamat Kembali",
+      signedInAs: "Log masuk sebagai",
+      subtitleFace: "Gunakan Face ID untuk teruskan",
+      subtitleFingerprint: "Gunakan cap jari anda untuk teruskan",
+      subtitleGeneric: "Gunakan biometrik untuk teruskan",
+      prompt: "Buka Kunci FireBomba",
+      unlockButton: "Buka Kunci",
+      retry: "Cuba Lagi",
+      usePassword: "Guna e-mel dan kata laluan",
+      usePasscode: "Guna kod laluan peranti",
+      failed: "Kami tidak dapat mengesahkan anda. Sila cuba lagi.",
+      cancelled: "Buka kunci dibatalkan.",
+      networkError:
+        "Tidak dapat menghubungi pelayan. Sila semak sambungan anda dan cuba lagi.",
+      expiredTitle: "Sesi Tamat",
+      sessionExpired:
+        "Sesi anda telah tamat. Sila log masuk dengan e-mel dan kata laluan anda.",
+    },
+    otp: {
+      title: "Masukkan Kod Pengesahan",
+      subtitle: "Kami menghantar kod 6 digit melalui SMS ke {{phone}}",
+      verify: "Sahkan",
+      resend: "Hantar semula kod",
+      resendIn: "Hantar semula dalam {{seconds}}s",
+      enterFullCode: "Sila masukkan kesemua 6 digit.",
+      invalidTitle: "Pengesahan Gagal",
+      expiredTitle: "Sesi Tamat",
+      errorTitle: "Ralat",
+      connectError: "Tidak dapat menyambung ke pelayan. Adakah backend anda berjalan?",
+      resentTitle: "Kod Dihantar",
+      resentMessage: "Kod baharu telah dihantar ke telefon anda.",
     },
     signup: {
       title: "Cipta Akaun",
@@ -442,6 +520,15 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [authReady, setAuthReady] = useState(false);
+  // A stored session exists and is still inside its 30/7-day window, but the
+  // app has just cold-started and needs a biometric scan before letting go.
+  const [needsUnlock, setNeedsUnlock] = useState(false);
+  const [lockedUser, setLockedUser] = useState(null);
+  const [biometricSupport, setBiometricSupport] = useState({
+    available: false,
+    type: null,
+  });
+  const [biometricEnabled, setBiometricEnabledState] = useState(true);
   const [language, setLanguage] = useState("en");
   const [sensorReading, setSensorReading] = useState({});
   const [notifications, setNotifications] = useState([]);
@@ -453,21 +540,89 @@ export function AppProvider({ children }) {
   const soundRef = useRef(null);
   const prevUnreadRef = useRef(0);
 
-  // Restore session from SecureStore on app startup
+  // Normalises the API's { userId, fullName, email } into the shape the
+  // screens read, and marks the app as unlocked.
+  const applySession = useCallback((sessionUser, accessToken) => {
+    if (sessionUser) {
+      setUser({
+        id: sessionUser.userId ?? sessionUser.id,
+        name: sessionUser.fullName ?? sessionUser.name,
+        email: sessionUser.email,
+      });
+    }
+    setToken(accessToken);
+    setNeedsUnlock(false);
+  }, []);
+
+  // Decide on cold start: password screen, biometric unlock, or straight in.
   useEffect(() => {
-    const restoreSession = async () => {
+    const bootstrap = async () => {
       try {
-        const storedToken = await getAccessToken();
-        if (storedToken) {
-          setToken(storedToken);
+        const [session, support, preferenceEnabled] = await Promise.all([
+          getStoredSession(),
+          getBiometricSupport(),
+          getBiometricPreference(),
+        ]);
+
+        setBiometricSupport(support);
+        setBiometricEnabledState(preferenceEnabled);
+
+        // Never signed in, or signed out last time.
+        if (!session.refreshToken) {
+          return;
         }
+
+        // Past the deadline "remember me" bought (30 days ticked, 7 days not).
+        // Drop it here so the biometric screen never even appears; the server
+        // enforces the same rule independently on the next refresh.
+        if (isSessionExpired(session.sessionExpiresAt)) {
+          await clearTokens();
+          return;
+        }
+
+        setLockedUser(session.user);
+
+        if (support.available && preferenceEnabled) {
+          setNeedsUnlock(true);
+          return;
+        }
+
+        // No sensor, nothing enrolled, or the user turned biometrics off. The
+        // session is still valid, so honour it rather than demanding a
+        // password the "remember me" tick was supposed to avoid.
+        const result = await refreshSession();
+        if (result.ok) {
+          applySession(result.user || session.user, result.accessToken);
+        } else if (result.reason === "NETWORK") {
+          // Server unreachable - keep the session and go in with the stored
+          // token; authFetch retries the refresh once the network is back.
+          applySession(session.user, session.accessToken);
+        }
+        // Anything else (expired / rejected) leaves us on the login screen.
       } catch {
-        // SecureStore unavailable — start fresh
+        // Storage unavailable — start fresh at the login screen.
       } finally {
         setAuthReady(true);
       }
     };
-    restoreSession();
+    bootstrap();
+  }, [applySession]);
+
+  // The server can end a session mid-use (deadline passed while the app was
+  // open). Drop straight back to the login screen when that happens.
+  useEffect(() => {
+    setOnSessionExpired(() => {
+      clearInterval(alertRef.current);
+      clearInterval(sensorDataRef.current);
+      prevUnreadRef.current = 0;
+      setUser(null);
+      setToken(null);
+      setNeedsUnlock(false);
+      setLockedUser(null);
+      setNotifications([]);
+    });
+
+    return () => setOnSessionExpired(null);
   }, []);
 
   // Load alarm sound once on mount
@@ -549,15 +704,77 @@ export function AppProvider({ children }) {
     fetchData();
   }, [token]);
 
-  // Accepts { userId, fullName, email } from login response + both tokens
-  const login = async (userData, accessToken, refreshToken) => {
-    await saveTokens(accessToken, refreshToken);
-    setUser({
-      id: userData.userId,
-      name: userData.fullName,
-      email: userData.email,
+  // Accepts { userId, fullName, email } from login response + both tokens.
+  // `options` carries the session deadline and remember-me flag the server
+  // returned, which together drive the biometric unlock on the next launch.
+  const login = async (userData, accessToken, refreshToken, options = {}) => {
+    const { sessionExpiresAt = null, rememberMe = false } = options;
+
+    await saveSession({
+      accessToken,
+      refreshToken,
+      sessionExpiresAt,
+      rememberMe,
+      user: userData,
     });
-    setToken(accessToken);
+
+    // Re-check support here so a password login always re-arms biometrics for
+    // the next cold start.
+    const support = await getBiometricSupport();
+    setBiometricSupport(support);
+
+    setLockedUser(userData);
+    applySession(userData, accessToken);
+  };
+
+  // Called by the unlock screen. Prompt strings come from the caller so the
+  // scan dialog is translated the same way as the rest of the UI.
+  const unlockWithBiometrics = async (prompts = {}) => {
+    const support = biometricSupport.available
+      ? biometricSupport
+      : await getBiometricSupport();
+
+    if (!support.available) return { ok: false, reason: "UNAVAILABLE" };
+
+    const scan = await promptBiometrics({
+      promptMessage: prompts.promptMessage,
+      cancelLabel: prompts.cancelLabel,
+      fallbackLabel: prompts.fallbackLabel,
+    });
+
+    if (!scan.success) {
+      return { ok: false, reason: scan.cancelled ? "CANCELLED" : "FAILED" };
+    }
+
+    const result = await refreshSession();
+
+    if (result.ok) {
+      applySession(result.user || lockedUser, result.accessToken);
+      return { ok: true };
+    }
+
+    // Keep the user on the unlock screen for a network blip; the session is
+    // untouched and a retry will work once the server is reachable.
+    if (result.reason === "NETWORK") return { ok: false, reason: "NETWORK" };
+
+    // Session is genuinely over - fall through to the password screen.
+    setNeedsUnlock(false);
+    setLockedUser(null);
+    return { ok: false, reason: result.reason };
+  };
+
+  // "Use password instead" on the unlock screen: abandon the stored session.
+  const usePasswordInstead = async () => {
+    await clearTokens();
+    setNeedsUnlock(false);
+    setLockedUser(null);
+    setUser(null);
+    setToken(null);
+  };
+
+  const updateBiometricEnabled = async (enabled) => {
+    setBiometricEnabledState(enabled);
+    await setBiometricPreference(enabled);
   };
 
   const logout = async () => {
@@ -568,6 +785,8 @@ export function AppProvider({ children }) {
     await logoutUser(refreshToken);
     setUser(null);
     setToken(null);
+    setNeedsUnlock(false);
+    setLockedUser(null);
     setNotifications([]);
   };
 
@@ -622,6 +841,13 @@ export function AppProvider({ children }) {
       user,
       token,
       authReady,
+      needsUnlock,
+      lockedUser,
+      biometricSupport,
+      biometricEnabled,
+      unlockWithBiometrics,
+      usePasswordInstead,
+      updateBiometricEnabled,
       language,
       setLanguage,
       t,
@@ -645,7 +871,19 @@ export function AppProvider({ children }) {
         fireEvents: 2,
       },
     };
-  }, [language, notifications, user, token, authReady, roomData, bilik]);
+  }, [
+    language,
+    notifications,
+    user,
+    token,
+    authReady,
+    roomData,
+    bilik,
+    needsUnlock,
+    lockedUser,
+    biometricSupport,
+    biometricEnabled,
+  ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
