@@ -77,3 +77,8 @@ CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions (user_id);
 
 ALTER TABLE otp_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_sessions ENABLE ROW LEVEL SECURITY;
+
+-- Tables created in the SQL editor are not granted to the API roles by
+-- default, so without this the backend gets "permission denied".
+GRANT SELECT, INSERT, UPDATE, DELETE ON otp_codes, user_sessions TO service_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO service_role;
