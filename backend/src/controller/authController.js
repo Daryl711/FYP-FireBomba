@@ -187,7 +187,6 @@ exports.signup = async (req, res) => {
 exports.login = async (req, res) => {
   try {
 
-    console.log("Did it pass through here?")
     // "identifier" is an email or a phone number; "email" stays accepted so
     // older clients keep working.
     const { identifier, email, password, rememberMe } = req.body;

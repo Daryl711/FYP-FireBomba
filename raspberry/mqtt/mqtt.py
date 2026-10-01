@@ -88,7 +88,7 @@ def on_local_message(client, userdata, message):
 
 	try:
 		data = json.loads(message.payload.decode("utf-8"))
-		device_id = data.get("device_id")
+		device_id = data.get("deviceId")
 
 		if not device_id:
 			print(f"Ignoring sensor reading without device_id: {message.topic}")

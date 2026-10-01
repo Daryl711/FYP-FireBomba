@@ -63,7 +63,7 @@ exports.getLatestReading = async (req, res) => {
 exports.controlWaterPump = async (req, res) => {
   try {
     const { waterPumpStatus } = req.body;
-    const roomId = req.user.roomId;
+    const roomId = req.body.roomId;
 
     const actualWaterPumpStatus = await Actuator.getWaterPumpStatus(roomId);
 
@@ -96,7 +96,7 @@ exports.controlWaterPump = async (req, res) => {
 
 exports.getWaterPumpStatus = async (req, res) => {
   try {
-    const roomId = req.user.roomId;
+    const roomId = req.query.roomId;
     const waterPumpStatus = await Actuator.getWaterPumpStatus(roomId);
 
     return res.status(200).json({
@@ -111,7 +111,7 @@ exports.getWaterPumpStatus = async (req, res) => {
 
 exports.getSensorAggregates = async (req, res) => {
   try {
-    const roomId = req.user.roomId;
+    const roomId = req.query.roomId;
     const limit = Number(req.query.limit) || 10;
 
     const data = await SensorAggregate.getLatestByRoom(roomId, limit);

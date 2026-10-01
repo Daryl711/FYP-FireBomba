@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -10,9 +10,46 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
+import { getRoomsByBilik } from "../services/api";
 
 export default function RoomsScreen({ navigation }) {
-  const { roomData, t } = useApp();
+  const { bilik, bilikLoading, bilikError, refreshBilik, t } = useApp();
+  const [roomData, setRoomData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadRooms = async () => {
+      setLoading(true);
+      setLoadError(null);
+      if (bilikLoading) return;
+      if (!bilik?.bilikId) {
+        setLoadError(bilikError || "Bilik information is unavailable.");
+        setLoading(false);
+        return;
+      }
+      try {
+        const result = await getRoomsByBilik(bilik.bilikId);
+        if (result?.error) throw new Error(result.error);
+        if (!Array.isArray(result)) throw new Error("Invalid rooms response.");
+        if (mounted) setRoomData(result);
+      } catch (error) {
+        if (mounted) {
+          setRoomData([]);
+          setLoadError(error.message || "Could not load rooms.");
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    loadRooms();
+
+    return () => {
+      mounted = false;
+    };
+  }, [bilik?.bilikId, bilikLoading, bilikError, reloadKey]);
   // const safeCount = rooms.filter((r) => r.status === 'safe').length;
   // const warnCount = rooms.filter((r) => r.status === 'warning').length;
 
@@ -29,6 +66,20 @@ export default function RoomsScreen({ navigation }) {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.list}>
+          {loading && <Text>Loading rooms...</Text>}
+          {!loading && loadError && (
+            <View>
+              <Text>{loadError}</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  if (bilikError) refreshBilik();
+                  else setReloadKey((key) => key + 1);
+                }}
+              >
+                <Text>Try again</Text>
+              </TouchableOpacity>
+            </View>
+          )}
           {roomData.map((room) => {
             return (
               <TouchableOpacity
@@ -36,7 +87,7 @@ export default function RoomsScreen({ navigation }) {
                 style={styles.roomRow}
                 onPress={() =>
                   navigation.navigate("ListRoomDetail", {
-                    room
+                    room,
                   })
                 }
                 activeOpacity={0.75}
@@ -47,24 +98,27 @@ export default function RoomsScreen({ navigation }) {
                 </View>
                 <Ionicons
                   name={
-                    roomData.status === "warning"
-                      ? "warning"
-                      : "checkmark-circle"
+                    room.status === "warning" ? "warning" : "checkmark-circle"
                   }
                   size={24}
                   color={
-                    roomData.status === "warning" ? COLORS.amber : COLORS.green
+                    room.status === "warning" ? COLORS.amber : COLORS.green
                   }
                 />
               </TouchableOpacity>
             );
           })}
+          {!loading && !loadError && roomData.length === 0 && (
+            <Text>No rooms found.</Text>
+          )}
         </View>
 
         {/* Summary Footer */}
         <View style={styles.footer}>
           <View style={styles.footerStat}>
-            <Text style={[styles.footerVal, { color: COLORS.blue }]}>{roomData.length}</Text>
+            <Text style={[styles.footerVal, { color: COLORS.blue }]}>
+              {roomData.length}
+            </Text>
             <Text style={styles.footerLbl}>{t("rooms.totalRooms")}</Text>
           </View>
           <View style={styles.footerDivider} />

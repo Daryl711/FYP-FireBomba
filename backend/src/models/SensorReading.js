@@ -31,8 +31,13 @@ exports.insertSensorReading = async (data) => {
     co: data.co,
   };
 
-  if (data.timestamp) {
-    row.timestamp = data.timestamp;
+  const readingTimestamp = data.timestamp || data.reading_timestamp;
+  if (readingTimestamp) {
+    const timestamp = new Date(readingTimestamp);
+    if (Number.isNaN(timestamp.getTime())) {
+      throw new Error("Invalid sensor reading timestamp");
+    }
+    row.timestamp = timestamp.toISOString();
   }
 
   const { data: reading, error } = await supabase
@@ -66,9 +71,10 @@ exports.getRoomTemperature = async (roomId) => {
 };
 
 exports.getLatestSensorReading = async (roomId) => {
-    const { data, error } = await supabase
-        .from("sensor_readings")
-        .select(`
+  const { data, error } = await supabase
+    .from("sensor_readings")
+    .select(
+      `
             reading_id,
             room_id,
             timestamp,
@@ -78,18 +84,19 @@ exports.getLatestSensorReading = async (roomId) => {
             smoke,
             co,
             created_at
-        `)
-        .eq("room_id", roomId)
-        .order("timestamp", { ascending: false, nullsFirst: false })
-        .order("created_at", { ascending: false })
-        .order("reading_id", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        `,
+    )
+    .eq("room_id", roomId)
+    .order("timestamp", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .order("reading_id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-    if (error) {
-        console.error("Error retrieving latest sensor reading:", error);
-        throw error;
-    }
+  if (error) {
+    console.error("Error retrieving latest sensor reading:", error);
+    throw error;
+  }
 
-    return data;
+  return data;
 };

@@ -15,8 +15,7 @@ import {
   markAllAlertsRead as apiMarkAllRead,
   deleteAlert as apiDeleteAlert,
   hideAllAlerts as apiHideAllAlerts,
-  getSensorReading as apiGetSensorReading,
-  getRoomData as apiGetRoomData,
+  getBilikData as apiGetBilikData,
   logoutUser,
   saveSession,
   getRefreshToken,
@@ -530,13 +529,14 @@ export function AppProvider({ children }) {
   });
   const [biometricEnabled, setBiometricEnabledState] = useState(true);
   const [language, setLanguage] = useState("en");
-  const [sensorReading, setSensorReading] = useState({});
   const [notifications, setNotifications] = useState([]);
-  const [roomData, setRoomData] = useState(null);
+  const [roomData, setRoomData] = useState([]);
   const [bilik, setBilik] = useState(null);
+  const [bilikLoading, setBilikLoading] = useState(true);
+  const [bilikError, setBilikError] = useState(null);
+  const [bilikRequest, setBilikRequest] = useState(0);
 
   const alertRef = useRef(null);
-  const sensorDataRef = useRef(null);
   const soundRef = useRef(null);
   const prevUnreadRef = useRef(0);
 
@@ -662,47 +662,56 @@ export function AppProvider({ children }) {
     }
   };
 
-  const fetchSensorData = async () => {
-    const result = await apiGetSensorReading();
-    if (result && typeof result === "object" && !Array.isArray(result)) {
-      setSensorReading({
-        ...result,
-        flame: result.flame_detected ?? false,
-      });
-    }
-  };
-
   // Start polling when the user logs in
-  useEffect(() => {
-    if (token) {
-      fetchAlerts();
-      alertRef.current = setInterval(() => fetchAlerts(), 10000);
-      sensorDataRef.current = setInterval(() => fetchSensorData(), 5000);
-    }
-    return () => {
-      clearInterval(alertRef.current);
-      clearInterval(sensorDataRef.current);
-    };
-  }, [token]);
+  // useEffect(() => {
+  //   if (token) {
+  //     fetchAlerts();
+  //     alertRef.current = setInterval(() => fetchAlerts(), 10000);
+  //   }
+  //   return () => {
+  //     clearInterval(alertRef.current);
+  //   };
+  // }, [token]);
 
   useEffect(() => {
+    let mounted = true;
     const fetchData = async () => {
-      if (token) {
-        const fetchedRoomData = await apiGetRoomData();
-        if (fetchedRoomData?.error) {
-          setRoomData(fetchedRoomData);
+      if (!token) {
+        setBilik(null);
+        setBilikError(null);
+        setBilikLoading(false);
+        return;
+      }
+
+      setBilikLoading(true);
+      setBilikError(null);
+      try {
+        const fetchedBilik = await apiGetBilikData();
+        if (!mounted) return;
+        if (fetchedBilik?.error) {
+          setRoomData([]);
           setBilik(null);
+          setBilikError(fetchedBilik.error);
           return;
         }
-        setRoomData(
-          Array.isArray(fetchedRoomData?.rooms) ? fetchedRoomData.rooms : [],
-        );
-        setBilik(fetchedRoomData?.bilik ?? null);
+        setBilik(fetchedBilik);
+      } catch (error) {
+        if (mounted) {
+          setBilik(null);
+          setBilikError(error.message || "Could not load Bilik information.");
+        }
+      } finally {
+        if (mounted) setBilikLoading(false);
       }
     };
 
     fetchData();
-  }, [token]);
+    return () => {
+      mounted = false;
+    };
+  }, [token, bilikRequest]);
+
+  const refreshBilik = () => setBilikRequest((request) => request + 1);
 
   // Accepts { userId, fullName, email } from login response + both tokens.
   // `options` carries the session deadline and remember-me flag the server
@@ -779,7 +788,6 @@ export function AppProvider({ children }) {
 
   const logout = async () => {
     clearInterval(alertRef.current);
-    clearInterval(sensorDataRef.current);
     prevUnreadRef.current = 0;
     const refreshToken = await getRefreshToken();
     await logoutUser(refreshToken);
@@ -855,8 +863,10 @@ export function AppProvider({ children }) {
       logout,
       roomData,
       bilik,
+      bilikLoading,
+      bilikError,
+      refreshBilik,
       notifications,
-      sensorReading,
       unreadCount,
       markAllRead,
       markNotificationRead,
@@ -883,6 +893,8 @@ export function AppProvider({ children }) {
     lockedUser,
     biometricSupport,
     biometricEnabled,
+    bilikLoading,
+    bilikError,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

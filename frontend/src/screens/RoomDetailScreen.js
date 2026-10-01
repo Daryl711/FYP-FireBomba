@@ -12,13 +12,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
+import SensorReadingsChart from "../components/SensorReadingsChart";
 import { useApp } from "../context/AppContext";
 import {
-  getSensorReading,
+  getSensorReadings,
   getPumpStatus,
   controlWaterPumpStatus,
   getCameraStatus,
-  getSensorAggregates,
 } from "../services/api";
 
 const THRESHOLDS = {
@@ -54,26 +54,6 @@ function SensorCard({ icon, label, value, unit, fillPct, fillColor }) {
           />
         </View>
       )}
-    </View>
-  );
-}
-
-function HistoryStatCard({ label, unit, values }) {
-  return (
-    <View style={hStyles.card}>
-      <Text style={hStyles.label}>{label}</Text>
-      <View style={hStyles.list}>
-        {values.map((item, idx) => (
-          <View key={`${label}-${idx}`} style={hStyles.listRow}>
-            <Text style={hStyles.listIndex}>{idx + 1}</Text>
-            <Text style={hStyles.listValue}>
-              {item.value}
-              {unit ? <Text style={hStyles.unit}> {unit}</Text> : null}
-            </Text>
-            <Text style={hStyles.listTime}>{item.time}</Text>
-          </View>
-        ))}
-      </View>
     </View>
   );
 }
@@ -126,65 +106,15 @@ const sStyles = StyleSheet.create({
   },
 });
 
-const hStyles = StyleSheet.create({
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
-    width: "47.5%",
-    minHeight: 260,
-    ...SHADOW.small,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: COLORS.text2,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  unit: {
-    fontSize: 12,
-    fontWeight: "400",
-    color: COLORS.text2,
-  },
-  list: {
-    marginTop: 8,
-    gap: 4,
-  },
-  listRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  listIndex: {
-    width: 18,
-    fontSize: 10,
-    fontWeight: "700",
-    color: COLORS.text3,
-  },
-  listValue: {
-    flex: 1,
-    fontSize: 11,
-    fontWeight: "700",
-    color: COLORS.text,
-  },
-  listTime: {
-    fontSize: 9,
-    color: COLORS.text3,
-    marginLeft: 6,
-  },
-});
-
 export default function RoomDetailScreen({ route, navigation }) {
-  const { roomData, t, sensorReading, token } = useApp();
+  const { t, token } = useApp();
   const { room } = route?.params || {};
 
   const name = room?.name || "Room";
 
-  const [sensorLoading, setSensorLoading] = useState(false);
   const [sensorError, setSensorError] = useState(null);
-  const [sensorHistory, setSensorHistory] = useState([]);
-  const [historyWindowStart, setHistoryWindowStart] = useState(0);
+  const [sensorReading, setSensorReading] = useState({});
+  const [chartReadings, setChartReadings] = useState([]);
   const [pumpActive, setPumpActive] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [camTime, setCamTime] = useState(new Date());
@@ -196,7 +126,7 @@ export default function RoomDetailScreen({ route, navigation }) {
   useEffect(() => {
     const fetchPumpStatus = async () => {
       try {
-        const data = await getPumpStatus(token);
+        const data = await getPumpStatus(room.roomId);
         setPumpActive(Boolean(data.waterPumpStatus));
       } catch (err) {
         console.error("Failed to fetch pump status:", err);
@@ -214,7 +144,44 @@ export default function RoomDetailScreen({ route, navigation }) {
 
     fetchPumpStatus();
     fetchCameraStatus();
-  }, [token]);
+  }, [room?.roomId]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadSensorReading = async () => {
+      if (!room?.roomId) return;
+      const result = await getSensorReadings(room.roomId);
+      if (!mounted) return;
+      if (result?.error) {
+        setSensorError(result.error);
+        return;
+      }
+      if (Array.isArray(result)) {
+        const newestReading = result[0];
+        setChartReadings(result.slice().reverse());
+        if (!newestReading) {
+          setSensorReading({});
+          setSensorError(null);
+          return;
+        }
+        setSensorReading({
+          ...newestReading,
+          flame: newestReading.flame ?? newestReading.flame_detected ?? false,
+        });
+        setSensorError(null);
+        setLastUpdated(new Date());
+      }
+    };
+
+    loadSensorReading();
+    const interval = setInterval(loadSensorReading, 5000);
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [room?.roomId]);
 
   useEffect(() => {
     Animated.loop(
@@ -268,73 +235,6 @@ export default function RoomDetailScreen({ route, navigation }) {
     ...sensorReading,
   };
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadHistory = async () => {
-      setSensorLoading(true);
-      setSensorError(null);
-
-      const data = await getSensorAggregates(20);
-
-      if (!isMounted) return;
-
-      if (Array.isArray(data)) {
-        const sorted = data.slice().reverse();
-        setSensorHistory(sorted);
-        setHistoryWindowStart(0);
-      } else {
-        setSensorHistory([]);
-        setSensorError("Failed to load sensor history.");
-      }
-
-      setSensorLoading(false);
-    };
-
-    loadHistory();
-    const refreshInterval = setInterval(loadHistory, 300000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(refreshInterval);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (sensorHistory.length < 10) return undefined;
-
-    const tick = setInterval(() => {
-      setHistoryWindowStart((prev) => {
-        const maxStart = Math.max(sensorHistory.length - 10, 0);
-        if (maxStart === 0) return 0;
-        return prev + 1 > maxStart ? 0 : prev + 1;
-      });
-    }, 60000);
-
-    return () => clearInterval(tick);
-  }, [sensorHistory]);
-  const formatNumber = (value, digits = 1) =>
-    Number.isFinite(value) ? Number(value).toFixed(digits) : "--";
-  const displayHistory = sensorHistory.slice(
-    historyWindowStart,
-    historyWindowStart + 10,
-  );
-  const now = new Date();
-  const formatTimeShort = (d) =>
-    d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const logTimes = displayHistory.map((_, idx) => {
-    const minutesBack = displayHistory.length - 1 - idx;
-    return formatTimeShort(new Date(now.getTime() - minutesBack * 60000));
-  });
-  const toLogList = (items, key, digits, times) =>
-    items.map((row, idx) => ({
-      value: formatNumber(row[key], digits),
-      time: times[idx] || "--",
-    }));
-  const tempLogs = toLogList(displayHistory, "avg_temperature", 1, logTimes);
-  const humidityLogs = toLogList(displayHistory, "avg_humidity", 1, logTimes);
-  const smokeLogs = toLogList(displayHistory, "avg_smoke", 2, logTimes);
-  const coLogs = toLogList(displayHistory, "avg_co", 2, logTimes);
   const spin = spinAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "360deg"],
@@ -353,7 +253,7 @@ export default function RoomDetailScreen({ route, navigation }) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       try {
-        const data = await getPumpStatus();
+        const data = await getPumpStatus(room.roomId);
         const operationStatus = data?.operationStatus;
 
         if (operationStatus?.status === "FAILED") {
@@ -408,7 +308,7 @@ export default function RoomDetailScreen({ route, navigation }) {
             text: t("roomDetail.activate"),
             style: "destructive",
             onPress: async () => {
-              await controlWaterPumpStatus(1);
+              await controlWaterPumpStatus(room.roomId, 1);
               setPumpActive(true);
               setLastUpdated(new Date());
               await waitForPumpResult();
@@ -417,7 +317,7 @@ export default function RoomDetailScreen({ route, navigation }) {
         ],
       );
     } else {
-      await controlWaterPumpStatus(0);
+      await controlWaterPumpStatus(room.roomId, 0);
       setPumpActive(false);
       setLastUpdated(new Date());
       await waitForPumpResult();
@@ -432,7 +332,7 @@ export default function RoomDetailScreen({ route, navigation }) {
   const coPct = Math.min((sensors.co / THRESHOLDS.co) * 100, 100);
   const humidityPct = Math.min(sensors.humidity ?? 0, 100);
 
-  if (!roomData) {
+  if (!room) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.unavailableWrap}>
@@ -472,7 +372,7 @@ export default function RoomDetailScreen({ route, navigation }) {
             styles.statusDot,
             {
               backgroundColor:
-                roomData.status === "warning" ? COLORS.amber : COLORS.green,
+                room?.status === "warning" ? COLORS.amber : COLORS.green,
             },
           ]}
         />
@@ -499,19 +399,6 @@ export default function RoomDetailScreen({ route, navigation }) {
               <Text style={styles.recText}>REC</Text>
             </View>
             <Text style={styles.camTime}>{formatTime(camTime)}</Text>
-          </View>
-        )}
-
-        {sensorLoading === true && (
-          <View
-            style={{
-              paddingHorizontal: SPACING.lg,
-              marginBottom: SPACING.sm,
-            }}
-          >
-            <Text style={{ fontSize: 12, color: COLORS.text2 }}>
-              Loading sensor data...
-            </Text>
           </View>
         )}
 
@@ -611,17 +498,16 @@ export default function RoomDetailScreen({ route, navigation }) {
         </View>
 
         <View style={styles.historyCard}>
-          <Text style={styles.cardTitle}>{t("roomDetail.sensorHistory")}</Text>
-          <View style={styles.historyGrid}>
-            <HistoryStatCard label="AVG TEMP" unit="°C" values={tempLogs} />
-            <HistoryStatCard
-              label="AVG HUMIDITY"
-              unit="%"
-              values={humidityLogs}
-            />
-            <HistoryStatCard label="AVG SMOKE" unit="ppm" values={smokeLogs} />
-            <HistoryStatCard label="AVG CO" unit="ppm" values={coLogs} />
-          </View>
+          <Text style={styles.cardTitle}>Latest sensor readings</Text>
+          <SensorReadingsChart data={chartReadings} />
+          <TouchableOpacity
+            style={styles.historyButton}
+            onPress={() => navigation.navigate("SensorHistory", { room })}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="time-outline" size={18} color={COLORS.white} />
+            <Text style={styles.historyButtonText}>Sensor History</Text>
+          </TouchableOpacity>
         </View>
 
         <Animated.View
@@ -848,11 +734,20 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     ...SHADOW.small,
   },
-  historyGrid: {
+  historyButton: {
+    backgroundColor: COLORS.blue,
+    borderRadius: RADIUS.md,
+    minHeight: 44,
     flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    rowGap: SPACING.md,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.sm,
+    marginTop: SPACING.md,
+  },
+  historyButtonText: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: "700",
   },
   chartEmpty: {
     height: 140,

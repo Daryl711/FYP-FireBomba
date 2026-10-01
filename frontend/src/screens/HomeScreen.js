@@ -27,7 +27,7 @@ export default function HomeScreen() {
 
   // ── Loading gate ───────────────────────────────────────────────────────────
   // roomData is null/undefined while the context is still fetching
-  if (roomData?.error || !roomData) {
+  if (roomData?.error || !bilik) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.loadingWrap}>
@@ -204,9 +204,7 @@ export default function HomeScreen() {
           </View>
           <TouchableOpacity
             style={styles.bilikCard}
-            onPress={() =>
-              navigation.navigate("BilikRooms", { bilik, rooms: roomData })
-            }
+            onPress={() => navigation.navigate("BilikRooms", { bilik })}
             activeOpacity={0.8}
           >
             <View style={styles.bilikHeader}>
@@ -224,43 +222,6 @@ export default function HomeScreen() {
                 </Text>
               </View>
               <Ionicons name="layers-outline" size={20} color={COLORS.text3} />
-            </View>
-            <View style={styles.roomList}>
-              {roomData.map((room) => (
-                <View key={room.roomId} style={styles.roomRow}>
-                  <View style={styles.roomTypeIcon}>
-                    <Ionicons
-                      name="grid-outline"
-                      size={18}
-                      color={COLORS.blue}
-                    />
-                  </View>
-                  <View style={styles.roomRowText}>
-                    <Text style={styles.roomName}>{room.name}</Text>
-                    <Text style={styles.roomType}>
-                      {room.spaceType || "Room"}
-                    </Text>
-                  </View>
-                  <View style={styles.roomRowEnd}>
-                    <Ionicons
-                      name={
-                        room.status === "warning"
-                          ? "warning"
-                          : "checkmark-circle"
-                      }
-                      size={20}
-                      color={
-                        room.status === "warning" ? COLORS.amber : COLORS.green
-                      }
-                    />
-                    <Ionicons
-                      name="chevron-forward"
-                      size={17}
-                      color={COLORS.text3}
-                    />
-                  </View>
-                </View>
-              ))}
             </View>
           </TouchableOpacity>
         </View>
