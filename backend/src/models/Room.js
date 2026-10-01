@@ -57,6 +57,8 @@ exports.getRoomsByBilik = async (bilikId, userId) => {
     .eq("bilik_id", Number(bilikId))
     .order("room_id");
 
+  if (error) throw error;
+
   return (data || []).map(mapRoom);
 };
 
