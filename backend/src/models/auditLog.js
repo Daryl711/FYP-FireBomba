@@ -1,4 +1,4 @@
-const db = require("../config/supabase");
+const supabase = require("../config/supabase");
 
 exports.createLog = async ({
   userId,
@@ -9,17 +9,17 @@ exports.createLog = async ({
   roomName,
   details,
 }) => {
-  const sql = `
-        INSERT INTO AuditLog (user_id, performed_by, action, sensor_id, sensor_type, room_name, details)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    `;
-  await db.query(sql, [
-    userId ?? null,
-    performedBy ?? null,
+  const { error } = await supabase.from("audit_logs").insert({
+    user_id: userId ?? null,
+    performed_by: performedBy ?? null,
     action,
-    sensorId ?? null,
-    sensorType ?? null,
-    roomName ?? null,
-    details ?? null,
-  ]);
+    sensor_id: sensorId ?? null,
+    sensor_type: sensorType ?? null,
+    room_name: roomName ?? null,
+    details: details ?? null,
+  });
+
+  if (error) {
+    throw error;
+  }
 };

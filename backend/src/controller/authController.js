@@ -124,7 +124,7 @@ const loginResponse = (session, authUser, profile, rememberMe, sessionExpiresAt)
 
   profile: {
     full_name: profile.full_name,
-    room_id: profile.room_id,
+    bilik_id: profile.bilik_id,
   },
 
   session: {
@@ -150,7 +150,12 @@ const generateTokens = (userId, email, roomId) => {
 };
 
 exports.signup = async (req, res) => {
-  const { fullName, email, password } = req.body;
+  const { fullName, password } = req.body;
+  const email = String(req.body.email || "").trim().toLowerCase();
+
+  if (!fullName || !email || !password) {
+    return res.status(400).json({ error: "Full name, email and password are required" });
+  }
 
   try {
     const doesEmailExist = await User.checkEmail(email);
@@ -159,14 +164,21 @@ exports.signup = async (req, res) => {
       return res.status(400).json({ error: "Email already registered" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const userId = await User.addUser(fullName, email, hashedPassword);
+    // Supabase Auth hashes the password itself.
+    const userId = await User.addUser(fullName, email, password);
 
     return res.status(201).json({
       message: "Account created successfully!",
       userId,
     });
   } catch (error) {
+    // Supabase rejects a duplicate auth email or a weak password with a 4xx.
+    if (error?.code === "email_exists") {
+      return res.status(400).json({ error: "Email already registered" });
+    }
+    if (error?.code === "weak_password") {
+      return res.status(400).json({ error: error.message });
+    }
     res.status(500).json({ error: "Server error" });
     console.error(error);
   }

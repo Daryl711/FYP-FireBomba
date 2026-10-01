@@ -1,4 +1,6 @@
 const supabase = require("../config/supabase");
+const UserProfile = require("../models/UserProfile");
+const Room = require("../models/Room");
 
 module.exports = async (req, res, next) => {
     const authHeader = req.headers["authorization"];
@@ -25,8 +27,31 @@ module.exports = async (req, res, next) => {
             });
         }
 
-        // Make the Supabase user available to protected routes
-        req.user = user;
+        // The app data (bilik, rooms) hangs off the public.users profile, not
+        // the auth user, so it is looked up on every request.
+        const profile = await UserProfile.getById(user.id);
+        if (!profile) {
+            return res.status(403).json({
+                error: "User profile not found."
+            });
+        }
+
+        // A user owns a bilik; "their room" is the ?roomId the app asked for
+        // when it belongs to that bilik, otherwise the bilik's first room.
+        const bilikRoomIds = await Room.getRoomIdsByBilik(profile.bilik_id);
+        const requestedRoomId = Number(req.query.roomId);
+
+        req.user = {
+            ...user,
+            userId: user.id,
+            email: user.email,
+            fullName: profile.full_name,
+            role: profile.role,
+            bilikId: profile.bilik_id,
+            roomId: bilikRoomIds.includes(requestedRoomId)
+                ? requestedRoomId
+                : bilikRoomIds[0] ?? null,
+        };
 
         next();
 

@@ -37,7 +37,7 @@ mqttEvents.on("pump-status", async ({ topic, data }) => {
 
     // pending verify
     if (waterPumpStatus === "FAILED") {
-      const currentWaterPumpState = Actuator.getWaterPumpStatus(roomId);
+      const currentWaterPumpState = await Actuator.getWaterPumpStatus(roomId);
       await Actuator.updateWaterPumpStatus(!currentWaterPumpState, roomId);
     }
   }
@@ -45,7 +45,7 @@ mqttEvents.on("pump-status", async ({ topic, data }) => {
 
 exports.getLatestReading = async (req, res) => {
   try {
-    const roomId = String(req.user.roomId);
+    const roomId = req.user.roomId;
 
     if (roomId) {
       const data = await SensorReading.getLatestSensorReading(roomId);
