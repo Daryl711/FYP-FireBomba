@@ -13,21 +13,43 @@ import { useApp } from "../context/AppContext";
 import { getRoomsByBilik } from "../services/api";
 
 export default function RoomsScreen({ navigation }) {
-  const { bilik, t } = useApp();
+  const { bilik, bilikLoading, bilikError, refreshBilik, t } = useApp();
   const [roomData, setRoomData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let mounted = true;
-    if (!bilik?.bilikId) return undefined;
-
-    getRoomsByBilik(bilik.bilikId).then((result) => {
-      if (mounted && Array.isArray(result)) setRoomData(result);
-    });
+    const loadRooms = async () => {
+      setLoading(true);
+      setLoadError(null);
+      if (bilikLoading) return;
+      if (!bilik?.bilikId) {
+        setLoadError(bilikError || "Bilik information is unavailable.");
+        setLoading(false);
+        return;
+      }
+      try {
+        const result = await getRoomsByBilik(bilik.bilikId);
+        if (result?.error) throw new Error(result.error);
+        if (!Array.isArray(result)) throw new Error("Invalid rooms response.");
+        if (mounted) setRoomData(result);
+      } catch (error) {
+        if (mounted) {
+          setRoomData([]);
+          setLoadError(error.message || "Could not load rooms.");
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    loadRooms();
 
     return () => {
       mounted = false;
     };
-  }, [bilik?.bilikId]);
+  }, [bilik?.bilikId, bilikLoading, bilikError, reloadKey]);
   // const safeCount = rooms.filter((r) => r.status === 'safe').length;
   // const warnCount = rooms.filter((r) => r.status === 'warning').length;
 
@@ -44,6 +66,20 @@ export default function RoomsScreen({ navigation }) {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.list}>
+          {loading && <Text>Loading rooms...</Text>}
+          {!loading && loadError && (
+            <View>
+              <Text>{loadError}</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  if (bilikError) refreshBilik();
+                  else setReloadKey((key) => key + 1);
+                }}
+              >
+                <Text>Try again</Text>
+              </TouchableOpacity>
+            </View>
+          )}
           {roomData.map((room) => {
             return (
               <TouchableOpacity
@@ -72,6 +108,9 @@ export default function RoomsScreen({ navigation }) {
               </TouchableOpacity>
             );
           })}
+          {!loading && !loadError && roomData.length === 0 && (
+            <Text>No rooms found.</Text>
+          )}
         </View>
 
         {/* Summary Footer */}

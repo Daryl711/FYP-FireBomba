@@ -47,8 +47,6 @@ exports.signup = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
-
-    console.log("Did it pass through here?")
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -97,7 +95,6 @@ exports.login = async (req, res) => {
         full_name: profile.full_name,
         room_id: profile.room_id,
       },
-
 
       session: {
         access_token: session.access_token,
@@ -204,5 +201,3 @@ exports.refresh = async (req, res) => {
     console.error(error);
   }
 };
-
-

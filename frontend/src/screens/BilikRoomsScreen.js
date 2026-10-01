@@ -9,31 +9,52 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
+import { useApp } from "../context/AppContext";
 import { getRoomsByBilik } from "../services/api";
 
 export default function BilikRoomsScreen({ route, navigation }) {
-  const { bilik } = route?.params || {};
+  const {
+    bilik: contextBilik,
+    bilikLoading,
+    bilikError,
+    refreshBilik,
+  } = useApp();
+  const bilik = route?.params?.bilik || contextBilik;
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let mounted = true;
     const loadRooms = async () => {
+      setLoading(true);
+      setLoadError(null);
+      if (bilikLoading) return;
       if (!bilik?.bilikId) {
+        setLoadError(bilikError || "Bilik information is unavailable.");
         setLoading(false);
         return;
       }
-      const result = await getRoomsByBilik(bilik.bilikId);
-      if (mounted) {
-        setRooms(Array.isArray(result) ? result : []);
-        setLoading(false);
+      try {
+        const result = await getRoomsByBilik(bilik.bilikId);
+        if (result?.error) throw new Error(result.error);
+        if (!Array.isArray(result)) throw new Error("Invalid rooms response.");
+        if (mounted) setRooms(result);
+      } catch (error) {
+        if (mounted) {
+          setRooms([]);
+          setLoadError(error.message || "Could not load rooms.");
+        }
+      } finally {
+        if (mounted) setLoading(false);
       }
     };
     loadRooms();
     return () => {
       mounted = false;
     };
-  }, [bilik?.bilikId]);
+  }, [bilik?.bilikId, bilikLoading, bilikError, reloadKey]);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -56,6 +77,19 @@ export default function BilikRoomsScreen({ route, navigation }) {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.sectionTitle}>Rooms</Text>
         {loading && <Text style={styles.emptyText}>Loading rooms...</Text>}
+        {!loading && loadError && (
+          <View>
+            <Text style={styles.emptyText}>{loadError}</Text>
+            <TouchableOpacity
+              onPress={() => {
+                if (bilikError) refreshBilik();
+                else setReloadKey((key) => key + 1);
+              }}
+            >
+              <Text style={styles.emptyText}>Try again</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         <View style={styles.roomCard}>
           {rooms.map((room, index) => (
             <React.Fragment key={room.roomId}>
@@ -93,7 +127,7 @@ export default function BilikRoomsScreen({ route, navigation }) {
               {index < rooms.length - 1 && <View style={styles.divider} />}
             </React.Fragment>
           ))}
-          {rooms.length === 0 && (
+          {!loading && !loadError && rooms.length === 0 && (
             <Text style={styles.emptyText}>No rooms found.</Text>
           )}
         </View>

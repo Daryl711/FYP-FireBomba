@@ -12,6 +12,7 @@ import HomeScreen from "../screens/HomeScreen";
 import BilikRoomsScreen from "../screens/BilikRoomsScreen";
 import RoomsScreen from "../screens/RoomsScreen";
 import RoomDetailScreen from "../screens/RoomDetailScreen";
+import SensorHistoryScreen from "../screens/SensorHistoryScreen";
 import AlertsScreen from "../screens/AlertsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SecurityScreen from "../screens/SecurityScreen";
@@ -60,6 +61,10 @@ function RoomsStack() {
         name="ListRoomDetail"
         component={RoomDetailScreen}
       />
+      <RoomsStackNav.Screen
+        name="SensorHistory"
+        component={SensorHistoryScreen}
+      />
     </RoomsStackNav.Navigator>
   );
 }
@@ -71,6 +76,10 @@ function HomeStack() {
       <HomeStackNav.Screen name="HomeMain" component={HomeScreen} />
       <HomeStackNav.Screen name="BilikRooms" component={BilikRoomsScreen} />
       <HomeStackNav.Screen name="HomeRoomDetail" component={RoomDetailScreen} />
+      <HomeStackNav.Screen
+        name="SensorHistory"
+        component={SensorHistoryScreen}
+      />
     </HomeStackNav.Navigator>
   );
 }

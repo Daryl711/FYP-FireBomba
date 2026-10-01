@@ -150,6 +150,7 @@ export async function logoutUser(refreshToken) {
 
 export async function getSensorReading(roomId) {
   try {
+
     const response = await authFetch(
       `${API_ROOT}/room-detail/get-latest-readings?roomId=${roomId}`,
     );

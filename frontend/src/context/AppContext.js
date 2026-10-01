@@ -445,6 +445,9 @@ export function AppProvider({ children }) {
   const [notifications, setNotifications] = useState([]);
   const [roomData, setRoomData] = useState([]);
   const [bilik, setBilik] = useState(null);
+  const [bilikLoading, setBilikLoading] = useState(true);
+  const [bilikError, setBilikError] = useState(null);
+  const [bilikRequest, setBilikRequest] = useState(0);
 
   const alertRef = useRef(null);
   const soundRef = useRef(null);
@@ -516,20 +519,44 @@ export function AppProvider({ children }) {
   // }, [token]);
 
   useEffect(() => {
+    let mounted = true;
     const fetchData = async () => {
-      if (token) {
+      if (!token) {
+        setBilik(null);
+        setBilikError(null);
+        setBilikLoading(false);
+        return;
+      }
+
+      setBilikLoading(true);
+      setBilikError(null);
+      try {
         const fetchedBilik = await apiGetBilikData();
+        if (!mounted) return;
         if (fetchedBilik?.error) {
           setRoomData([]);
           setBilik(null);
+          setBilikError(fetchedBilik.error);
           return;
         }
         setBilik(fetchedBilik);
+      } catch (error) {
+        if (mounted) {
+          setBilik(null);
+          setBilikError(error.message || "Could not load Bilik information.");
+        }
+      } finally {
+        if (mounted) setBilikLoading(false);
       }
     };
 
     fetchData();
-  }, [token]);
+    return () => {
+      mounted = false;
+    };
+  }, [token, bilikRequest]);
+
+  const refreshBilik = () => setBilikRequest((request) => request + 1);
 
   // Accepts { userId, fullName, email } from login response + both tokens
   const login = async (userData, accessToken, refreshToken) => {
@@ -610,6 +637,9 @@ export function AppProvider({ children }) {
       logout,
       roomData,
       bilik,
+      bilikLoading,
+      bilikError,
+      refreshBilik,
       notifications,
       unreadCount,
       markAllRead,
@@ -625,7 +655,17 @@ export function AppProvider({ children }) {
         fireEvents: 2,
       },
     };
-  }, [language, notifications, user, token, authReady, roomData, bilik]);
+  }, [
+    language,
+    notifications,
+    user,
+    token,
+    authReady,
+    roomData,
+    bilik,
+    bilikLoading,
+    bilikError,
+  ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

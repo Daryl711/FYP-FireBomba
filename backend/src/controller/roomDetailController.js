@@ -45,10 +45,11 @@ mqttEvents.on("pump-status", async ({ topic, data }) => {
 
 exports.getLatestReading = async (req, res) => {
   try {
-    const roomId = String(req.query.roomId);
+    const roomId = String(req.params.roomId);
+
 
     if (roomId && roomId !== "undefined") {
-      const data = await SensorReading.getLatestSensorReading(roomId);
+      const data = await SensorReading.getLatestSensorReadings(roomId);
 
       return res.status(200).json(data);
     }
