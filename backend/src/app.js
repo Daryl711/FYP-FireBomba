@@ -10,6 +10,9 @@ const settingRoutes = require('./routes/settings.routes');
 const syncRoutes = require('./routes/sync.routes');
 
 const app = express();
+// Behind a proxy (Render, nginx, ...) the rate limiter needs the real client IP.
+// Set TRUST_PROXY to the number of proxy hops, usually 1.
+if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY));
 app.use(cors());
 app.use(express.json());
 

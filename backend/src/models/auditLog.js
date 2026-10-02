@@ -1,9 +1,25 @@
-const db = require("../config/database");
+const db = require("../config/supabase");
 
-exports.createLog = async ({ userId, performedBy, action, sensorId, sensorType, roomName, details }) => {
+exports.createLog = async ({
+  userId,
+  performedBy,
+  action,
+  sensorId,
+  sensorType,
+  roomName,
+  details,
+}) => {
   const sql = `
         INSERT INTO AuditLog (user_id, performed_by, action, sensor_id, sensor_type, room_name, details)
         VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
-  await db.query(sql, [userId ?? null, performedBy ?? null, action, sensorId ?? null, sensorType ?? null, roomName ?? null, details ?? null]);
+  await db.query(sql, [
+    userId ?? null,
+    performedBy ?? null,
+    action,
+    sensorId ?? null,
+    sensorType ?? null,
+    roomName ?? null,
+    details ?? null,
+  ]);
 };

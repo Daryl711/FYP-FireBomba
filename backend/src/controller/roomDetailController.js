@@ -1,12 +1,12 @@
 const { mqttEvents, publishMessage } = require("../services/mqttService");
 // const SensorReading = require("../models/SensorReading");
 const Actuator = require("../models/Actuator");
+const SensorReading = require("../models/SensorReading");
 const SensorAggregate = require("../models/SensorAggregate");
 
 // const roomPattern = /^firebomba\/room\/(\d+)\/sensor-data$/;
 const waterPumpStatusPattern = /^firebomba\/room\/(\d+)\/pump\/status$/;
 
-let latestRoomData = {};
 let latestWaterPumpStatus = {};
 
 mqttEvents.on("pump-status", async ({ topic, data }) => {
@@ -24,19 +24,21 @@ mqttEvents.on("pump-status", async ({ topic, data }) => {
   //   }
   // } else
   if (matchWaterPumpPattern) {
-    const roomNumber = matchWaterPumpPattern[1];
+    const roomId = matchWaterPumpPattern[1];
 
     const waterPumpStatus = data.status;
     const waterPumpState = data.state;
 
-    latestWaterPumpStatus[roomNumber] = {
+    latestWaterPumpStatus[roomId] = {
       status: waterPumpStatus,
       state: waterPumpState,
       updatedAt: new Date().toISOString(),
     };
 
+    // pending verify
     if (waterPumpStatus === "FAILED") {
-      await Actuator.updateWaterPumpStatus(!waterPumpState, roomNumber);
+      const currentWaterPumpState = Actuator.getWaterPumpStatus(roomId);
+      await Actuator.updateWaterPumpStatus(!currentWaterPumpState, roomId);
     }
   }
 });
@@ -46,9 +48,9 @@ exports.getLatestReading = async (req, res) => {
     const roomId = String(req.user.roomId);
 
     if (roomId) {
-      return res
-        .status(200)
-        .json(latestRoomData[roomId] || { message: "No data yet" });
+      const data = await SensorReading.getLatestSensorReading(roomId);
+
+      return res.status(200).json(data);
     }
 
     return res.status(404).json({ message: "No room found" });

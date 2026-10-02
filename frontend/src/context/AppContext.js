@@ -19,11 +19,17 @@ import {
   getSensorReading as apiGetSensorReading,
   getRoomData as apiGetRoomData,
   logoutUser,
-  saveTokens,
-  getAccessToken,
+  saveSession,
   getRefreshToken,
   clearTokens,
+  getStoredSession,
+  isSessionExpired,
+  refreshSession,
+  setOnSessionExpired,
+  getBiometricPreference,
+  setBiometricPreference,
 } from "../services/api";
+import { getBiometricSupport, promptBiometrics } from "../services/biometrics";
 
 const AppContext = createContext(null);
 
@@ -116,7 +122,7 @@ const translations = {
       pumpSuccessActivatedTitle: "Water Pump Activated",
       pumpSuccessActivatedMessage: "The water pump activated successfully.",
       pumpSuccessDeactivatedTitle: "Water Pump Deactivated",
-      pumpSuccessDeactivatedMessage: "The water pump deactivated successfully."
+      pumpSuccessDeactivatedMessage: "The water pump deactivated successfully.",
     },
     profile: {
       account: "ACCOUNT",
@@ -149,6 +155,12 @@ const translations = {
     },
     security: {
       title: "Security Settings",
+      biometricSection: "Biometric Login",
+      biometricLabel: "Unlock with biometrics",
+      biometricHint:
+        "Ask for Face ID or your fingerprint when you reopen the app",
+      biometricUnavailable: "No biometrics are set up on this device",
+
       active: "active camera(s)",
       cameraDetection: "Allow camera detection",
       disableTitle: "Disable camera detection feature",
@@ -169,8 +181,8 @@ const translations = {
     login: {
       title: "Welcome Back",
       subtitle: "Sign in to your account",
-      email: "Email",
-      emailPlaceholder: "Enter your email",
+      email: "Email or Phone Number",
+      emailPlaceholder: "you@example.com or 012-345 6789",
       password: "Password",
       passwordPlaceholder: "Enter your password",
       rememberMe: "Remember me",
@@ -179,10 +191,43 @@ const translations = {
       noAccount: "Don't have an account?",
       signUp: "Sign Up",
       missingFieldsTitle: "Missing Fields",
-      missingFieldsMessage: "Please enter both email and password.",
+      missingFieldsMessage: "Please enter your email or phone number, and your password.",
       loginFailed: "Login Failed",
       errorTitle: "Error",
       connectError: "Could not connect to the server. Is your backend running?",
+    },
+    unlock: {
+      title: "Welcome Back",
+      signedInAs: "Signed in as",
+      subtitleFace: "Use Face ID to continue",
+      subtitleFingerprint: "Use your fingerprint to continue",
+      subtitleGeneric: "Use biometrics to continue",
+      prompt: "Unlock FireBomba",
+      unlockButton: "Unlock",
+      retry: "Try Again",
+      usePassword: "Use email and password instead",
+      usePasscode: "Use device passcode",
+      failed: "We could not verify you. Please try again.",
+      cancelled: "Unlock cancelled.",
+      networkError:
+        "Could not reach the server. Check your connection and try again.",
+      expiredTitle: "Session Expired",
+      sessionExpired:
+        "Your session has ended. Please sign in with your email and password.",
+    },
+    otp: {
+      title: "Enter Verification Code",
+      subtitle: "We sent a 6-digit code by SMS to {{phone}}",
+      verify: "Verify",
+      resend: "Resend code",
+      resendIn: "Resend code in {{seconds}}s",
+      enterFullCode: "Please enter all 6 digits.",
+      invalidTitle: "Verification Failed",
+      expiredTitle: "Session Expired",
+      errorTitle: "Error",
+      connectError: "Could not connect to the server. Is your backend running?",
+      resentTitle: "Code Sent",
+      resentMessage: "A new code has been sent to your phone.",
     },
     signup: {
       title: "Create Account",
@@ -391,7 +436,7 @@ const translations = {
       pumpSuccessActivatedTitle: "Pam Air Diaktifkan",
       pumpSuccessActivatedMessage: "Pam air berjaya diaktifkan.",
       pumpSuccessDeactivatedTitle: "Pam air Dinyahaktifkan",
-      pumpSuccessDeactivatedMessage: "Pam air berjaya dinyahaktifkan."
+      pumpSuccessDeactivatedMessage: "Pam air berjaya dinyahaktifkan.",
     },
     profile: {
       account: "AKAUN",
@@ -425,8 +470,8 @@ const translations = {
     login: {
       title: "Selamat Kembali",
       subtitle: "Log masuk ke akaun anda",
-      email: "E-mel",
-      emailPlaceholder: "Masukkan e-mel anda",
+      email: "E-mel atau Nombor Telefon",
+      emailPlaceholder: "anda@contoh.com atau 012-345 6789",
       password: "Kata Laluan",
       passwordPlaceholder: "Masukkan kata laluan anda",
       rememberMe: "Ingat saya",
@@ -435,11 +480,44 @@ const translations = {
       noAccount: "Tiada akaun?",
       signUp: "Daftar",
       missingFieldsTitle: "Medan Tidak Lengkap",
-      missingFieldsMessage: "Sila masukkan e-mel dan kata laluan.",
+      missingFieldsMessage: "Sila masukkan e-mel atau nombor telefon anda, dan kata laluan.",
       loginFailed: "Log Masuk Gagal",
       errorTitle: "Ralat",
       connectError:
         "Tidak dapat menyambung ke pelayan. Adakah backend anda sedang berjalan?",
+    },
+    unlock: {
+      title: "Selamat Kembali",
+      signedInAs: "Log masuk sebagai",
+      subtitleFace: "Gunakan Face ID untuk teruskan",
+      subtitleFingerprint: "Gunakan cap jari anda untuk teruskan",
+      subtitleGeneric: "Gunakan biometrik untuk teruskan",
+      prompt: "Buka Kunci FireBomba",
+      unlockButton: "Buka Kunci",
+      retry: "Cuba Lagi",
+      usePassword: "Guna e-mel dan kata laluan",
+      usePasscode: "Guna kod laluan peranti",
+      failed: "Kami tidak dapat mengesahkan anda. Sila cuba lagi.",
+      cancelled: "Buka kunci dibatalkan.",
+      networkError:
+        "Tidak dapat menghubungi pelayan. Sila semak sambungan anda dan cuba lagi.",
+      expiredTitle: "Sesi Tamat",
+      sessionExpired:
+        "Sesi anda telah tamat. Sila log masuk dengan e-mel dan kata laluan anda.",
+    },
+    otp: {
+      title: "Masukkan Kod Pengesahan",
+      subtitle: "Kami menghantar kod 6 digit melalui SMS ke {{phone}}",
+      verify: "Sahkan",
+      resend: "Hantar semula kod",
+      resendIn: "Hantar semula dalam {{seconds}}s",
+      enterFullCode: "Sila masukkan kesemua 6 digit.",
+      invalidTitle: "Pengesahan Gagal",
+      expiredTitle: "Sesi Tamat",
+      errorTitle: "Ralat",
+      connectError: "Tidak dapat menyambung ke pelayan. Adakah backend anda berjalan?",
+      resentTitle: "Kod Dihantar",
+      resentMessage: "Kod baharu telah dihantar ke telefon anda.",
     },
     signup: {
       title: "Cipta Akaun",
@@ -557,10 +635,20 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [authReady, setAuthReady] = useState(false);
+  // A stored session exists and is still inside its 30/7-day window, but the
+  // app has just cold-started and needs a biometric scan before letting go.
+  const [needsUnlock, setNeedsUnlock] = useState(false);
+  const [lockedUser, setLockedUser] = useState(null);
+  const [biometricSupport, setBiometricSupport] = useState({
+    available: false,
+    type: null,
+  });
+  const [biometricEnabled, setBiometricEnabledState] = useState(true);
   const [language, setLanguage] = useState("en");
   const [sensorReading, setSensorReading] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [roomData, setRoomData] = useState(null);
+  const [bilik, setBilik] = useState(null);
   const [tutorialVisible, setTutorialVisible] = useState(false);
 
   const alertRef = useRef(null);
@@ -568,21 +656,89 @@ export function AppProvider({ children }) {
   const soundRef = useRef(null);
   const prevUnreadRef = useRef(0);
 
-  // Restore session from SecureStore on app startup
+  // Normalises the API's { userId, fullName, email } into the shape the
+  // screens read, and marks the app as unlocked.
+  const applySession = useCallback((sessionUser, accessToken) => {
+    if (sessionUser) {
+      setUser({
+        id: sessionUser.userId ?? sessionUser.id,
+        name: sessionUser.fullName ?? sessionUser.name,
+        email: sessionUser.email,
+      });
+    }
+    setToken(accessToken);
+    setNeedsUnlock(false);
+  }, []);
+
+  // Decide on cold start: password screen, biometric unlock, or straight in.
   useEffect(() => {
-    const restoreSession = async () => {
+    const bootstrap = async () => {
       try {
-        const storedToken = await getAccessToken();
-        if (storedToken) {
-          setToken(storedToken);
+        const [session, support, preferenceEnabled] = await Promise.all([
+          getStoredSession(),
+          getBiometricSupport(),
+          getBiometricPreference(),
+        ]);
+
+        setBiometricSupport(support);
+        setBiometricEnabledState(preferenceEnabled);
+
+        // Never signed in, or signed out last time.
+        if (!session.refreshToken) {
+          return;
         }
+
+        // Past the deadline "remember me" bought (30 days ticked, 7 days not).
+        // Drop it here so the biometric screen never even appears; the server
+        // enforces the same rule independently on the next refresh.
+        if (isSessionExpired(session.sessionExpiresAt)) {
+          await clearTokens();
+          return;
+        }
+
+        setLockedUser(session.user);
+
+        if (support.available && preferenceEnabled) {
+          setNeedsUnlock(true);
+          return;
+        }
+
+        // No sensor, nothing enrolled, or the user turned biometrics off. The
+        // session is still valid, so honour it rather than demanding a
+        // password the "remember me" tick was supposed to avoid.
+        const result = await refreshSession();
+        if (result.ok) {
+          applySession(result.user || session.user, result.accessToken);
+        } else if (result.reason === "NETWORK") {
+          // Server unreachable - keep the session and go in with the stored
+          // token; authFetch retries the refresh once the network is back.
+          applySession(session.user, session.accessToken);
+        }
+        // Anything else (expired / rejected) leaves us on the login screen.
       } catch {
-        // SecureStore unavailable — start fresh
+        // Storage unavailable — start fresh at the login screen.
       } finally {
         setAuthReady(true);
       }
     };
-    restoreSession();
+    bootstrap();
+  }, [applySession]);
+
+  // The server can end a session mid-use (deadline passed while the app was
+  // open). Drop straight back to the login screen when that happens.
+  useEffect(() => {
+    setOnSessionExpired(() => {
+      clearInterval(alertRef.current);
+      clearInterval(sensorDataRef.current);
+      prevUnreadRef.current = 0;
+      setUser(null);
+      setToken(null);
+      setNeedsUnlock(false);
+      setLockedUser(null);
+      setNotifications([]);
+    });
+
+    return () => setOnSessionExpired(null);
   }, []);
 
   // Load alarm sound once on mount
@@ -624,8 +780,11 @@ export function AppProvider({ children }) {
 
   const fetchSensorData = async () => {
     const result = await apiGetSensorReading();
-    if (Object.keys(result).length !== 0) {
-      setSensorReading(result);
+    if (result && typeof result === "object" && !Array.isArray(result)) {
+      setSensorReading({
+        ...result,
+        flame: result.flame_detected ?? false,
+      });
     }
   };
 
@@ -646,7 +805,15 @@ export function AppProvider({ children }) {
     const fetchData = async () => {
       if (token) {
         const fetchedRoomData = await apiGetRoomData();
-        setRoomData([fetchedRoomData]);
+        if (fetchedRoomData?.error) {
+          setRoomData(fetchedRoomData);
+          setBilik(null);
+          return;
+        }
+        setRoomData(
+          Array.isArray(fetchedRoomData?.rooms) ? fetchedRoomData.rooms : [],
+        );
+        setBilik(fetchedRoomData?.bilik ?? null);
       }
     };
 
@@ -690,8 +857,6 @@ export function AppProvider({ children }) {
       email: userData.email,
     });
     setToken(accessToken);
-    // Open the walkthrough on the very first login only
-    maybeShowTutorialOnFirstLaunch();
   };
 
   const logout = async () => {
@@ -702,6 +867,8 @@ export function AppProvider({ children }) {
     await logoutUser(refreshToken);
     setUser(null);
     setToken(null);
+    setNeedsUnlock(false);
+    setLockedUser(null);
     setNotifications([]);
   };
 
@@ -756,12 +923,20 @@ export function AppProvider({ children }) {
       user,
       token,
       authReady,
+      needsUnlock,
+      lockedUser,
+      biometricSupport,
+      biometricEnabled,
+      unlockWithBiometrics,
+      usePasswordInstead,
+      updateBiometricEnabled,
       language,
       setLanguage,
       t,
       login,
       logout,
       roomData,
+      bilik,
       notifications,
       sensorReading,
       unreadCount,
@@ -781,7 +956,7 @@ export function AppProvider({ children }) {
         fireEvents: 2,
       },
     };
-  }, [language, notifications, user, token, authReady, tutorialVisible]);
+  }, [language, notifications, user, token, authReady]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

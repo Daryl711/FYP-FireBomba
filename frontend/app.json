@@ -37,7 +37,13 @@
       "typedRoutes": true
     },
     "plugins": [
-      "@config-plugins/react-native-webrtc"
+      "@config-plugins/react-native-webrtc",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow FireBomba to unlock your account with Face ID."
+        }
+      ]
     ]
   }
 }

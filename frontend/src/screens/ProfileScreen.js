@@ -11,6 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
+import supabase from "../config/supabase";
 
 const ACCOUNT_ITEMS = [
   {
@@ -73,7 +74,16 @@ function PrefRow({ item, onPress }) {
 }
 
 export default function ProfileScreen({ navigation }) {
-  const { user, logout, unreadCount, roomData, systemStatus, language, setLanguage, t, openTutorial } = useApp();
+  const {
+    user,
+    logout,
+    unreadCount,
+    roomData,
+    systemStatus,
+    language,
+    setLanguage,
+    t,
+ , openTutorial } = useApp();
 
   const handleLogout = () => {
     Alert.alert(t("profile.signOutTitle"), t("profile.signOutConfirm"), [
@@ -81,9 +91,21 @@ export default function ProfileScreen({ navigation }) {
       {
         text: t("profile.signOut"),
         style: "destructive",
-        onPress: () => {
-          logout();
-          navigation.replace("Login");
+        onPress: async () => {
+          const { error } = await supabase.auth.signOut();
+
+          if (error) {
+            console.error("Logout error:", error.message);
+
+            Alert.alert("Logout Failed", error.message);
+
+            return;
+          }
+
+          // Clears the stored session too, so the next launch asks for the
+          // password instead of offering biometric unlock. The root navigator
+          // returns to the login screen by itself once the token is gone.
+          await logout();
         },
       },
     ]);
@@ -91,11 +113,7 @@ export default function ProfileScreen({ navigation }) {
 
   const handleNav = (screen) => {
     if (screen) navigation.navigate(screen);
-    else
-      Alert.alert(
-        t("common.comingSoon"),
-        t("profile.comingSoonMessage"),
-      );
+    else Alert.alert(t("common.comingSoon"), t("profile.comingSoonMessage"));
   };
 
   const displayName = user?.name || t("profile.userFallback");
@@ -182,11 +200,17 @@ export default function ProfileScreen({ navigation }) {
             ))}
             <View style={styles.prefRow}>
               <View style={[styles.prefIcon, { backgroundColor: "#EAF8F4" }]}>
-                <Ionicons name="language-outline" size={20} color={COLORS.green} />
+                <Ionicons
+                  name="language-outline"
+                  size={20}
+                  color={COLORS.green}
+                />
               </View>
               <View style={styles.prefText}>
                 <Text style={styles.prefName}>{t("profile.language")}</Text>
-                <Text style={styles.prefDesc}>{t("profile.languageSubtitle")}</Text>
+                <Text style={styles.prefDesc}>
+                  {t("profile.languageSubtitle")}
+                </Text>
               </View>
               <View style={styles.languageSwitch}>
                 <TouchableOpacity

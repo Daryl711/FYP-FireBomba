@@ -110,7 +110,6 @@ CREATE TABLE IF NOT EXISTS Actuators (
     room_id INT NOT NULL,
     last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
     waterpump_enabled BOOLEAN DEFAULT FALSE,
-    activated_status BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
 INSERT INTO Actuators (actuator_id, room_id, last_updated, waterpump_enabled, activated_status)

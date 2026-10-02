@@ -1,4 +1,4 @@
-const db = require("../config/database");
+const db = require("../config/supabase");
 
 class SensorAggregate {
   static async getLatestByRoom(roomId, limit = 10) {

@@ -1,5 +1,5 @@
 const Alert = require("../models/AlertNotification");
-const db = require("../config/database");
+const db = require("../config/supabase");
 const { mqttEvents } = require("../services/mqttService");
 
 const alertPattern = /^home\/room-(\d+)\/alerts$/;
