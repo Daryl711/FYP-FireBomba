@@ -20,6 +20,9 @@ app.use('/api/home', homeRoutes);
 app.use('/api/settings', settingRoutes);
 app.use('/api/sync', syncRoutes);
 
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 
 
 module.exports = app;
