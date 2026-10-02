@@ -83,7 +83,7 @@ export default function ProfileScreen({ navigation }) {
     language,
     setLanguage,
     t,
- , openTutorial } = useApp();
+  } = useApp();
 
   const handleLogout = () => {
     Alert.alert(t("profile.signOutTitle"), t("profile.signOutConfirm"), [
