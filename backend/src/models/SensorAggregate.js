@@ -1,12 +1,15 @@
-const db = require("../config/supabase");
+const supabase = require("../config/supabase");
 
 class SensorAggregate {
   static async getLatestByRoom(roomId, limit = 10) {
-    const safeLimit = Number.isFinite(Number(limit)) ? Number(limit) : 10;
+    const safeLimit = Math.max(
+      1,
+      Math.min(100, Number.isFinite(Number(limit)) ? Math.floor(Number(limit)) : 10),
+    );
 
-    const [rows] = await db.execute(
-      `
-      SELECT
+    const { data, error } = await supabase
+      .from("sensoraggregates")
+      .select(`
         aggregate_id,
         room_id,
         window_start,
@@ -16,15 +19,57 @@ class SensorAggregate {
         avg_smoke,
         avg_co,
         created_at
-      FROM sensoraggregates
-      WHERE room_id = ?
-      ORDER BY window_end DESC
-      LIMIT ?
-      `,
-      [roomId, safeLimit],
-    );
+      `)
+      .eq("room_id", roomId)
+      .order("window_end", { ascending: false })
+      .limit(safeLimit);
 
-    return rows;
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async getRecentByRoom(roomId, since) {
+    const { data, error } = await supabase
+      .from("sensoraggregates")
+      .select(`
+        aggregate_id,
+        room_id,
+        window_start,
+        window_end,
+        avg_temperature,
+        avg_humidity,
+        avg_smoke,
+        avg_co,
+        created_at
+      `)
+      .eq("room_id", roomId)
+      .gt("window_end", since)
+      .order("window_end", { ascending: true })
+      .limit(30);
+
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async insertSyncedAggregate(aggregate) {
+    const { data, error } = await supabase
+      .from("sensoraggregates")
+      .upsert(aggregate, { onConflict: "room_id,window_start" })
+      .select(`
+        aggregate_id,
+        room_id,
+        window_start,
+        window_end,
+        avg_temperature,
+        avg_humidity,
+        avg_smoke,
+        avg_co,
+        created_at
+      `)
+      .single();
+
+    if (error) throw error;
+    return data;
   }
 }
 

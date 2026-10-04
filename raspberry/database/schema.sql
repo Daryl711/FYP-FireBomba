@@ -33,6 +33,10 @@ CREATE TABLE IF NOT EXISTS SensorAggregates (
   avg_smoke FLOAT,
   avg_co FLOAT,
   avg_humidity FLOAT,
+  cloud_sync_status ENUM('PENDING', 'SYNCED', 'FAILED')
+      DEFAULT 'PENDING',
+  cloud_synced_at DATETIME NULL,
+  cloud_sync_attempted_at DATETIME NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY unique_room_window (room_id, window_start),
   FOREIGN KEY (room_id)

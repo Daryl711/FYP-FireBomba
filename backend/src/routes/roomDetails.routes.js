@@ -16,6 +16,12 @@ roomDetailRouter.get(
 );
 
 roomDetailRouter.get(
+  "/sensor-aggregates/stream",
+  authMiddleware,
+  roomDetailController.streamSensorAggregates,
+);
+
+roomDetailRouter.get(
   "/sensor-aggregates",
   authMiddleware,
   roomDetailController.getSensorAggregates,

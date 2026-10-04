@@ -1,6 +1,37 @@
 from database.conn import get_database_connection
 
 
+def ensure_aggregate_sync_columns():
+    connection = get_database_connection()
+    cursor = connection.cursor()
+
+    try:
+        cursor.execute("SHOW COLUMNS FROM SensorAggregates")
+        existing_columns = {column[0] for column in cursor.fetchall()}
+        missing_columns = {
+            "cloud_sync_status": (
+                "ENUM('PENDING', 'SYNCED', 'FAILED') DEFAULT 'PENDING'"
+            ),
+            "cloud_synced_at": "DATETIME NULL",
+            "cloud_sync_attempted_at": "DATETIME NULL",
+        }
+
+        for column_name, definition in missing_columns.items():
+            if column_name not in existing_columns:
+                cursor.execute(
+                    f"ALTER TABLE SensorAggregates "
+                    f"ADD COLUMN {column_name} {definition}"
+                )
+
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        cursor.close()
+        connection.close()
+
+
 def get_room_id(device_id):
 
     connection = get_database_connection()

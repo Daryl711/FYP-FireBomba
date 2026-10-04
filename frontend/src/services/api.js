@@ -210,6 +210,54 @@ export async function subscribeToSensorReadings(roomId, onReading, onError) {
   };
 }
 
+export async function subscribeToSensorAggregates(roomId, onAggregate, onError) {
+  const token = await getAccessToken();
+  if (!token) {
+    throw new Error("Sign in to receive live sensor aggregates.");
+  }
+
+  let eventSource;
+  let closed = false;
+
+  const connect = (accessToken) => {
+    if (closed) return;
+
+    eventSource = new EventSource(
+      `${API_ROOT}/room-detail/sensor-aggregates/stream?roomId=${encodeURIComponent(roomId)}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        pollingInterval: 5000,
+      },
+    );
+
+    eventSource.addEventListener("sensor-aggregate", (event) => {
+      try {
+        onAggregate(JSON.parse(event.data));
+      } catch (error) {
+        onError(error);
+      }
+    });
+    eventSource.addEventListener("error", async (event) => {
+      if (event.xhrStatus === 401 || event.xhrStatus === 403) {
+        eventSource.close();
+        const refreshedToken = await tryRefreshToken();
+        if (refreshedToken && !closed) {
+          connect(refreshedToken);
+          return;
+        }
+      }
+
+      onError(new Error(event.message || "Sensor aggregate stream failed."));
+    });
+  };
+
+  connect(token);
+  return () => {
+    closed = true;
+    eventSource?.close();
+  };
+}
+
 export async function getSensorAggregates(roomId, limit = 10) {
   try {
     const response = await authFetch(

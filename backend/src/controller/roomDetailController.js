@@ -5,6 +5,7 @@ const Room = require("../models/Room");
 const SensorReading = require("../models/SensorReading");
 const SensorAggregate = require("../models/SensorAggregate");
 const sensorReadingStream = require("../services/sensorReadingStream");
+const sensorAggregateStream = require("../services/sensorAggregateStream");
 
 // const roomPattern = /^firebomba\/room\/(\d+)\/sensor-data$/;
 const waterPumpStatusPattern = /^firebomba\/room\/(\d+)\/pump\/status$/;
@@ -113,6 +114,64 @@ exports.streamSensorReadings = async (req, res) => {
     if (res.headersSent) {
       res.write(
         `event: stream-error\ndata: ${JSON.stringify({ error: "Sensor stream failed" })}\n\n`,
+      );
+      res.end();
+      return;
+    }
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.streamSensorAggregates = async (req, res) => {
+  const roomId = Number(req.query.roomId);
+  if (!Number.isInteger(roomId) || roomId < 1) {
+    return res.status(400).json({ error: "A valid roomId is required" });
+  }
+
+  try {
+    if (!(await Room.userCanAccessRoom(roomId, req.user.id))) {
+      return res.status(403).json({ error: "Room access denied" });
+    }
+
+    res.status(200).set({
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    });
+    res.flushHeaders();
+    res.write("retry: 5000\n\n");
+
+    const unsubscribe = sensorAggregateStream.subscribeToRoom(roomId, res);
+    const heartbeat = setInterval(() => {
+      if (!res.destroyed && !res.writableEnded) {
+        res.write(": keep-alive\n\n");
+      }
+    }, 25000);
+    let closed = false;
+
+    const closeStream = () => {
+      if (closed) return;
+      closed = true;
+      clearInterval(heartbeat);
+      unsubscribe();
+    };
+
+    res.on("close", closeStream);
+    req.on("close", closeStream);
+
+    const since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const recentAggregates = await SensorAggregate.getRecentByRoom(roomId, since);
+    if (!closed) {
+      for (const aggregate of recentAggregates) {
+        sensorAggregateStream.sendSensorAggregate(res, aggregate);
+      }
+    }
+  } catch (error) {
+    console.error("Failed to stream sensor aggregates:", error);
+    if (res.headersSent) {
+      res.write(
+        `event: stream-error\ndata: ${JSON.stringify({ error: "Sensor aggregate stream failed" })}\n\n`,
       );
       res.end();
       return;

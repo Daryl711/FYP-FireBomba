@@ -10,9 +10,11 @@ import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 from mqtt.database import (
 	aggregate_sensor_readings,
+	ensure_aggregate_sync_columns,
 	get_room_id,
 	insert_sensor_reading,
 )
+from sync.sync import AGGREGATE_RETRY_INTERVAL_SECONDS, sync_aggregates
 
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
@@ -135,8 +137,10 @@ def configure_clients():
 
 
 def main():
+	ensure_aggregate_sync_columns()
 	configure_clients()
 	Thread(target=run_sensor_aggregation, daemon=True).start()
+	Thread(target=run_aggregate_sync, daemon=True).start()
 	connect_clients()
 
 	local_client.loop_start()
@@ -169,6 +173,21 @@ def run_sensor_aggregation():
 			print("Completed five-minute sensor aggregation")
 		except Exception as error:
 			print(f"Failed to aggregate sensor readings: {error}")
+			continue
+
+		try:
+			sync_aggregates()
+		except Exception as error:
+			print(f"Failed to sync sensor aggregates: {error}")
+
+
+def run_aggregate_sync():
+	while True:
+		try:
+			sync_aggregates()
+		except Exception as error:
+			print(f"Failed to sync sensor aggregates: {error}")
+		time.sleep(AGGREGATE_RETRY_INTERVAL_SECONDS)
 
 
 if __name__ == "__main__":
