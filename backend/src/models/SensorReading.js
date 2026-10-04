@@ -43,7 +43,9 @@ exports.insertSensorReading = async (data) => {
   const { data: reading, error } = await supabase
     .from("sensor_readings")
     .insert(row)
-    .select("reading_id")
+    .select(
+      "reading_id, room_id, timestamp, flame_detected, temperature, humidity, smoke, co",
+    )
     .single();
 
   if (error) {
@@ -51,7 +53,7 @@ exports.insertSensorReading = async (data) => {
     throw error;
   }
 
-  return reading.reading_id;
+  return reading;
 };
 
 exports.getRoomTemperature = async (roomId) => {
@@ -92,4 +94,34 @@ exports.getLatestSensorReading = async (roomId) => {
   }
 
   return data;
+};
+
+exports.getRecentSensorReadings = async (roomId, limit = 10) => {
+  const { data, error } = await supabase
+    .from("sensor_readings")
+    .select(
+      `
+            reading_id,
+            room_id,
+            timestamp,
+            flame_detected,
+            temperature,
+            humidity,
+            smoke,
+            co,
+            created_at
+        `,
+    )
+    .eq("room_id", roomId)
+    .order("timestamp", { ascending: false })
+    .order("created_at", { ascending: false })
+    .order("reading_id", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("Error retrieving recent sensor readings:", error);
+    throw error;
+  }
+
+  return (data || []).reverse();
 };

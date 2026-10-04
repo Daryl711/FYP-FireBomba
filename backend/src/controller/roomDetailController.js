@@ -1,8 +1,10 @@
 const { mqttEvents, publishMessage } = require("../services/mqttService");
 // const SensorReading = require("../models/SensorReading");
 const Actuator = require("../models/Actuator");
+const Room = require("../models/Room");
 const SensorReading = require("../models/SensorReading");
 const SensorAggregate = require("../models/SensorAggregate");
+const sensorReadingStream = require("../services/sensorReadingStream");
 
 // const roomPattern = /^firebomba\/room\/(\d+)\/sensor-data$/;
 const waterPumpStatusPattern = /^firebomba\/room\/(\d+)\/pump\/status$/;
@@ -45,19 +47,77 @@ mqttEvents.on("pump-status", async ({ topic, data }) => {
 
 exports.getLatestReading = async (req, res) => {
   try {
-    const roomId = String(req.params.roomId);
-
-
-    if (roomId && roomId !== "undefined") {
-      const data = await SensorReading.getLatestSensorReadings(roomId);
-
-      return res.status(200).json(data);
+    const roomId = Number(req.query.roomId);
+    if (!Number.isInteger(roomId) || roomId < 1) {
+      return res.status(400).json({ error: "A valid roomId is required" });
     }
 
-    return res.status(404).json({ message: "No room found" });
+    if (!(await Room.userCanAccessRoom(roomId, req.user.id))) {
+      return res.status(403).json({ error: "Room access denied" });
+    }
+
+    const data = await SensorReading.getLatestSensorReading(roomId);
+    return res.status(200).json(data);
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.streamSensorReadings = async (req, res) => {
+  const roomId = Number(req.query.roomId);
+  if (!Number.isInteger(roomId) || roomId < 1) {
+    return res.status(400).json({ error: "A valid roomId is required" });
+  }
+
+  try {
+    if (!(await Room.userCanAccessRoom(roomId, req.user.id))) {
+      return res.status(403).json({ error: "Room access denied" });
+    }
+
+    res.status(200).set({
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    });
+    res.flushHeaders();
+    res.write("retry: 5000\n\n");
+
+    const unsubscribe = sensorReadingStream.subscribeToRoom(roomId, res);
+    const heartbeat = setInterval(() => {
+      if (!res.destroyed && !res.writableEnded) {
+        res.write(": keep-alive\n\n");
+      }
+    }, 25000);
+    let closed = false;
+
+    const closeStream = () => {
+      if (closed) return;
+      closed = true;
+      clearInterval(heartbeat);
+      unsubscribe();
+    };
+
+    res.on("close", closeStream);
+    req.on("close", closeStream);
+
+    const recentReadings = await SensorReading.getRecentSensorReadings(roomId);
+    if (!closed) {
+      for (const reading of recentReadings) {
+        sensorReadingStream.sendSensorReading(res, reading);
+      }
+    }
+  } catch (error) {
+    console.error("Failed to stream sensor readings:", error);
+    if (res.headersSent) {
+      res.write(
+        `event: stream-error\ndata: ${JSON.stringify({ error: "Sensor stream failed" })}\n\n`,
+      );
+      res.end();
+      return;
+    }
+    return res.status(500).json({ error: "Server error" });
   }
 };
 

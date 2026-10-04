@@ -62,6 +62,20 @@ exports.getRoomsByBilik = async (bilikId, userId) => {
   return (data || []).map(mapRoom);
 };
 
+exports.userCanAccessRoom = async (roomId, userId) => {
+  const userBilikId = await getUserBilikId(userId);
+
+  const { data, error } = await supabase
+    .from("rooms")
+    .select("room_id")
+    .eq("room_id", Number(roomId))
+    .eq("bilik_id", userBilikId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data);
+};
+
 exports.getCameraStatus = async (roomId) => {
   const { data, error } = await supabase
     .from("Rooms")

@@ -1,4 +1,5 @@
 const SensorReading = require("../models/SensorReading");
+const sensorReadingStream = require("../services/sensorReadingStream");
 
 exports.insertSensorReading = async (req, res) => {
   try {
@@ -19,7 +20,7 @@ exports.insertSensorReading = async (req, res) => {
       return res.status(400).json({ error: "room_id is required and must be a positive integer" });
     }
 
-    const insertedReadingId = await SensorReading.insertSensorReading({
+    const reading = await SensorReading.insertSensorReading({
       roomId: Number(room_id),
       reading_timestamp,
       flame: flame_detected,
@@ -29,9 +30,11 @@ exports.insertSensorReading = async (req, res) => {
       co,
     });
 
+    sensorReadingStream.publishSensorReading(reading);
+
     return res.status(200).json({
       message: "Sensor reading synced",
-      readingId: insertedReadingId,
+      readingId: reading.reading_id,
     });
   } catch (error) {
     console.error(error);

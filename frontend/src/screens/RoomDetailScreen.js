@@ -15,7 +15,7 @@ import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import SensorReadingsChart from "../components/SensorReadingsChart";
 import { useApp } from "../context/AppContext";
 import {
-  getSensorReadings,
+  subscribeToSensorReadings,
   getPumpStatus,
   controlWaterPumpStatus,
   getCameraStatus,
@@ -148,38 +148,51 @@ export default function RoomDetailScreen({ route, navigation }) {
 
   useEffect(() => {
     let mounted = true;
+    let closeStream;
+    let lastReadingId = 0;
 
-    const loadSensorReading = async () => {
-      if (!room?.roomId) return;
-      const result = await getSensorReadings(room.roomId);
-      if (!mounted) return;
-      if (result?.error) {
-        setSensorError(result.error);
-        return;
-      }
-      if (Array.isArray(result)) {
-        const newestReading = result[0];
-        setChartReadings(result.slice().reverse());
-        if (!newestReading) {
-          setSensorReading({});
-          setSensorError(null);
-          return;
-        }
-        setSensorReading({
-          ...newestReading,
-          flame: newestReading.flame ?? newestReading.flame_detected ?? false,
-        });
-        setSensorError(null);
-        setLastUpdated(new Date());
-      }
+    const handleReading = (reading) => {
+      if (!mounted || String(reading.room_id) !== String(room?.roomId)) return;
+
+      const readingId = Number(reading.reading_id);
+      if (Number.isFinite(readingId) && readingId <= lastReadingId) return;
+      if (Number.isFinite(readingId)) lastReadingId = readingId;
+
+      const normalizedReading = {
+        ...reading,
+        flame: reading.flame ?? reading.flame_detected ?? false,
+      };
+      setSensorReading(normalizedReading);
+      setChartReadings((current) => [...current, normalizedReading].slice(-20));
+      setSensorError(null);
+      setLastUpdated(
+        new Date(reading.timestamp || reading.created_at || Date.now()),
+      );
     };
 
-    loadSensorReading();
-    const interval = setInterval(loadSensorReading, 5000);
+    if (room?.roomId) {
+      subscribeToSensorReadings(
+        room.roomId,
+        handleReading,
+        (error) => {
+          if (mounted) setSensorError(error.message);
+        },
+      )
+        .then((close) => {
+          if (mounted) {
+            closeStream = close;
+          } else {
+            close();
+          }
+        })
+        .catch((error) => {
+          if (mounted) setSensorError(error.message);
+        });
+    }
 
     return () => {
       mounted = false;
-      clearInterval(interval);
+      closeStream?.();
     };
   }, [room?.roomId]);
 
