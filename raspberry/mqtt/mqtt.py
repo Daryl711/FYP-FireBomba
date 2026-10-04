@@ -1,11 +1,18 @@
 import os
 import json
 import re
+import time
+from datetime import datetime
 from pathlib import Path
+from threading import Thread
 
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
-from mqtt.database import get_room_id, insert_sensor_reading
+from mqtt.database import (
+	aggregate_sensor_readings,
+	get_room_id,
+	insert_sensor_reading,
+)
 
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
@@ -129,6 +136,7 @@ def configure_clients():
 
 def main():
 	configure_clients()
+	Thread(target=run_sensor_aggregation, daemon=True).start()
 	connect_clients()
 
 	local_client.loop_start()
@@ -144,6 +152,23 @@ def main():
 def connect_clients():
 	local_client.connect(LOCAL_BROKER, LOCAL_PORT, keepalive=60)
 	cloud_client.connect(CLOUD_ENDPOINT, CLOUD_PORT, keepalive=60)
+
+
+def run_sensor_aggregation():
+	while True:
+		now = datetime.now()
+		seconds_until_next_window = (
+			(5 - now.minute % 5) * 60
+			- now.second
+			- now.microsecond / 1_000_000
+		)
+		time.sleep(seconds_until_next_window)
+
+		try:
+			aggregate_sensor_readings()
+			print("Completed five-minute sensor aggregation")
+		except Exception as error:
+			print(f"Failed to aggregate sensor readings: {error}")
 
 
 if __name__ == "__main__":
