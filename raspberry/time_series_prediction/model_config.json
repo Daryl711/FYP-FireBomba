@@ -1,0 +1,105 @@
+{
+  "version": "V5_residual_delta_trend_10scenario_1200k",
+  "feature_cols": [
+    "avg_temperature",
+    "avg_humidity",
+    "avg_smoke",
+    "avg_co"
+  ],
+  "model_input_dim": 12,
+  "input_feature_mode": "raw_delta_30min_trend",
+  "trend_lag": 6,
+  "target_mode": "residual_from_last_reading",
+  "scaler_type": "StandardScaler",
+  "seq_len": 24,
+  "horizon": 6,
+  "sample_minutes": 5,
+  "hidden_size": 192,
+  "num_layers": 2,
+  "dropout": 0.25,
+  "head_size": 128,
+  "sensor_weights": [
+    1.0,
+    1.0,
+    1.9,
+    1.9
+  ],
+  "horizon_weights": [
+    1.3,
+    1.2,
+    1.1,
+    1.0,
+    0.9,
+    0.8
+  ],
+  "risk_sensor_weights": {
+    "avg_temperature": 0.9,
+    "avg_humidity": 0.7,
+    "avg_smoke": 1.35,
+    "avg_co": 1.35
+  },
+  "risk_z_floor": 0.8,
+  "risk_support_z": 1.4,
+  "risk_support_bonus": 0.35,
+  "risk_smoke_co_bonus": 0.55,
+  "risk_temporal_blend": 0.25,
+  "risk_warning_score": 1.2554436044595982,
+  "risk_alert_score": 1.5054436044595982,
+  "min_std": {
+    "avg_temperature": 1.4,
+    "avg_humidity": 3.5,
+    "avg_smoke": 0.012,
+    "avg_co": 0.014
+  },
+  "danger_directions": {
+    "avg_temperature": "high",
+    "avg_humidity": "low",
+    "avg_smoke": "high",
+    "avg_co": "high"
+  },
+  "best_epoch": 13,
+  "best_val_loss": 0.04748867270280971,
+  "scenario_files": [
+    {
+      "name": "Normal",
+      "file": "01_Normal_120000.csv"
+    },
+    {
+      "name": "Gradual Fire",
+      "file": "02_Gradual_Fire_120000.csv"
+    },
+    {
+      "name": "Rapid Fire",
+      "file": "03_Rapid_Fire_120000.csv"
+    },
+    {
+      "name": "False Alarm",
+      "file": "04_False_Alarm_120000.csv"
+    },
+    {
+      "name": "Mixed",
+      "file": "05_Mixed_120000.csv"
+    },
+    {
+      "name": "Smouldering Fire",
+      "file": "06_Smouldering_Fire_120000.csv"
+    },
+    {
+      "name": "Cooking Activity",
+      "file": "07_Cooking_Activity_120000.csv"
+    },
+    {
+      "name": "Sensor Disturbance",
+      "file": "08_Sensor_Spike_Disturbance_120000.csv"
+    },
+    {
+      "name": "Slow Electrical Fire",
+      "file": "09_Slow_Electrical_Fire_120000.csv"
+    },
+    {
+      "name": "Recovery Suppression",
+      "file": "10_Recovery_Suppression_120000.csv"
+    }
+  ],
+  "total_training_rows": 1200000
+}

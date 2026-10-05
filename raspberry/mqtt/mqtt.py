@@ -2,16 +2,18 @@ import os
 import json
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from threading import Thread
 
+import numpy as np
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 from mqtt.database import (
 	aggregate_sensor_readings,
 	ensure_aggregate_sync_columns,
 	get_room_id,
+	get_recent_aggregate_window,
 	insert_sensor_reading,
 )
 from sync.sync import AGGREGATE_RETRY_INTERVAL_SECONDS, sync_aggregates
@@ -36,6 +38,7 @@ SENSOR_DATA_TOPIC = re.compile(r"^firebomba/room/[^/]+/sensor-data$")
 
 local_client = mqtt.Client(client_id="FireBomba-RaspberryPi-Local")
 cloud_client = mqtt.Client(client_id=CLOUD_CLIENT_ID)
+inference_model = None
 
 
 def on_local_connect(client, userdata, flags, rc):
@@ -169,11 +172,19 @@ def run_sensor_aggregation():
 		time.sleep(seconds_until_next_window)
 
 		try:
-			aggregate_sensor_readings()
+			room_ids = aggregate_sensor_readings()
 			print("Completed five-minute sensor aggregation")
 		except Exception as error:
 			print(f"Failed to aggregate sensor readings: {error}")
 			continue
+
+		for room_id in room_ids:
+			try:
+				publish_room_prediction(room_id)
+			except Exception as error:
+				print(
+					f"Failed to generate prediction for room {room_id}: {error}"
+				)
 
 		try:
 			sync_aggregates()
@@ -188,6 +199,65 @@ def run_aggregate_sync():
 		except Exception as error:
 			print(f"Failed to sync sensor aggregates: {error}")
 		time.sleep(AGGREGATE_RETRY_INTERVAL_SECONDS)
+
+
+def publish_room_prediction(room_id):
+	global inference_model
+
+	if inference_model is None:
+		from time_series_prediction.inference_model import LoadedModel
+
+		model_dir = Path(__file__).resolve().parents[1] / "time_series_prediction"
+		inference_model = LoadedModel(str(model_dir))
+
+	window_end = datetime.now().replace(second=0, microsecond=0)
+	window_end = window_end.replace(
+		minute=window_end.minute - window_end.minute % 5
+	)
+	rows = get_recent_aggregate_window(
+		room_id,
+		window_end,
+		inference_model.seq_len,
+	)
+	if len(rows) != inference_model.seq_len:
+		print(
+			f"Skipping prediction for room {room_id}: "
+			f"expected {inference_model.seq_len} aggregate rows, got {len(rows)}"
+		)
+		return
+
+	window_starts = [row["window_start"] for row in rows]
+	if rows[-1]["window_end"] != window_end or any(
+		(row["window_end"] - row["window_start"]) != timedelta(minutes=5)
+		for row in rows
+	) or any(
+		(current - previous) != timedelta(minutes=5)
+		for previous, current in zip(window_starts, window_starts[1:])
+	):
+		print(
+			f"Skipping prediction for room {room_id}: "
+			"two-hour aggregate window has missing intervals"
+		)
+		return
+
+	window = np.asarray(
+		[
+			[row[column] for column in inference_model.feature_cols]
+			for row in rows
+		],
+		dtype=np.float32,
+	)
+	predictions = inference_model.predict_values(window)
+	topic = f"fire/room/{room_id}/sensor-prediction"
+	result = cloud_client.publish(
+		topic,
+		payload=json.dumps(predictions),
+		qos=1,
+	)
+	if result.rc != mqtt.MQTT_ERR_SUCCESS:
+		raise RuntimeError(f"MQTT publish failed with code {result.rc}")
+
+	print(f"Published {len(predictions)} predictions for room {room_id}")
 
 
 if __name__ == "__main__":

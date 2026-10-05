@@ -126,10 +126,48 @@ def aggregate_sensor_readings():
 
     try:
         cursor.execute(query)
+        cursor.execute("""
+            SELECT DISTINCT room_id
+            FROM SensorAggregates
+            WHERE window_start = FROM_UNIXTIME(
+                FLOOR(UNIX_TIMESTAMP(NOW()) / 300) * 300 - 300
+            )
+        """)
+        room_ids = [row[0] for row in cursor.fetchall()]
         connection.commit()
+        return room_ids
     except Exception:
         connection.rollback()
         raise
+    finally:
+        cursor.close()
+        connection.close()
+
+
+def get_recent_aggregate_window(room_id, window_end, limit):
+    connection = get_database_connection()
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        cursor.execute(
+            """
+            SELECT
+                window_start,
+                window_end,
+                avg_temperature,
+                avg_humidity,
+                avg_smoke,
+                avg_co
+            FROM SensorAggregates
+            WHERE room_id = %s
+              AND window_start >= DATE_SUB(%s, INTERVAL 2 HOUR)
+              AND window_end <= %s
+            ORDER BY window_end DESC
+            LIMIT %s
+            """,
+            (room_id, window_end, window_end, limit),
+        )
+        return list(reversed(cursor.fetchall()))
     finally:
         cursor.close()
         connection.close()
