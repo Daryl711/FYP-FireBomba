@@ -5,6 +5,8 @@ const EventEmitter = require("events");
 const brokerUrl = `${mqttConfig.protocol}://${mqttConfig.host}:${mqttConfig.port}`;
 
 const mqttEvents = new EventEmitter();
+const sensorPredictionTopicPattern =
+  /^fire\/room\/([1-9]\d*)\/sensor-prediction$/;
 
 const client = mqtt.connect(brokerUrl, mqttConfig);
 
@@ -14,6 +16,13 @@ client.on("connect", () => {
   client.subscribe("firebomba/room/+/pump/status", { qos: 1 }, (err) => {
     if (!err) {
       console.log("Subscribed to firebomba/room/+/pump/status");
+    } else {
+      console.error("MQTT subscription error:", err);
+    }
+  });
+  client.subscribe("fire/room/+/sensor-prediction", { qos: 1 }, (err) => {
+    if (!err) {
+      console.log("Subscribed to fire/room/+/sensor-prediction");
     } else {
       console.error("MQTT subscription error:", err);
     }
@@ -43,6 +52,29 @@ client.on("reconnect", () => {
 });
 
 client.on("message", (topic, message) => {
+  const predictionMatch = topic.match(sensorPredictionTopicPattern);
+  if (predictionMatch) {
+    try {
+      const predictions = JSON.parse(message.toString());
+      if (!Array.isArray(predictions)) {
+        console.error("Invalid sensor prediction payload: expected an array");
+        return;
+      }
+
+      mqttEvents.emit("sensor-prediction", {
+        roomId: predictionMatch[1],
+        predictions,
+      });
+    } catch (err) {
+      console.error("Invalid sensor prediction JSON:", err.message);
+    }
+    return;
+  }
+
+  if (!/^firebomba\/room\/\d+\/pump\/status$/.test(topic)) {
+    return;
+  }
+
   try {
     const data = JSON.parse(message.toString());
 

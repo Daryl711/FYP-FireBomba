@@ -26,17 +26,34 @@ exports.sendSensorAggregate = (response, aggregate) => {
 };
 
 exports.publishSensorAggregate = (aggregate) => {
-  const roomKey = String(aggregate.room_id);
+  const clients = roomClients.get(String(aggregate.room_id));
+  if (!clients) return;
+
+  publishToClients(clients, (response) => {
+    exports.sendSensorAggregate(response, aggregate);
+  }, String(aggregate.room_id));
+};
+
+exports.publishSensorPrediction = (roomId, predictions) => {
+  const roomKey = String(roomId);
   const clients = roomClients.get(roomKey);
   if (!clients) return;
 
+  publishToClients(clients, (response) => {
+    response.write(
+      `event: sensor-prediction\ndata: ${JSON.stringify(predictions)}\n\n`,
+    );
+  }, roomKey);
+};
+
+function publishToClients(clients, publish, roomKey) {
   for (const response of clients) {
     if (response.destroyed || response.writableEnded) {
       clients.delete(response);
       continue;
     }
 
-    exports.sendSensorAggregate(response, aggregate);
+    publish(response);
   }
 
   if (clients.size === 0) {

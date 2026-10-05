@@ -46,6 +46,10 @@ mqttEvents.on("pump-status", async ({ topic, data }) => {
   }
 });
 
+mqttEvents.on("sensor-prediction", ({ roomId, predictions }) => {
+  sensorAggregateStream.publishSensorPrediction(roomId, predictions);
+});
+
 exports.getLatestReading = async (req, res) => {
   try {
     const roomId = Number(req.query.roomId);

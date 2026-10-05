@@ -37,7 +37,8 @@ function formatTime(value) {
 
 function AggregateGraph({ metric, data }) {
   const [width, setWidth] = useState(320);
-  const values = data
+  const aggregates = data.aggregates || [];
+  const values = aggregates
     .map((aggregate) => ({
       time: new Date(aggregate.window_end).getTime(),
       value: Number(aggregate[metric.key]),
@@ -50,24 +51,64 @@ function AggregateGraph({ metric, data }) {
     );
 
   const latest = values.at(-1)?.value;
+  const now = Date.now();
   const plotWidth = Math.max(1, width - GRAPH_PADDING.left - GRAPH_PADDING.right);
   const plotHeight = GRAPH_HEIGHT - GRAPH_PADDING.top - GRAPH_PADDING.bottom;
-  const minValue = Math.min(...values.map((point) => point.value));
-  const maxValue = Math.max(...values.map((point) => point.value));
+  const latestTime = values.at(-1)?.time ?? now;
+  const predictionStart = values.at(-1);
+  const predictionValues = Array.isArray(data.predictions)
+    ? data.predictions
+        .map((prediction, index) => ({
+          time: latestTime + (index + 1) * 5 * 60 * 1000,
+          value: Number(prediction?.[metric.key]),
+        }))
+        .filter(
+          (point) =>
+            Number.isFinite(point.time) && Number.isFinite(point.value),
+        )
+    : [];
+  const plottedValues = [
+    ...values,
+    ...(predictionStart ? [predictionStart] : []),
+    ...predictionValues,
+  ];
+  const minValue = plottedValues.length
+    ? Math.min(...plottedValues.map((point) => point.value))
+    : 0;
+  const maxValue = plottedValues.length
+    ? Math.max(...plottedValues.map((point) => point.value))
+    : 1;
   const valueRange = maxValue - minValue;
-  const verticalPadding = valueRange === 0 ? Math.max(Math.abs(minValue) * 0.1, 1) : valueRange * 0.1;
+  const verticalPadding =
+    valueRange === 0 ? Math.max(Math.abs(minValue) * 0.1, 1) : valueRange * 0.1;
   const lowerBound = minValue - verticalPadding;
   const upperBound = maxValue + verticalPadding;
-  const startTime = Date.now() - HISTORY_WINDOW_MS;
+  const startTime = now - HISTORY_WINDOW_MS;
+  const endTime = now + 30 * 60 * 1000;
+  const xForTime = (time) =>
+    GRAPH_PADDING.left +
+    ((time - startTime) / (endTime - startTime)) * plotWidth;
+  const yForValue = (value) =>
+    GRAPH_PADDING.top +
+    ((upperBound - value) / (upperBound - lowerBound)) * plotHeight;
   const points = values.map((point) => {
-    const x =
-      GRAPH_PADDING.left +
-      ((point.time - startTime) / HISTORY_WINDOW_MS) * plotWidth;
-    const y =
-      GRAPH_PADDING.top +
-      ((upperBound - point.value) / (upperBound - lowerBound)) * plotHeight;
-    return { x, y };
+    return {
+      x: xForTime(point.time),
+      y: yForValue(point.value),
+    };
   });
+  const predictionPoints = predictionStart
+    ? [
+        {
+          x: xForTime(predictionStart.time),
+          y: yForValue(predictionStart.value),
+        },
+        ...predictionValues.map((point) => ({
+          x: xForTime(point.time),
+          y: yForValue(point.value),
+        })),
+      ]
+    : [];
 
   return (
     <View style={styles.graphCard}>
@@ -115,6 +156,20 @@ function AggregateGraph({ metric, data }) {
                 strokeLinecap="round"
               />
             ) : null}
+            {predictionPoints.length > 1 ? (
+              <Polyline
+                points={predictionPoints
+                  .map(({ x, y }) => `${x},${y}`)
+                  .join(" ")}
+                fill="none"
+                stroke={metric.color}
+                strokeOpacity={0.5}
+                strokeWidth={2.5}
+                strokeDasharray="5,4"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+            ) : null}
             {points.map((point, index) => (
               <Circle
                 key={`${metric.key}-${values[index].time}`}
@@ -122,6 +177,16 @@ function AggregateGraph({ metric, data }) {
                 cy={point.y}
                 r={index === points.length - 1 ? 4 : 2.5}
                 fill={metric.color}
+              />
+            ))}
+            {predictionPoints.slice(1).map((point, index) => (
+              <Circle
+                key={`${metric.key}-prediction-${predictionValues[index].time}`}
+                cx={point.x}
+                cy={point.y}
+                r={3}
+                fill={metric.color}
+                opacity={0.5}
               />
             ))}
             <SvgText
@@ -133,13 +198,13 @@ function AggregateGraph({ metric, data }) {
               {formatTime(startTime)}
             </SvgText>
             <SvgText
-              x={width - GRAPH_PADDING.right}
+              x={xForTime(endTime)}
               y={GRAPH_HEIGHT - 5}
               fill={COLORS.text3}
               fontSize={10}
               textAnchor="end"
             >
-              Now
+              +30m
             </SvgText>
           </Svg>
         )}
@@ -156,6 +221,7 @@ export default function SensorHistoryScreen({ route, navigation }) {
   const roomId = room?.roomId;
   const roomName = room?.name || "Room";
   const [aggregates, setAggregates] = useState([]);
+  const [predictions, setPredictions] = useState([]);
   const [sensorError, setSensorError] = useState(null);
   const [connecting, setConnecting] = useState(true);
 
@@ -188,6 +254,21 @@ export default function SensorHistoryScreen({ route, navigation }) {
       setConnecting(false);
     };
 
+    const handlePrediction = (nextPredictions) => {
+      if (!mounted || !Array.isArray(nextPredictions)) return;
+
+      setPredictions(
+        nextPredictions.filter(
+          (prediction) =>
+            prediction &&
+            METRICS.every((metric) =>
+              Number.isFinite(Number(prediction[metric.key])),
+            ),
+        ),
+      );
+      setSensorError(null);
+    };
+
     if (!roomId) {
       setSensorError("Room information is unavailable.");
       setConnecting(false);
@@ -199,6 +280,7 @@ export default function SensorHistoryScreen({ route, navigation }) {
     subscribeToSensorAggregates(
       roomId,
       handleAggregate,
+      handlePrediction,
       (error) => {
         if (mounted) {
           setSensorError(error.message);
@@ -250,11 +332,21 @@ export default function SensorHistoryScreen({ route, navigation }) {
           </Text>
           {connecting ? <ActivityIndicator size="small" color={COLORS.blue} /> : null}
         </View>
+        <View style={styles.legend}>
+          <View style={styles.legendItem}>
+            <View style={styles.actualLegendLine} />
+            <Text style={styles.legendText}>Actual average</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={styles.predictionLegendLine} />
+            <Text style={styles.legendText}>Prediction</Text>
+          </View>
+        </View>
         {METRICS.map((metric) => (
           <AggregateGraph
             key={metric.key}
             metric={metric}
-            data={aggregates}
+            data={{ aggregates, predictions }}
           />
         ))}
       </ScrollView>
@@ -298,6 +390,34 @@ const styles = StyleSheet.create({
   content: {
     padding: SPACING.lg,
     gap: SPACING.md,
+  },
+  legend: {
+    flexDirection: "row",
+    gap: SPACING.lg,
+    alignItems: "center",
+    marginBottom: SPACING.xs,
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.xs,
+  },
+  actualLegendLine: {
+    width: 22,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: COLORS.text2,
+  },
+  predictionLegendLine: {
+    width: 22,
+    borderTopWidth: 2,
+    borderColor: COLORS.text2,
+    borderStyle: "dashed",
+    opacity: 0.6,
+  },
+  legendText: {
+    color: COLORS.text2,
+    fontSize: 11,
   },
   statusRow: {
     flexDirection: "row",
