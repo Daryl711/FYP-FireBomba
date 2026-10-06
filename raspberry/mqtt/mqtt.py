@@ -2,7 +2,7 @@ import os
 import json
 import re
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from threading import Thread
 
@@ -248,10 +248,17 @@ def publish_room_prediction(room_id):
 		dtype=np.float32,
 	)
 	predictions = inference_model.predict_values(window)
+	forecast = {
+		"base_time": window_end.replace(
+			tzinfo=timezone(timedelta(hours=8))
+		).isoformat(),
+		"generated_at": datetime.now(timezone.utc).isoformat(),
+		"predictions": predictions,
+	}
 	topic = f"firebomba/room/{room_id}/sensor-prediction"
 	result = cloud_client.publish(
 		topic,
-		payload=json.dumps(predictions),
+		payload=json.dumps(forecast),
 		qos=1,
 	)
 	if result.rc != mqtt.MQTT_ERR_SUCCESS:

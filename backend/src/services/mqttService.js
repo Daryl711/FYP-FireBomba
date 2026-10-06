@@ -1,12 +1,13 @@
 const mqtt = require("mqtt");
 const mqttConfig = require("../config/mqtt");
 const EventEmitter = require("events");
+const { normalizePrediction } = require("../utils/sensorPrediction");
 
 const brokerUrl = `${mqttConfig.protocol}://${mqttConfig.host}:${mqttConfig.port}`;
 
 const mqttEvents = new EventEmitter();
 const sensorPredictionTopicPattern =
-  /^fire\/room\/([1-9]\d*)\/sensor-prediction$/;
+  /^firebomba\/room\/([1-9]\d*)\/sensor-prediction$/;
 
 const client = mqtt.connect(brokerUrl, mqttConfig);
 
@@ -53,18 +54,10 @@ client.on("message", (topic, message) => {
   const predictionMatch = topic.match(sensorPredictionTopicPattern);
   if (predictionMatch) {
     try {
-      const predictions = JSON.parse(message.toString());
-      if (!Array.isArray(predictions)) {
-        console.error("Invalid sensor prediction payload: expected an array");
-        return;
-      }
-
-      mqttEvents.emit("sensor-prediction", {
-        roomId: predictionMatch[1],
-        predictions,
-      });
+      const forecast = normalizePrediction(predictionMatch[1], JSON.parse(message.toString()));
+      mqttEvents.emit("sensor-prediction", forecast);
     } catch (err) {
-      console.error("Invalid sensor prediction JSON:", err.message);
+      console.error("Invalid sensor prediction:", err.message);
     }
     return;
   }

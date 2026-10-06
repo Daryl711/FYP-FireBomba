@@ -4,6 +4,7 @@ const Actuator = require("../models/Actuator");
 const Room = require("../models/Room");
 const SensorReading = require("../models/SensorReading");
 const SensorAggregate = require("../models/SensorAggregate");
+const SensorPrediction = require("../models/SensorPrediction");
 const sensorReadingStream = require("../services/sensorReadingStream");
 const sensorAggregateStream = require("../services/sensorAggregateStream");
 
@@ -46,8 +47,14 @@ mqttEvents.on("pump-status", async ({ topic, data }) => {
   }
 });
 
-mqttEvents.on("sensor-prediction", ({ roomId, predictions }) => {
-  sensorAggregateStream.publishSensorPrediction(roomId, predictions);
+mqttEvents.on("sensor-prediction", async (forecast) => {
+  try {
+    await SensorPrediction.save(forecast);
+  } catch (error) {
+    console.error("Failed to store sensor prediction:", error);
+  }
+  // Keep live forecasts available even during a database outage.
+  sensorAggregateStream.publishSensorPrediction(forecast.room_id, forecast);
 });
 
 exports.getLatestReading = async (req, res) => {
@@ -170,6 +177,15 @@ exports.streamSensorAggregates = async (req, res) => {
       for (const aggregate of recentAggregates) {
         sensorAggregateStream.sendSensorAggregate(res, aggregate);
       }
+    }
+    try {
+      const latestForecast = await SensorPrediction.getLatestByRoom(roomId);
+      if (!closed && latestForecast) {
+        sensorAggregateStream.sendSensorPrediction(res, latestForecast);
+      }
+    } catch (error) {
+      console.error("Failed to load stored sensor prediction:", error);
+      // A missing migration or database outage must not stop actual readings.
     }
   } catch (error) {
     console.error("Failed to stream sensor aggregates:", error);

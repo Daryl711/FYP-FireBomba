@@ -40,10 +40,12 @@ exports.publishSensorPrediction = (roomId, predictions) => {
   if (!clients) return;
 
   publishToClients(clients, (response) => {
-    response.write(
-      `event: sensor-prediction\ndata: ${JSON.stringify(predictions)}\n\n`,
-    );
+    exports.sendSensorPrediction(response, predictions);
   }, roomKey);
+};
+
+exports.sendSensorPrediction = (response, forecast) => {
+  response.write(`event: sensor-prediction\ndata: ${JSON.stringify(forecast)}\n\n`);
 };
 
 function publishToClients(clients, publish, roomKey) {
