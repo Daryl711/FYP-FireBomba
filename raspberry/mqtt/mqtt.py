@@ -248,7 +248,7 @@ def publish_room_prediction(room_id):
 		dtype=np.float32,
 	)
 	predictions = inference_model.predict_values(window)
-	topic = f"fire/room/{room_id}/sensor-prediction"
+	topic = f"firebomba/room/{room_id}/sensor-prediction"
 	result = cloud_client.publish(
 		topic,
 		payload=json.dumps(predictions),

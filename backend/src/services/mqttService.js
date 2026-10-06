@@ -13,20 +13,18 @@ const client = mqtt.connect(brokerUrl, mqttConfig);
 client.on("connect", () => {
   console.log("Connected to AWS IoT Core MQTT broker");
 
-  client.subscribe("firebomba/room/+/pump/status", { qos: 1 }, (err) => {
-    if (!err) {
-      console.log("Subscribed to firebomba/room/+/pump/status");
-    } else {
-      console.error("MQTT subscription error:", err);
-    }
-  });
-  client.subscribe("firebomba/room/+/sensor-prediction", { qos: 1 }, (err) => {
-    if (!err) {
-      console.log("Subscribed to firebomba/room/+/sensor-prediction");
-    } else {
-      console.error("MQTT subscription error:", err);
-    }
-  });
+  client.subscribe(
+    ["firebomba/room/+/pump/status", "firebomba/room/+/sensor-prediction"],
+    { qos: 1 },
+    (err, granted) => {
+      if (err) {
+        console.error("MQTT subscription error:", err);
+        return;
+      }
+
+      console.log("MQTT subscriptions granted:", granted);
+    },
+  );
 });
 
 client.on("error", (err) => {
