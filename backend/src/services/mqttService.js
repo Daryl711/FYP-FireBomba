@@ -20,9 +20,9 @@ client.on("connect", () => {
       console.error("MQTT subscription error:", err);
     }
   });
-  client.subscribe("fire/room/+/sensor-prediction", { qos: 1 }, (err) => {
+  client.subscribe("firebomba/room/+/sensor-prediction", { qos: 1 }, (err) => {
     if (!err) {
-      console.log("Subscribed to fire/room/+/sensor-prediction");
+      console.log("Subscribed to firebomba/room/+/sensor-prediction");
     } else {
       console.error("MQTT subscription error:", err);
     }
