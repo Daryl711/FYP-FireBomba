@@ -128,7 +128,10 @@ CREATE TABLE IF NOT EXISTS sensor_aggregates (
     CONSTRAINT sensor_aggregates_room_fk
         FOREIGN KEY (room_id)
         REFERENCES rooms(room_id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT sensor_aggregates_room_window_unique
+        UNIQUE (room_id, window_start)
 );
 
 -- Mock biliks

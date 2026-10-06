@@ -2,6 +2,7 @@ const SensorReading = require("../models/SensorReading");
 const SensorAggregate = require("../models/SensorAggregate");
 const sensorReadingStream = require("../services/sensorReadingStream");
 const sensorAggregateStream = require("../services/sensorAggregateStream");
+const { parseSensorTimestamp } = require("../utils/sensorTimestamp");
 
 exports.insertSensorReading = async (req, res) => {
   try {
@@ -56,8 +57,8 @@ exports.insertSensorAggregate = async (req, res) => {
   } = req.body || {};
 
   const roomId = Number(room_id);
-  const start = new Date(window_start);
-  const end = new Date(window_end);
+  const start = parseSensorTimestamp(window_start);
+  const end = parseSensorTimestamp(window_end);
   const averages = {
     avg_temperature,
     avg_smoke,

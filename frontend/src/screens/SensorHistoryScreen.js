@@ -15,7 +15,12 @@ import { subscribeToSensorAggregates } from "../services/api";
 
 const HISTORY_WINDOW_MS = 2 * 60 * 60 * 1000;
 const GRAPH_HEIGHT = 150;
-const GRAPH_PADDING = { top: 12, right: 10, bottom: 24, left: 10 };
+const GRAPH_PADDING = { top: 12, right: 10, bottom: 24, left: 46 };
+
+function metricNumber(value) {
+  if (value === null || value === undefined || value === "") return NaN;
+  return Number(value);
+}
 
 const METRICS = [
   {
@@ -41,14 +46,15 @@ function AggregateGraph({ metric, data }) {
   const values = aggregates
     .map((aggregate) => ({
       time: new Date(aggregate.window_end).getTime(),
-      value: Number(aggregate[metric.key]),
+      value: metricNumber(aggregate[metric.key]),
     }))
     .filter(
       (point) =>
         Number.isFinite(point.time) &&
         Number.isFinite(point.value) &&
         point.time >= Date.now() - HISTORY_WINDOW_MS,
-    );
+    )
+    .sort((left, right) => left.time - right.time);
 
   const latest = values.at(-1)?.value;
   const now = Date.now();
@@ -60,7 +66,7 @@ function AggregateGraph({ metric, data }) {
     ? data.predictions
         .map((prediction, index) => ({
           time: latestTime + (index + 1) * 5 * 60 * 1000,
-          value: Number(prediction?.[metric.key]),
+          value: metricNumber(prediction?.[metric.key]),
         }))
         .filter(
           (point) =>
@@ -83,8 +89,14 @@ function AggregateGraph({ metric, data }) {
     valueRange === 0 ? Math.max(Math.abs(minValue) * 0.1, 1) : valueRange * 0.1;
   const lowerBound = minValue - verticalPadding;
   const upperBound = maxValue + verticalPadding;
-  const startTime = now - HISTORY_WINDOW_MS;
-  const endTime = now + 30 * 60 * 1000;
+  // Synced windows may be ahead of the phone clock. Include every visible
+  // point and the full forecast rather than drawing them outside the SVG.
+  const anchorTime = Math.max(now, latestTime);
+  const startTime = Math.min(now - HISTORY_WINDOW_MS, values[0]?.time ?? now);
+  const endTime = Math.max(
+    anchorTime + 30 * 60 * 1000,
+    predictionValues.at(-1)?.time ?? anchorTime,
+  );
   const xForTime = (time) =>
     GRAPH_PADDING.left +
     ((time - startTime) / (endTime - startTime)) * plotWidth;
@@ -135,15 +147,25 @@ function AggregateGraph({ metric, data }) {
             {[0, 0.5, 1].map((fraction) => {
               const y = GRAPH_PADDING.top + fraction * plotHeight;
               return (
-                <Line
-                  key={fraction}
-                  x1={GRAPH_PADDING.left}
-                  y1={y}
-                  x2={width - GRAPH_PADDING.right}
-                  y2={y}
-                  stroke={COLORS.border}
-                  strokeWidth={1}
-                />
+                <React.Fragment key={fraction}>
+                  <Line
+                    x1={GRAPH_PADDING.left}
+                    y1={y}
+                    x2={width - GRAPH_PADDING.right}
+                    y2={y}
+                    stroke={COLORS.border}
+                    strokeWidth={1}
+                  />
+                  <SvgText
+                    x={GRAPH_PADDING.left - 6}
+                    y={y + 3}
+                    textAnchor="end"
+                    fill={COLORS.text3}
+                    fontSize={9}
+                  >
+                    {(upperBound - fraction * (upperBound - lowerBound)).toFixed(1)}
+                  </SvgText>
+                </React.Fragment>
               );
             })}
             {points.length > 1 ? (
@@ -204,7 +226,7 @@ function AggregateGraph({ metric, data }) {
               fontSize={10}
               textAnchor="end"
             >
-              +30m
+              {formatTime(endTime)}
             </SvgText>
           </Svg>
         )}
@@ -262,7 +284,7 @@ export default function SensorHistoryScreen({ route, navigation }) {
           (prediction) =>
             prediction &&
             METRICS.every((metric) =>
-              Number.isFinite(Number(prediction[metric.key])),
+              Number.isFinite(metricNumber(prediction[metric.key])),
             ),
         ),
       );

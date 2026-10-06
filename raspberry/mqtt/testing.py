@@ -16,7 +16,7 @@ def seed_test_aggregates(room_id):
     # Generate exactly 24 × 5-minute windows
     start_time = end_time - timedelta(hours=2)
 
-    for i in range(24):
+    for i in range(25):
         window_start = start_time + timedelta(minutes=i * 5)
         window_end = window_start + timedelta(minutes=5)
 

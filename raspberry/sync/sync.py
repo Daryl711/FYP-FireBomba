@@ -4,7 +4,7 @@ from threading import Lock
 from database.conn import get_database_connection
 
 
-PC_API_BASE = "http://192.168.1.100:5000/api/sync"  # Change IP address whenever necessary...
+PC_API_BASE = "http://firebomba-mobile-backend.duckdns.org:3000/api/sync"  # Change IP address whenever necessary...
 PC_API = f"{PC_API_BASE}/insert-sensor-readings"
 AGGREGATE_API = f"{PC_API_BASE}/insert-sensor-aggregates"
 AGGREGATE_RETRY_INTERVAL_SECONDS = 120
