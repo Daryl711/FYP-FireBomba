@@ -12,7 +12,6 @@ const mapBilik = (bilik) =>
 const mapRoom = (room) => ({
   roomId: room.room_id,
   name: room.name,
-  status: room.status,
   lastUpdated: room.last_updated,
   cameraEnabled: room.camera_enabled,
   spaceType: room.space_type,
@@ -53,7 +52,7 @@ exports.getRoomsByBilik = async (bilikId, userId) => {
 
   const { data, error } = await supabase
     .from("rooms")
-    .select("room_id, name, status, last_updated, camera_enabled, space_type")
+    .select("room_id, name, last_updated, camera_enabled, space_type")
     .eq("bilik_id", Number(bilikId))
     .order("room_id");
 
