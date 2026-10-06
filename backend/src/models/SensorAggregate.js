@@ -8,7 +8,7 @@ class SensorAggregate {
     );
 
     const { data, error } = await supabase
-      .from("sensoraggregates")
+      .from("sensor_aggregates")
       .select(`
         aggregate_id,
         room_id,
@@ -30,7 +30,7 @@ class SensorAggregate {
 
   static async getRecentByRoom(roomId, since) {
     const { data, error } = await supabase
-      .from("sensoraggregates")
+      .from("sensor_aggregates")
       .select(`
         aggregate_id,
         room_id,
@@ -53,7 +53,7 @@ class SensorAggregate {
 
   static async insertSyncedAggregate(aggregate) {
     const { data, error } = await supabase
-      .from("sensoraggregates")
+      .from("sensor_aggregates")
       .upsert(aggregate, { onConflict: "room_id,window_start" })
       .select(`
         aggregate_id,

@@ -77,7 +77,7 @@ exports.userCanAccessRoom = async (roomId, userId) => {
 
 exports.getCameraStatus = async (roomId) => {
   const { data, error } = await supabase
-    .from("Rooms")
+    .from("rooms")
     .select("camera_enabled")
     .eq("room_id", roomId)
     .single();
@@ -91,7 +91,7 @@ exports.getCameraStatus = async (roomId) => {
 
 exports.updateCameraStatus = async (cameraStatus, roomId) => {
   const { error } = await supabase
-    .from("Rooms")
+    .from("rooms")
     .update({
       camera_enabled: cameraStatus,
       last_updated: new Date().toISOString(),
