@@ -672,25 +672,31 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
-// Step 2 of reset: code and new password in one call, so there is no
-// intermediate "password change is authorised" token to steal.
-exports.resetPassword = async (req, res) => {
+// The auth account's updated_at changes whenever its password does, so a
+// reset token stamped with it stops working the moment it has been used.
+const authUpdatedAt = async (userId) => {
+  const { data, error } = await supabase.auth.admin.getUserById(userId);
+  if (error) throw error;
+  return data.user.updated_at;
+};
+
+// Step 2 of reset: check the code on its own, so the app can show the "new
+// password" form only once the code is right. Answers with a short-lived,
+// single-use reset token that step 3 must present.
+exports.verifyResetOtp = async (req, res) => {
   try {
-    const { identifier, phone, email, code, newPassword } = req.body;
+    const { identifier, phone, email, code } = req.body;
     const rawIdentifier = identifier || phone || email;
 
-    if (!rawIdentifier || !code || !newPassword) {
-      return res.status(400).json({ error: "Email or phone, code and new password are required" });
-    }
-
-    if (String(newPassword).length < 8) {
-      return res.status(400).json({ error: "Password must be at least 8 characters" });
+    if (!rawIdentifier || !code) {
+      return res.status(400).json({ error: "Email or phone and code are required" });
     }
 
     const profile = await findProfileByIdentifier(rawIdentifier);
 
+    // Same answer as a wrong code, so this never reveals the account exists.
     if (!profile) {
-      return res.status(400).json({ error: "Invalid code" });
+      return res.status(401).json({ error: "Incorrect code" });
     }
 
     const result = await OtpCode.verify(profile.user_id, "reset", code);
@@ -698,7 +704,49 @@ exports.resetPassword = async (req, res) => {
       return otpFailureResponse(res, result);
     }
 
-    const { error } = await supabase.auth.admin.updateUserById(profile.user_id, {
+    const resetToken = jwt.sign(
+      {
+        userId: profile.user_id,
+        purpose: "password_reset",
+        stamp: await authUpdatedAt(profile.user_id),
+      },
+      OTP_CHALLENGE_SECRET,
+      { expiresIn: OTP_CHALLENGE_EXPIRES_IN }
+    );
+
+    return res.status(200).json({ message: "Code verified", resetToken });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+    console.error(error);
+  }
+};
+
+// Step 3 of reset: the token from step 2 plus the new password.
+exports.resetPassword = async (req, res) => {
+  try {
+    const { resetToken, newPassword } = req.body;
+
+    if (!resetToken || !newPassword) {
+      return res.status(400).json({ error: "Reset token and new password are required" });
+    }
+
+    if (String(newPassword).length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
+    }
+
+    let decoded;
+    try {
+      decoded = verifyChallengeToken(resetToken, "password_reset");
+    } catch {
+      return res.status(401).json({ error: "Reset expired, please request a new code" });
+    }
+
+    // Already used (or the password changed some other way since).
+    if (decoded.stamp !== (await authUpdatedAt(decoded.userId))) {
+      return res.status(401).json({ error: "Reset expired, please request a new code" });
+    }
+
+    const { error } = await supabase.auth.admin.updateUserById(decoded.userId, {
       password: newPassword,
     });
 
@@ -708,7 +756,7 @@ exports.resetPassword = async (req, res) => {
 
     // Any session opened with the old password is no longer trusted: without
     // its deadline row, /refresh refuses it.
-    await UserSession.deleteByUserId(profile.user_id);
+    await UserSession.deleteByUserId(decoded.userId);
 
     return res.status(200).json({ message: "Password reset successfully, please log in" });
   } catch (error) {

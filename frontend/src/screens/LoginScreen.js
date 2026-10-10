@@ -29,7 +29,7 @@ export default function LoginScreen({ navigation }) {
   // Added a loading state so the button can show a spinner while connecting
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleForgotPassword = async () => {};
+  const handleForgotPassword = () => navigation.navigate("ForgotPassword");
 
   const handleLogin = async () => {
     // 1. Validation
@@ -189,7 +189,7 @@ export default function LoginScreen({ navigation }) {
               </TouchableOpacity>
               <TouchableOpacity
                 disabled={isLoading}
-                onClick={handleForgotPassword}
+                onPress={handleForgotPassword}
               >
                 <Text style={styles.forgotText}>
                   {t("login.forgotPassword")}

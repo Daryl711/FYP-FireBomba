@@ -475,3 +475,46 @@ export async function resendLoginOtp(challengeToken, channel) {
     return { error: "Network error. Cannot connect to server." };
   }
 }
+
+// Step 1 of password reset. The server answers the same whether or not the
+// account exists; an email gets the code by email, a phone number by SMS.
+export async function forgotPassword(identifier) {
+  try {
+    const response = await fetch(`${API_ROOT}/forgot-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier }),
+    });
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+// Step 2: checks the code and, when right, returns a short-lived resetToken.
+export async function verifyResetOtp(identifier, code) {
+  try {
+    const response = await fetch(`${API_ROOT}/forgot-password/verify-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier, code }),
+    });
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+// Step 3: the resetToken from step 2 plus the new password.
+export async function resetPassword(resetToken, newPassword) {
+  try {
+    const response = await fetch(`${API_ROOT}/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resetToken, newPassword }),
+    });
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
