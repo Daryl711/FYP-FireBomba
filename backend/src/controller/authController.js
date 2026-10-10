@@ -30,32 +30,7 @@ const OTP_LOGIN_ENABLED = process.env.OTP_LOGIN_ENABLED === "true";
 const OTP_CHALLENGE_SECRET = process.env.OTP_CHALLENGE_SECRET || JWT_SECRET + "_otp";
 const OTP_CHALLENGE_EXPIRES_IN = "10m";
 
-// Normalises 012-345 6789 / +60123456789 / 60123456789 to a single stored form.
-const normalisePhone = (phone) => {
-  if (!phone) {
-    return null;
-  }
-
-  const digits = String(phone).replace(/[^\d+]/g, "");
-
-  if (digits.startsWith("+")) {
-    return digits;
-  }
-  if (digits.startsWith("0")) {
-    return "+60" + digits.slice(1);
-  }
-  if (digits.startsWith("60")) {
-    return "+" + digits;
-  }
-  return digits;
-};
-
-// Login accepts an email OR a phone number in one field. Anything containing
-// "@" is an email; everything else is looked up by phone.
-const findProfileByIdentifier = (rawIdentifier) =>
-  String(rawIdentifier).includes("@")
-    ? UserProfile.getByEmail(String(rawIdentifier).trim().toLowerCase())
-    : UserProfile.getByPhone(normalisePhone(rawIdentifier));
+const { normalisePhone, getByIdentifier: findProfileByIdentifier } = UserProfile;
 
 // Short-lived token proving "password already checked, OTP still outstanding".
 // Purpose claim stops it being replayed as anything else. `remembered` rides
