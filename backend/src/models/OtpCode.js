@@ -34,14 +34,6 @@ if (DEV_CODE && !devCodeUsable) {
   );
 }
 
-if (devCodeUsable) {
-  console.warn("=============================================================");
-  console.warn(`  OTP_DEV_CODE is active - every code will be ${DEV_CODE}`);
-  console.warn("  For development only. Clear it in .env before any demo");
-  console.warn("  that uses real SMS.");
-  console.warn("=============================================================");
-}
-
 // crypto.randomInt is cryptographically secure - Math.random is not.
 const generateCode = () => {
   if (devCodeUsable) {
