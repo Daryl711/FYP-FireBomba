@@ -9,6 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 import LoginScreen from "../screens/LoginScreen";
 import SignUpScreen from "../screens/SignUpScreen";
 import OtpScreen from "../screens/OtpScreen";
+import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
 import HomeScreen from "../screens/HomeScreen";
 import BilikRoomsScreen from "../screens/BilikRoomsScreen";
 import RoomsScreen from "../screens/RoomsScreen";
@@ -199,6 +200,10 @@ export default function AppNavigator() {
             {/* Sits in the logged-out group: the password is checked but no
                 session exists until the SMS code comes back. */}
             <RootStack.Screen name="Otp" component={OtpScreen} />
+            <RootStack.Screen
+              name="ForgotPassword"
+              component={ForgotPasswordScreen}
+            />
           </>
         )}
       </RootStack.Navigator>
