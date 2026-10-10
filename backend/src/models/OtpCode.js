@@ -2,10 +2,11 @@ const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const supabase = require("../config/supabase");
 
-// Development helper: when OTP_DEV_CODE is set, every generated code is that
-// fixed value, so you can test login without reading the console each time.
-// Deliberately refuses to activate while real SMS is enabled - a predictable
-// code plus real delivery would be a genuine account-takeover hole.
+// Development helper: when OTP_DEV_CODE is set, every SMS code is that fixed
+// value, so you can test phone login without reading the console each time.
+// Email codes are always random because email is really delivered. It also
+// refuses to activate while real SMS is enabled - a predictable code plus real
+// delivery would be a genuine account-takeover hole.
 const DEV_CODE = process.env.OTP_DEV_CODE || null;
 const SMS_ENABLED = process.env.SMS_ENABLED === "true";
 
@@ -13,8 +14,8 @@ const OTP_LENGTH = 6;
 const OTP_TTL_MINUTES = 5;
 const MAX_ATTEMPTS = 5;
 const RESEND_COOLDOWN_SECONDS = 60;
-// Every code is one SMS, and every SMS costs money. Caps what one account can
-// trigger per 24h across login, resend and password reset combined.
+// Every code is one SMS or email, and SMS costs money. Caps what one account
+// can trigger per 24h across login, resend and password reset combined.
 const DAILY_SMS_LIMIT = Number(process.env.SMS_DAILY_LIMIT_PER_USER || 10);
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -34,9 +35,12 @@ if (DEV_CODE && !devCodeUsable) {
   );
 }
 
+// A destination containing "@" is an email address, anything else a phone.
+const isEmailDestination = (destination) => String(destination).includes("@");
+
 // crypto.randomInt is cryptographically secure - Math.random is not.
-const generateCode = () => {
-  if (devCodeUsable) {
+const generateCode = (destination) => {
+  if (devCodeUsable && !isEmailDestination(destination)) {
     return DEV_CODE;
   }
 
@@ -109,7 +113,7 @@ exports.isOverDailyLimit = async (userId) => {
   return count >= DAILY_SMS_LIMIT;
 };
 
-// Returns the PLAINTEXT code so the caller can SMS it. Only the hash is stored.
+// Returns the PLAINTEXT code so the caller can send it. Only the hash is stored.
 //
 // pendingSession is the Supabase session parked until the code is verified.
 // Pass carryPending: true on a resend so the new code keeps holding the
@@ -144,7 +148,7 @@ exports.create = async (
     .eq("user_id", userId)
     .lt("created_at", new Date(Date.now() - DAY_MS).toISOString());
 
-  const code = generateCode();
+  const code = generateCode(destination);
   const codeHash = await bcrypt.hash(code, 10);
   const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
 
@@ -205,8 +209,13 @@ exports.verify = async (userId, purpose, code) => {
   }
 
   await consume(record.otp_id);
-  return { valid: true, pendingSession: record.pending_session };
+  return {
+    valid: true,
+    pendingSession: record.pending_session,
+    destination: record.destination,
+  };
 };
 
+module.exports.isEmailDestination = isEmailDestination;
 module.exports.OTP_TTL_MINUTES = OTP_TTL_MINUTES;
 module.exports.RESEND_COOLDOWN_SECONDS = RESEND_COOLDOWN_SECONDS;

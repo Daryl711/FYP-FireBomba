@@ -21,7 +21,16 @@ const RESEND_COOLDOWN = 60;
 
 export default function OtpScreen({ navigation, route }) {
   const { t, login } = useApp();
-  const { challengeToken, phoneHint } = route.params || {};
+  const { challengeToken, availableChannels = ["email"] } = route.params || {};
+
+  // Where the current code went. A switch ("send to my phone instead") asks
+  // the server for a new code on the other channel.
+  const [channel, setChannel] = useState(route.params?.channel || "email");
+  const [destinationHint, setDestinationHint] = useState(
+    route.params?.destinationHint || ""
+  );
+  const otherChannel = channel === "email" ? "sms" : "email";
+  const canSwitch = availableChannels.includes(otherChannel);
 
   const [code, setCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -82,7 +91,8 @@ export default function OtpScreen({ navigation, route }) {
     }
   };
 
-  const handleResend = async () => {
+  // Resends on the current channel, or on `targetChannel` to switch.
+  const handleResend = async (targetChannel = channel) => {
     if (secondsLeft > 0 || isResending) {
       return;
     }
@@ -90,16 +100,22 @@ export default function OtpScreen({ navigation, route }) {
     setIsResending(true);
 
     try {
-      const result = await resendLoginOtp(challengeToken);
+      const result = await resendLoginOtp(challengeToken, targetChannel);
 
       if (result.error) {
         Alert.alert(t("otp.invalidTitle"), result.error);
         return;
       }
 
+      const sentTo = result.channel || targetChannel;
+      setChannel(sentTo);
+      setDestinationHint(result.destinationHint || "");
       setCode("");
       setSecondsLeft(RESEND_COOLDOWN);
-      Alert.alert(t("otp.resentTitle"), t("otp.resentMessage"));
+      Alert.alert(
+        t("otp.resentTitle"),
+        t(sentTo === "email" ? "otp.resentMessageEmail" : "otp.resentMessage")
+      );
     } catch (error) {
       Alert.alert(t("otp.errorTitle"), t("otp.connectError"));
     } finally {
@@ -135,7 +151,7 @@ export default function OtpScreen({ navigation, route }) {
           <View style={styles.logoWrap}>
             <View style={styles.logoCircle}>
               <Ionicons
-                name="chatbubble-ellipses-outline"
+                name={channel === "email" ? "mail-outline" : "chatbubble-ellipses-outline"}
                 size={34}
                 color={COLORS.primary}
               />
@@ -144,7 +160,9 @@ export default function OtpScreen({ navigation, route }) {
 
           <Text style={styles.title}>{t("otp.title")}</Text>
           <Text style={styles.subtitle}>
-            {t("otp.subtitle", { phone: phoneHint || "" })}
+            {channel === "email"
+              ? t("otp.subtitleEmail", { email: destinationHint })
+              : t("otp.subtitle", { phone: destinationHint })}
           </Text>
 
           <View style={styles.card}>
@@ -197,7 +215,7 @@ export default function OtpScreen({ navigation, route }) {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={handleResend}
+              onPress={() => handleResend()}
               disabled={secondsLeft > 0 || isResending}
               activeOpacity={0.7}
             >
@@ -212,6 +230,24 @@ export default function OtpScreen({ navigation, route }) {
                   : t("otp.resend")}
               </Text>
             </TouchableOpacity>
+
+            {/* Same cooldown as resend: the server allows one code per 60s. */}
+            {canSwitch && (
+              <TouchableOpacity
+                onPress={() => handleResend(otherChannel)}
+                disabled={secondsLeft > 0 || isResending}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.resendText,
+                    secondsLeft > 0 && styles.resendDisabled,
+                  ]}
+                >
+                  {t(otherChannel === "sms" ? "otp.useSms" : "otp.useEmail")}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </KeyboardAvoidingView>
