@@ -55,7 +55,9 @@ export default function LoginScreen({ navigation }) {
         // 5a. Two-factor is on: no session yet, finish on the OTP screen.
         navigation.navigate("Otp", {
           challengeToken: result.challengeToken,
-          phoneHint: result.phoneHint,
+          channel: result.channel,
+          destinationHint: result.destinationHint,
+          availableChannels: result.availableChannels,
         });
       } else {
         // 5. Save the session tokens to context and SecureStore

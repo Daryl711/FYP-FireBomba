@@ -472,12 +472,14 @@ export async function verifyLoginOtp(challengeToken, code) {
   }
 }
 
-export async function resendLoginOtp(challengeToken) {
+// channel ("email" | "sms") switches where the new code goes; omit to keep
+// the server default (email).
+export async function resendLoginOtp(challengeToken, channel) {
   try {
     const response = await fetch(`${API_ROOT}/login/resend-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ challengeToken }),
+      body: JSON.stringify({ challengeToken, channel }),
     });
     return await safeParseResponse(response);
   } catch (error) {

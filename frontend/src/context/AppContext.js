@@ -216,6 +216,10 @@ const translations = {
     otp: {
       title: "Enter Verification Code",
       subtitle: "We sent a 6-digit code by SMS to {{phone}}",
+      subtitleEmail: "We sent a 6-digit code by email to {{email}}",
+      useSms: "Send to my phone instead",
+      useEmail: "Send to my email instead",
+      resentMessageEmail: "A new code has been sent to your email.",
       verify: "Verify",
       resend: "Resend code",
       resendIn: "Resend code in {{seconds}}s",
@@ -449,6 +453,10 @@ const translations = {
     otp: {
       title: "Masukkan Kod Pengesahan",
       subtitle: "Kami menghantar kod 6 digit melalui SMS ke {{phone}}",
+      subtitleEmail: "Kami menghantar kod 6 digit melalui e-mel ke {{email}}",
+      useSms: "Hantar ke telefon saya",
+      useEmail: "Hantar ke e-mel saya",
+      resentMessageEmail: "Kod baharu telah dihantar ke e-mel anda.",
       verify: "Sahkan",
       resend: "Hantar semula kod",
       resendIn: "Hantar semula dalam {{seconds}}s",
