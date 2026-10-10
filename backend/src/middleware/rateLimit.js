@@ -8,6 +8,8 @@
 // Behind a reverse proxy, set TRUST_PROXY so req.ip is the real client and
 // not the proxy - otherwise every user shares one bucket.
 
+const UserProfile = require("../models/UserProfile");
+
 const RATE_LIMIT_ENABLED = process.env.RATE_LIMIT_ENABLED !== "false";
 
 const MINUTE_MS = 60 * 1000;
@@ -27,22 +29,35 @@ setInterval(() => {
 
 const ipKey = (req) => req.ip || req.socket?.remoteAddress || "unknown";
 
-// Same account typed as "Ali@X.com " or "ali@x.com" must share one bucket.
-// Phone numbers keep only digits so "012-345 6789" and "0123456789" match.
-const identifierKey = (req) => {
+// One bucket per account, whether it was typed as its email or its phone
+// number. Anything that matches no account is keyed on the typed text instead,
+// so made-up emails are still limited: "Ali@X.com " and "ali@x.com" share a
+// bucket, and so do "012-345 6789" and "0123456789".
+const identifierKey = async (req) => {
   const { identifier, email, phone } = req.body || {};
   const raw = identifier || email || phone;
   if (!raw) return null;
 
+  try {
+    const profile = await UserProfile.getByIdentifier(raw);
+    if (profile) return `user:${profile.user_id}`;
+  } catch (err) {
+    // A failed lookup must not block the request; fall back to the text.
+    console.error("Rate limit account lookup failed:", err.message);
+  }
+
   const value = String(raw).trim().toLowerCase();
-  return value.includes("@") ? value : value.replace(/\D/g, "").replace(/^(60|0)/, "");
+  return value.includes("@")
+    ? `typed:${value}`
+    : `typed:${value.replace(/\D/g, "").replace(/^(60|0)/, "")}`;
 };
 
 // options:
 //   name         - label used in the key and the log line
 //   windowMs     - window length
 //   max          - requests allowed per window
-//   key          - (req) => string | null; null skips limiting for that request
+//   key          - (req) => string | null, or a promise of one; null skips
+//                  limiting for that request
 //   failuresOnly - count only responses with status >= 400, so a user who
 //                  logs in successfully is never locked out by their own use
 //   message      - error text returned with the 429
@@ -57,10 +72,12 @@ const createRateLimiter = ({
   const store = new Map();
   stores.push(store);
 
-  return (req, res, next) => {
+  // Async because the account key looks the user up. Express 5 forwards a
+  // rejected promise to the error handler.
+  return async (req, res, next) => {
     if (!RATE_LIMIT_ENABLED) return next();
 
-    const keyValue = key(req);
+    const keyValue = await key(req);
     if (!keyValue) return next();
 
     const bucketKey = `${name}:${keyValue}`;
