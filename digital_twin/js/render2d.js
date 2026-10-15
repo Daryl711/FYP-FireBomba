@@ -77,6 +77,10 @@ var FB = FB || {};
       ctx.fillStyle = "rgba(188,188,188," + Math.min(0.46, c.smoke / 200) + ")";
       ctx.fillRect(c.x, c.y, c.w, c.h);
     }
+    if (c.noData) {                       // Live mode, no fresh reading
+      ctx.fillStyle = "rgba(7,6,6,0.55)";
+      ctx.fillRect(c.x, c.y, c.w, c.h);
+    }
     if (c.state === "burning") {
       var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
       var g2 = ctx.createRadialGradient(cx, cy, 0.2, cx, cy, Math.max(c.w, c.h) * 0.8);
@@ -110,6 +114,10 @@ var FB = FB || {};
     }
     ctx.fillStyle = smoke;
     ctx.fillRect(place.x, place.y, place.w, place.h);
+    if (cs.every(function (c) { return c.noData; })) {    // Live mode, no reading
+      ctx.fillStyle = "rgba(7,6,6,0.55)";
+      ctx.fillRect(place.x, place.y, place.w, place.h);
+    }
     cs.forEach(function (c) {
       if (c.state !== "burning") return;
       var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
@@ -341,7 +349,8 @@ var FB = FB || {};
     if (place.kind !== "bilik") {
       cells = [{
         x: place.x, y: place.y, w: place.w, h: place.h, label: place.label,
-        temp: sim.placeStatus(place.id).temp
+        temp: sim.placeStatus(place.id).temp,
+        noData: cells.every(function (c) { return c.noData; })
       }];
     }
     cells.forEach(function (c) {
@@ -361,7 +370,7 @@ var FB = FB || {};
 
       ctx.fillStyle = hot ? "rgba(22,14,8,.95)" : "rgba(238,231,226,.6)";
       ctx.font = "600 " + (big * 0.78) + 'px "JetBrains Mono", monospace';
-      ctx.fillText(Math.round(c.temp) + "\u00B0C", p.x, p.y + 28);
+      ctx.fillText(c.noData ? "no data" : Math.round(c.temp) + "\u00B0C", p.x, p.y + 28);
     });
   }
 

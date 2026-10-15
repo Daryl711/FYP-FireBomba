@@ -23,6 +23,11 @@
       </div>
     </div>
     <div class="spacer"></div>
+    <div class="seg" id="modeSeg">
+      <button id="mSim" class="on">Simulation</button>
+      <button id="mLive">Live</button>
+    </div>
+    <span class="livepill" id="livePill"></span>
     <div class="seg">
       <button id="v2d" class="on">2D Plan</button>
       <button id="v3d">3D View</button>
@@ -57,7 +62,14 @@
     </div>
 
     <div id="rail">
-      <div class="sect">
+      <div class="sect" id="liveSect">
+        <h3>Live Data</h3>
+        <div class="note" id="liveNote"></div>
+        <div class="mrow"><span class="k">Broker</span><span class="v" id="liveBroker" style="font-size:11px">—</span></div>
+        <div class="mrow"><span class="k">Rooms reporting</span><span class="v" id="liveRooms">0 / 20</span></div>
+        <div class="mrow"><span class="k">Last message</span><span class="v" id="liveLast">—</span></div>
+      </div>
+      <div class="sect" id="fireSect">
         <h3>Fire Class</h3>
         <div class="row">
           <button class="chip on" data-fire="A">Timber<br>Class A</button>
@@ -79,7 +91,7 @@
           <div class="g"><div class="lbl">FLAME</div><div class="val" id="gF" style="font-size:15px">Clear</div><div class="bar"><i id="bF"></i></div></div>
         </div>
       </div>
-      <div class="sect">
+      <div class="sect" id="metricsSect">
         <h3>Response Metrics</h3>
         <div class="mrow"><span class="k">Detection</span><span class="v" id="mDet">—</span></div>
         <div class="mrow"><span class="k">Alert pushed</span><span class="v" id="mAlert">—</span></div>
@@ -88,7 +100,7 @@
         <div class="mrow"><span class="k">Bilik lost</span><span class="v" id="mBilik">0 / 6</span></div>
         <div class="mrow"><span class="k">Time gained</span><span class="v" id="mGain" style="color:var(--green)">—</span></div>
       </div>
-      <div class="sect">
+      <div class="sect" id="chartSect">
         <h3>Spread vs Baseline</h3>
         <canvas id="chart"></canvas>
         <div class="legend">
@@ -96,7 +108,7 @@
           <span><i style="background:#6E6560"></i>No system</span>
         </div>
       </div>
-      <div class="sect">
+      <div class="sect" id="logSect">
         <h3>Event Log</h3>
         <div id="log"></div>
       </div>
@@ -121,7 +133,10 @@
 
 <!-- Classic (non-module) scripts, so index.html still opens by double-clicking
      with no server. Load order matters: app.js boots the application. -->
+<!-- MQTT.js browser build, used only by Live mode (read-only subscribe). -->
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.3.4/dist/mqtt.min.js"></script>
 <script src="js/sim.js"></script>
+<script src="js/live.js"></script>
 <script src="js/render2d.js"></script>
 <script src="js/render3d.js"></script>
 <script src="js/app.js"></script>

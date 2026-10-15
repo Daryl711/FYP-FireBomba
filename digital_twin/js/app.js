@@ -21,7 +21,7 @@ var FB = FB || {};
   var sim = new FB.Sim(scenario);
   var base = FB.baseline(scenario);
 
-  var running = false, speed = 1, selected = "b2-dapur", view = "2d";
+  var running = false, speed = 1, selected = "b2-dapur", view = "2d", mode = "sim";
   var place = "bilik-2";                  // which place the 2D plan shows
   var lastFrame = performance.now(), flashUntil = 0, serieT = 0, lastAlert = -1;
 
@@ -87,6 +87,14 @@ var FB = FB || {};
   function syncTelemetry() {
     var c = sim.cellAt(selected);
     $("telName").textContent = c.name;
+    if (c.noData) {
+      $("telState").textContent = "NO DATA";
+      $("telState").style.color = "#6E6560";
+      $("gT").innerHTML = "—"; $("gS").innerHTML = "—"; $("gC").innerHTML = "—";
+      $("gF").textContent = "—"; $("gF").style.color = "#6E6560";
+      $("bT").style.width = $("bS").style.width = $("bC").style.width = $("bF").style.width = "0%";
+      return;
+    }
     $("telState").textContent = c.state.toUpperCase();
     $("telState").style.color =
       c.state === "burning" ? "#E8312A" :
@@ -210,12 +218,53 @@ var FB = FB || {};
     var pc = sim.cellAt(id);
     if (pc.place !== place) { place = pc.place; markPlaceBar(); }
     /* before the clock starts, clicking also moves the ignition point */
-    if (!running && sim.t === 0) {
+    if (mode === "sim" && !running && sim.t === 0) {
       /* ruai and tanju are one communal space: the whole area ignites */
       scenario.ignition = (pc.kind === "ruai" || pc.kind === "tanju") ? pc.place : id;
       rebuild();
     }
     syncTelemetry();
+  }
+
+  /* -------------------------------------------------------- live / sim mode */
+  var LIVE_TEXT = {
+    setup: ["SET BROKER", "No broker address yet. Edit BROKER_URL in js/live.js " +
+            "(or open the page with ?broker=ws://host:9001)."],
+    connecting: ["CONNECTING", "Connecting to the broker. Showing real sensor data only; nothing is simulated or sent."],
+    connected: ["CONNECTED", "Read-only live feed. Cells show real sensor readings; nothing is simulated or sent."],
+    offline: ["OFFLINE", "Cannot reach the broker. Check the address, that Mosquitto has a websockets listener, and that the page is not on https."],
+    idle: ["", ""]
+  };
+
+  function syncLiveStatus() {
+    var st = FB.Live.status(), txt = LIVE_TEXT[st] || LIVE_TEXT.idle, now = Date.now();
+    $("livePill").className = "livepill " + st;
+    $("livePill").textContent = txt[0];
+    $("liveNote").className = "note" + (st === "connected" ? " ok" : st === "offline" || st === "setup" ? " danger" : "");
+    $("liveNote").textContent = txt[1];
+    $("liveBroker").textContent = FB.Live.brokerUrl();
+    $("liveRooms").textContent = FB.Live.liveCount(now) + " / 20";
+    var last = FB.Live.lastAt();
+    $("liveLast").textContent = last ? Math.round((now - last) / 1000) + " s ago" : "—";
+  }
+
+  function setMode(next) {
+    if (next === mode) return;
+    mode = next;
+    document.body.classList.toggle("live", mode === "live");
+    $("mLive").classList.toggle("on", mode === "live");
+    $("mSim").classList.toggle("on", mode === "sim");
+    if (mode === "live") {
+      running = false;
+      $("playBtn").textContent = "▶ Run";
+      $("playBtn").classList.add("primary");
+      FB.Live.onStatus(syncLiveStatus);
+      FB.Live.connect();
+      syncLiveStatus();
+    } else {
+      FB.Live.disconnect();
+      rebuild();                          // back to a fresh simulation
+    }
   }
 
   /* ------------------------------------------------------------- views */
@@ -276,6 +325,8 @@ var FB = FB || {};
       this.classList.toggle("primary", !running);
     };
     $("resetBtn").onclick = rebuild;
+    $("mSim").onclick = function () { setMode("sim"); };
+    $("mLive").onclick = function () { setMode("live"); };
 
     $("sysBtn").onclick = function () {
       scenario.system = !scenario.system;
@@ -327,7 +378,10 @@ var FB = FB || {};
     var dt = Math.min(0.1, (now - lastFrame) / 1000);
     lastFrame = now;
 
-    if (running && sim.t < cfg.HORIZON) {
+    if (mode === "live") {
+      sim.applyLive(function (c) { return FB.Live.readingFor(c, Date.now()); });
+      syncLiveStatus();
+    } else if (running && sim.t < cfg.HORIZON) {
       var sub = dt * speed, chunks = Math.ceil(sub / 0.12);
       for (var i = 0; i < chunks; i++) sim.step(sub / chunks);
 
@@ -343,7 +397,7 @@ var FB = FB || {};
       }
     }
 
-    $("clock").textContent = mmss(sim.t);
+    $("clock").textContent = mode === "live" ? "LIVE" : mmss(sim.t);
     $("trackFill").style.width = Math.min(100, (sim.t / cfg.HORIZON) * 100) + "%";
     $("flash").style.opacity =
       now < flashUntil ? (Math.sin(now / 90) * 0.5 + 0.5) * 0.17 : 0;
