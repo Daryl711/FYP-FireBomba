@@ -153,7 +153,7 @@ class Longhouse:
                 f"tanju-{k}", "tanju", "tanju", "Tanju",
                 f"Tanju · bay {k + 1}", k,
                 k * BILIK_W, self.tanju_y, BILIK_W, TANJU_D,
-                TANJU_FUEL, TANJU_COUPLE, False,
+                TANJU_FUEL, TANJU_COUPLE, True,
             ))
 
     def _link(self):

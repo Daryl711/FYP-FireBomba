@@ -29,6 +29,7 @@ import os
 import sys
 import time
 import uuid
+from types import SimpleNamespace
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -48,10 +49,33 @@ CELL_TO_ROOM = {
     "b3-dapur": 10, "b3-tidur": 11, "b3-ruang": 12,
     "b4-dapur": 13, "b4-tidur": 14, "b4-ruang": 15,
     "b5-dapur": 16, "b5-tidur": 17, "b5-ruang": 18,
-    # communal ruai bays
-    "ruai-0": 19, "ruai-1": 20, "ruai-2": 21,
-    "ruai-3": 22, "ruai-4": 23, "ruai-5": 24,
+    # communal areas: one room id each, covering the whole space.
+    # 19 and 20 are placeholders; set them to the real Rooms table ids.
+    "ruai": 19,
+    "tanju": 20,
 }
+
+
+def sensor_units(house):
+    """Yield (key, reading) for every thing that reports as one sensor.
+
+    Each bilik room reports on its own. The ruai and tanju are single communal
+    spaces, so each reports once, with the worst reading across its bays.
+    """
+    for cell in house.cells:
+        if cell.has_sensors and cell.place.startswith("bilik-"):
+            yield cell.id, cell
+    for place in ("ruai", "tanju"):
+        cells = house.cells_of_place(place)
+        if not cells:
+            continue
+        yield place, SimpleNamespace(
+            temp=max(c.temp for c in cells),
+            smoke=max(c.smoke for c in cells),
+            co=max(c.co for c in cells),
+            humidity=sum(c.humidity for c in cells) / len(cells),
+            flame_detected=any(c.flame_detected for c in cells),
+        )
 
 
 def sensor_payload(cell, room_id, run_id):
@@ -156,8 +180,8 @@ def main(argv=None):
     sent_alerts = set()
     while sim.t <= args.horizon:
         if sim.t >= next_pub:
-            for cell in sim.house.sensor_cells:
-                room_id = CELL_TO_ROOM.get(cell.id)
+            for key, cell in sensor_units(sim.house):
+                room_id = CELL_TO_ROOM.get(key)
                 if room_id is None:
                     continue
                 pub.send(SENSOR_TOPIC.format(room_id=room_id),

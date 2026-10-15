@@ -77,19 +77,28 @@ class Simulation:
         self._shock_logged = False
         self.events = []
 
-        self._ignite(self.house.by_id(scenario.ignition), first=True)
+        if scenario.ignition in ("ruai", "tanju"):
+            # a communal area is one space: the whole of it catches at once
+            area = self.house.cells_of_place(scenario.ignition)
+            for c in area:
+                self._ignite(c, first=True, quiet=True)
+            self._log("critical", f"Ignition - {area[0].label} (whole area)")
+        else:
+            self._ignite(self.house.by_id(scenario.ignition), first=True)
 
     # ---------------------------------------------------------------- events
     def _log(self, level, message):
         self.events.append({"t": round(self.t, 1), "level": level,
                             "message": message})
 
-    def _ignite(self, cell, first=False):
+    def _ignite(self, cell, first=False, quiet=False):
         if cell.state != STATE_SAFE or cell.fuel <= 0:
             return
         cell.state = STATE_BURNING
         cell.ignited_at = self.t
         cell.temp = max(cell.temp, 320.0)
+        if quiet:
+            return
         verb = "Ignition" if first else "Fire spread to"
         self._log("critical", f"{verb} {cell.name}")
 
@@ -196,7 +205,8 @@ class Simulation:
                         or c.temp > TEMP_THRESHOLD):
                     self.detect_t = self.t
                     self._log("warning",
-                              f"Sensors tripped in {c.name} - "
+                              f"Sensors tripped in "
+                              f"{c.label if c.kind in ('ruai', 'tanju') else c.name} - "
                               f"smoke {c.smoke:.0f}%, {c.temp:.0f}C")
                     break
 
