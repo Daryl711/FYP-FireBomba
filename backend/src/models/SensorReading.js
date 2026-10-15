@@ -31,8 +31,8 @@ exports.insertSensorReading = async (data) => {
     co: data.co,
   };
 
-  if (timestamp) {
-    row.timestamp = timestamp;
+  if (data.timestamp) {
+    row.timestamp = data.timestamp;
   }
 
   const { data: reading, error } = await supabase
@@ -50,12 +50,19 @@ exports.insertSensorReading = async (data) => {
 };
 
 exports.getRoomTemperature = async (roomId) => {
-  const sql =
-    "SELECT temperature FROM SensorReadings WHERE room_id = ? ORDER BY timestamp DESC LIMIT 1";
+  const { data, error } = await supabase
+    .from("sensor_readings")
+    .select("temperature")
+    .eq("room_id", roomId)
+    .order("timestamp", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
 
-  const [result] = await db.query(sql, [roomId]);
+  if (error) {
+    throw error;
+  }
 
-  return result[0].temperature;
+  return data?.temperature ?? null;
 };
 
 exports.getLatestSensorReading = async (roomId) => {
@@ -73,7 +80,7 @@ exports.getLatestSensorReading = async (roomId) => {
             created_at
         `)
         .eq("room_id", roomId)
-        .order("timestamp", { ascending: false })
+        .order("timestamp", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
         .order("reading_id", { ascending: false })
         .limit(1)

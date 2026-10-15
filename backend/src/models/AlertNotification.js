@@ -1,4 +1,4 @@
-const db = require("../config/supabase");
+const supabase = require("../config/supabase");
 const {
   createUserNotification,
   markRead: markUserNotificationRead,
@@ -8,23 +8,31 @@ const {
 } = require("./UserNotification");
 
 exports.getAlertsByUser = async (userId) => {
-  const sql = `
-    SELECT
-      an.alert_id,
-      an.room_id,
-      an.timestamp,
-      an.warning_title,
-      r.name AS room_name,
-      un.is_read,
-      un.is_hidden
-    FROM UserNotification un
-    JOIN AlertNotification an ON un.alert_id = an.alert_id
-    LEFT JOIN Rooms r ON an.room_id = r.room_id
-    WHERE un.user_id = ? AND un.is_hidden = FALSE
-    ORDER BY an.timestamp DESC
-  `;
-  const [rows] = await db.query(sql, [userId]);
-  return rows;
+  const { data, error } = await supabase
+    .from("user_notifications")
+    .select(
+      "is_read, is_hidden, alert:alert_id!inner (alert_id, room_id, timestamp, warning_title, room:room_id (name))",
+    )
+    .eq("user_id", userId)
+    .eq("is_hidden", false);
+
+  if (error) {
+    throw error;
+  }
+
+  // Flattened to the shape the MySQL join used to return. PostgREST cannot
+  // order parent rows by an embedded column, so the newest-first sort is here.
+  return data
+    .map(({ is_read, is_hidden, alert }) => ({
+      alert_id: alert.alert_id,
+      room_id: alert.room_id,
+      timestamp: alert.timestamp,
+      warning_title: alert.warning_title,
+      room_name: alert.room?.name ?? null,
+      is_read,
+      is_hidden,
+    }))
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 };
 
 exports.createAlert = async (data) => {
@@ -38,24 +46,45 @@ exports.createAlert = async (data) => {
 
   if (titles.length === 0) return [];
 
-  const sql = `
-    INSERT INTO AlertNotification (room_id, timestamp, warning_title, is_read)
-    VALUES (?, NOW(), ?, FALSE)
-  `;
+  // Users belong to a bilik, so everyone in the room's bilik is notified.
+  const { data: room, error: roomError } = await supabase
+    .from("rooms")
+    .select("bilik_id")
+    .eq("room_id", roomId)
+    .maybeSingle();
+
+  if (roomError) {
+    throw roomError;
+  }
+
+  let userIds = [];
+  if (room?.bilik_id != null) {
+    const { data: users, error: usersError } = await supabase
+      .from("users")
+      .select("user_id")
+      .eq("bilik_id", room.bilik_id);
+
+    if (usersError) {
+      throw usersError;
+    }
+    userIds = users.map((user) => user.user_id);
+  }
 
   const insertIds = [];
   for (const title of titles) {
-    const [result] = await db.query(sql, [roomId, title]);
-    const alertId = result.insertId;
-    insertIds.push(alertId);
+    const { data: alert, error } = await supabase
+      .from("alert_notifications")
+      .insert({ room_id: roomId, warning_title: title })
+      .select("alert_id")
+      .single();
 
-    const [userRows] = await db.query(
-      "SELECT user_id FROM Users WHERE room_id = ?",
-      [roomId],
-    );
+    if (error) {
+      throw error;
+    }
+    insertIds.push(alert.alert_id);
 
-    for (const userRow of userRows) {
-      await createUserNotification(userRow.user_id, alertId);
+    for (const userId of userIds) {
+      await createUserNotification(userId, alert.alert_id);
     }
   }
 

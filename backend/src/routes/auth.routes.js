@@ -25,6 +25,11 @@ authRouter.post(
   rateLimit.forgotPasswordAccountLimiter,
   authController.forgotPassword
 );
+authRouter.post(
+  '/forgot-password/verify-otp',
+  rateLimit.otpVerifyLimiter,
+  authController.verifyResetOtp
+);
 authRouter.post('/reset-password', rateLimit.resetPasswordLimiter, authController.resetPassword);
 
 module.exports = authRouter;

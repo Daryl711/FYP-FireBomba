@@ -8,6 +8,7 @@ const UserProfile = require("../models/UserProfile");
 const UserSession = require("../models/UserSession");
 const OtpCode = require("../models/OtpCode");
 const { sendOtpSms } = require("../services/smsService");
+const { sendOtpEmail } = require("../services/emailService");
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev_jwt_secret_change_me";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "15m";
@@ -22,39 +23,14 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const SESSION_DAYS_REMEMBERED = Number(process.env.SESSION_DAYS_REMEMBERED || 30);
 const SESSION_DAYS_DEFAULT = Number(process.env.SESSION_DAYS_DEFAULT || 7);
 
-// Set OTP_LOGIN_ENABLED=true to require an SMS code after password login.
+// Set OTP_LOGIN_ENABLED=true to require a code (email or SMS) after password login.
 // Left off by default so login keeps working for anyone who has not run
 // sql/migration_sms_otp_biometric_supabase.sql or set up SMS yet.
 const OTP_LOGIN_ENABLED = process.env.OTP_LOGIN_ENABLED === "true";
 const OTP_CHALLENGE_SECRET = process.env.OTP_CHALLENGE_SECRET || JWT_SECRET + "_otp";
 const OTP_CHALLENGE_EXPIRES_IN = "10m";
 
-// Normalises 012-345 6789 / +60123456789 / 60123456789 to a single stored form.
-const normalisePhone = (phone) => {
-  if (!phone) {
-    return null;
-  }
-
-  const digits = String(phone).replace(/[^\d+]/g, "");
-
-  if (digits.startsWith("+")) {
-    return digits;
-  }
-  if (digits.startsWith("0")) {
-    return "+60" + digits.slice(1);
-  }
-  if (digits.startsWith("60")) {
-    return "+" + digits;
-  }
-  return digits;
-};
-
-// Login accepts an email OR a phone number in one field. Anything containing
-// "@" is an email; everything else is looked up by phone.
-const findProfileByIdentifier = (rawIdentifier) =>
-  String(rawIdentifier).includes("@")
-    ? UserProfile.getByEmail(String(rawIdentifier).trim().toLowerCase())
-    : UserProfile.getByPhone(normalisePhone(rawIdentifier));
+const { normalisePhone, getByIdentifier: findProfileByIdentifier } = UserProfile;
 
 // Short-lived token proving "password already checked, OTP still outstanding".
 // Purpose claim stops it being replayed as anything else. `remembered` rides
@@ -76,6 +52,49 @@ const verifyChallengeToken = (token, expectedPurpose) => {
 
 // Only the last 2 digits are revealed, so an attacker learns nothing useful.
 const maskPhone = (phone) => phone.replace(/.(?=.{2})/g, "*");
+
+// Keeps the first 2 characters of the name and the whole domain:
+// aeron@gmail.com -> ae***@gmail.com
+const maskEmail = (email) => {
+  const [name, domain] = String(email).split("@");
+  return `${name.slice(0, 2)}${"*".repeat(Math.max(name.length - 2, 1))}@${domain}`;
+};
+
+// Where a code can go for this account. Every account has an email; SMS only
+// when a phone is on file.
+const availableChannels = (profile) =>
+  profile.phone ? ["email", "sms"] : ["email"];
+
+// Honours the requested channel when the account supports it, otherwise
+// falls back to `fallback` (and to email if that is not possible either).
+const resolveOtpChannel = (requested, profile, fallback = "email") => {
+  const options = availableChannels(profile);
+  if (options.includes(requested)) return requested;
+  if (options.includes(fallback)) return fallback;
+  return "email";
+};
+
+const destinationFor = (channel, profile) =>
+  channel === "sms" ? profile.phone : profile.email;
+
+const destinationHint = (channel, profile) =>
+  channel === "sms" ? maskPhone(profile.phone) : maskEmail(profile.email);
+
+// Email is really delivered; SMS is still the console mock until a gateway is
+// set up in smsService.js.
+const sendOtp = (channel, profile, code, purpose) =>
+  channel === "sms"
+    ? sendOtpSms(profile.phone, code, purpose)
+    : sendOtpEmail(profile.email, code, purpose, OtpCode.OTP_TTL_MINUTES);
+
+// What the OTP screen needs to say where the code went and offer the other
+// channel.
+const otpDeliveryInfo = (channel, profile) => ({
+  channel,
+  destinationHint: destinationHint(channel, profile),
+  availableChannels: availableChannels(profile),
+  expiresInMinutes: OtpCode.OTP_TTL_MINUTES,
+});
 
 // Every Supabase access token carries the id of the login session it belongs
 // to, and keeps it across refreshes - that is what the deadline is keyed on.
@@ -124,7 +143,7 @@ const loginResponse = (session, authUser, profile, rememberMe, sessionExpiresAt)
 
   profile: {
     full_name: profile.full_name,
-    room_id: profile.room_id,
+    bilik_id: profile.bilik_id,
   },
 
   session: {
@@ -150,7 +169,12 @@ const generateTokens = (userId, email, roomId) => {
 };
 
 exports.signup = async (req, res) => {
-  const { fullName, email, password } = req.body;
+  const { fullName, password } = req.body;
+  const email = String(req.body.email || "").trim().toLowerCase();
+
+  if (!fullName || !email || !password) {
+    return res.status(400).json({ error: "Full name, email and password are required" });
+  }
 
   try {
     const doesEmailExist = await User.checkEmail(email);
@@ -159,14 +183,21 @@ exports.signup = async (req, res) => {
       return res.status(400).json({ error: "Email already registered" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const userId = await User.addUser(fullName, email, hashedPassword);
+    // Supabase Auth hashes the password itself.
+    const userId = await User.addUser(fullName, email, password);
 
     return res.status(201).json({
       message: "Account created successfully!",
       userId,
     });
   } catch (error) {
+    // Supabase rejects a duplicate auth email or a weak password with a 4xx.
+    if (error?.code === "email_exists") {
+      return res.status(400).json({ error: "Email already registered" });
+    }
+    if (error?.code === "weak_password") {
+      return res.status(400).json({ error: error.message });
+    }
     res.status(500).json({ error: "Server error" });
     console.error(error);
   }
@@ -178,7 +209,8 @@ exports.login = async (req, res) => {
     console.log("Did it pass through here?")
     // "identifier" is an email or a phone number; "email" stays accepted so
     // older clients keep working.
-    const { identifier, email, password, rememberMe } = req.body;
+    // otpChannel ("email" | "sms") overrides where the code goes.
+    const { identifier, email, password, rememberMe, otpChannel } = req.body;
     const rawIdentifier = identifier || email;
 
     if (!rawIdentifier || !password) {
@@ -226,10 +258,18 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Second factor: only when enabled AND the account has a phone on file.
-    // The session Supabase just opened is parked with the code and only
-    // handed over once the code comes back.
-    if (OTP_LOGIN_ENABLED && profile.phone) {
+    // Second factor: by email (every account has one) or by SMS when a phone
+    // is on file. The session Supabase just opened is parked with the code
+    // and only handed over once the code comes back.
+    if (OTP_LOGIN_ENABLED) {
+      // Without an explicit otpChannel the code follows what was typed: an
+      // email gets an email, a phone number gets an SMS.
+      const channel = resolveOtpChannel(
+        otpChannel,
+        profile,
+        String(rawIdentifier).includes("@") ? "email" : "sms"
+      );
+
       // The password was right, so saying why is safe. The session Supabase
       // just opened is never handed over, so it is closed straight away.
       if (await OtpCode.isOverDailyLimit(user.id)) {
@@ -240,15 +280,18 @@ exports.login = async (req, res) => {
         });
       }
 
-      const { code, droppedSessions } = await OtpCode.create(user.id, "login", profile.phone, {
-        pendingSession: session,
-      });
+      const { code, droppedSessions } = await OtpCode.create(
+        user.id,
+        "login",
+        destinationFor(channel, profile),
+        { pendingSession: session }
+      );
       await revokeSessions(droppedSessions);
 
-      const delivery = await sendOtpSms(profile.phone, code, "login");
+      const delivery = await sendOtp(channel, profile, code, "login");
 
-      // With a real gateway the send can fail (bad credentials, unverified
-      // number, no credit). Say so rather than leaving the user waiting.
+      // A real send can fail (bad SMTP credentials, unverified number, no
+      // credit). Say so rather than leaving the user waiting.
       if (!delivery.delivered) {
         await revokeSessions(await OtpCode.invalidateActive(user.id, "login"));
         return res.status(502).json({
@@ -260,8 +303,7 @@ exports.login = async (req, res) => {
         message: "Verification code sent",
         otpRequired: true,
         challengeToken: issueChallengeToken(user.id, "login", remembered),
-        phoneHint: maskPhone(profile.phone),
-        expiresInMinutes: OtpCode.OTP_TTL_MINUTES,
+        ...otpDeliveryInfo(channel, profile),
       });
     }
 
@@ -471,7 +513,10 @@ exports.verifyLoginOtp = async (req, res) => {
     const remembered = decoded.remembered === true;
     const sessionExpiresAt = await openSession(session, user.id, remembered);
 
-    await UserProfile.markPhoneVerified(user.id);
+    // Only a code that reached the phone proves the number is theirs.
+    if (!OtpCode.isEmailDestination(result.destination)) {
+      await UserProfile.markPhoneVerified(user.id);
+    }
 
     return res
       .status(200)
@@ -484,7 +529,8 @@ exports.verifyLoginOtp = async (req, res) => {
 
 exports.resendLoginOtp = async (req, res) => {
   try {
-    const { challengeToken } = req.body;
+    // channel lets the user switch, e.g. "send to my phone instead".
+    const { challengeToken, channel: requestedChannel } = req.body;
 
     if (!challengeToken) {
       return res.status(400).json({ error: "Challenge token is required" });
@@ -513,17 +559,24 @@ exports.resendLoginOtp = async (req, res) => {
     }
 
     const profile = await UserProfile.getById(decoded.userId);
-    if (!profile?.phone) {
+    if (!profile) {
+      return res.status(500).json({ error: "User profile not found" });
+    }
+    if (requestedChannel === "sms" && !profile.phone) {
       return res.status(400).json({ error: "No phone number on file" });
     }
+    const channel = resolveOtpChannel(requestedChannel, profile);
 
     // The new code takes over the session the previous code was holding.
-    const { code, droppedSessions } = await OtpCode.create(decoded.userId, "login", profile.phone, {
-      carryPending: true,
-    });
+    const { code, droppedSessions } = await OtpCode.create(
+      decoded.userId,
+      "login",
+      destinationFor(channel, profile),
+      { carryPending: true }
+    );
     await revokeSessions(droppedSessions);
 
-    const delivery = await sendOtpSms(profile.phone, code, "login");
+    const delivery = await sendOtp(channel, profile, code, "login");
 
     if (!delivery.delivered) {
       await revokeSessions(await OtpCode.invalidateActive(decoded.userId, "login"));
@@ -534,8 +587,7 @@ exports.resendLoginOtp = async (req, res) => {
 
     return res.status(200).json({
       message: "Verification code sent",
-      phoneHint: maskPhone(profile.phone),
-      expiresInMinutes: OtpCode.OTP_TTL_MINUTES,
+      ...otpDeliveryInfo(channel, profile),
     });
   } catch (error) {
     res.status(500).json({ error: "Server error" });
@@ -547,12 +599,14 @@ exports.resendLoginOtp = async (req, res) => {
 // endpoint to discover which accounts exist.
 exports.forgotPassword = async (req, res) => {
   const genericResponse = {
-    message: "If that account exists, a reset code has been sent to the phone on file",
+    message: "If that account exists, a reset code has been sent",
     expiresInMinutes: OtpCode.OTP_TTL_MINUTES,
   };
 
   try {
-    const { identifier, phone, email } = req.body;
+    // channel ("email" | "sms") picks where the code goes. Without one it
+    // follows what was typed: an email gets an email, a phone gets an SMS.
+    const { identifier, phone, email, channel: requestedChannel } = req.body;
     const rawIdentifier = identifier || phone || email;
 
     if (!rawIdentifier) {
@@ -561,11 +615,17 @@ exports.forgotPassword = async (req, res) => {
 
     const profile = await findProfileByIdentifier(rawIdentifier);
 
-    // An account with no phone on file cannot be reset by SMS. Answer the same
-    // way regardless, so this endpoint never reveals which accounts exist.
-    if (!profile?.phone) {
+    // Answer the same way regardless, so this endpoint never reveals which
+    // accounts exist.
+    if (!profile) {
       return res.status(200).json(genericResponse);
     }
+
+    const channel = resolveOtpChannel(
+      requestedChannel,
+      profile,
+      String(rawIdentifier).includes("@") ? "email" : "sms"
+    );
 
     const { inCooldown } = await OtpCode.isInCooldown(profile.user_id, "reset");
     // Same generic answer when capped, so this never reveals the account exists.
@@ -573,8 +633,12 @@ exports.forgotPassword = async (req, res) => {
       return res.status(200).json(genericResponse);
     }
 
-    const { code } = await OtpCode.create(profile.user_id, "reset", profile.phone);
-    await sendOtpSms(profile.phone, code, "reset");
+    const { code } = await OtpCode.create(
+      profile.user_id,
+      "reset",
+      destinationFor(channel, profile)
+    );
+    await sendOtp(channel, profile, code, "reset");
 
     return res.status(200).json(genericResponse);
   } catch (error) {
@@ -583,25 +647,31 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
-// Step 2 of reset: code and new password in one call, so there is no
-// intermediate "password change is authorised" token to steal.
-exports.resetPassword = async (req, res) => {
+// The auth account's updated_at changes whenever its password does, so a
+// reset token stamped with it stops working the moment it has been used.
+const authUpdatedAt = async (userId) => {
+  const { data, error } = await supabase.auth.admin.getUserById(userId);
+  if (error) throw error;
+  return data.user.updated_at;
+};
+
+// Step 2 of reset: check the code on its own, so the app can show the "new
+// password" form only once the code is right. Answers with a short-lived,
+// single-use reset token that step 3 must present.
+exports.verifyResetOtp = async (req, res) => {
   try {
-    const { identifier, phone, email, code, newPassword } = req.body;
+    const { identifier, phone, email, code } = req.body;
     const rawIdentifier = identifier || phone || email;
 
-    if (!rawIdentifier || !code || !newPassword) {
-      return res.status(400).json({ error: "Email or phone, code and new password are required" });
-    }
-
-    if (String(newPassword).length < 8) {
-      return res.status(400).json({ error: "Password must be at least 8 characters" });
+    if (!rawIdentifier || !code) {
+      return res.status(400).json({ error: "Email or phone and code are required" });
     }
 
     const profile = await findProfileByIdentifier(rawIdentifier);
 
+    // Same answer as a wrong code, so this never reveals the account exists.
     if (!profile) {
-      return res.status(400).json({ error: "Invalid code" });
+      return res.status(401).json({ error: "Incorrect code" });
     }
 
     const result = await OtpCode.verify(profile.user_id, "reset", code);
@@ -609,7 +679,49 @@ exports.resetPassword = async (req, res) => {
       return otpFailureResponse(res, result);
     }
 
-    const { error } = await supabase.auth.admin.updateUserById(profile.user_id, {
+    const resetToken = jwt.sign(
+      {
+        userId: profile.user_id,
+        purpose: "password_reset",
+        stamp: await authUpdatedAt(profile.user_id),
+      },
+      OTP_CHALLENGE_SECRET,
+      { expiresIn: OTP_CHALLENGE_EXPIRES_IN }
+    );
+
+    return res.status(200).json({ message: "Code verified", resetToken });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+    console.error(error);
+  }
+};
+
+// Step 3 of reset: the token from step 2 plus the new password.
+exports.resetPassword = async (req, res) => {
+  try {
+    const { resetToken, newPassword } = req.body;
+
+    if (!resetToken || !newPassword) {
+      return res.status(400).json({ error: "Reset token and new password are required" });
+    }
+
+    if (String(newPassword).length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
+    }
+
+    let decoded;
+    try {
+      decoded = verifyChallengeToken(resetToken, "password_reset");
+    } catch {
+      return res.status(401).json({ error: "Reset expired, please request a new code" });
+    }
+
+    // Already used (or the password changed some other way since).
+    if (decoded.stamp !== (await authUpdatedAt(decoded.userId))) {
+      return res.status(401).json({ error: "Reset expired, please request a new code" });
+    }
+
+    const { error } = await supabase.auth.admin.updateUserById(decoded.userId, {
       password: newPassword,
     });
 
@@ -619,7 +731,7 @@ exports.resetPassword = async (req, res) => {
 
     // Any session opened with the old password is no longer trusted: without
     // its deadline row, /refresh refuses it.
-    await UserSession.deleteByUserId(profile.user_id);
+    await UserSession.deleteByUserId(decoded.userId);
 
     return res.status(200).json({ message: "Password reset successfully, please log in" });
   } catch (error) {

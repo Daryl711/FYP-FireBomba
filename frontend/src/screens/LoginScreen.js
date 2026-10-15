@@ -29,7 +29,7 @@ export default function LoginScreen({ navigation }) {
   // Added a loading state so the button can show a spinner while connecting
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleForgotPassword = async () => {};
+  const handleForgotPassword = () => navigation.navigate("ForgotPassword");
 
   const handleLogin = async () => {
     // 1. Validation
@@ -55,7 +55,9 @@ export default function LoginScreen({ navigation }) {
         // 5a. Two-factor is on: no session yet, finish on the OTP screen.
         navigation.navigate("Otp", {
           challengeToken: result.challengeToken,
-          phoneHint: result.phoneHint,
+          channel: result.channel,
+          destinationHint: result.destinationHint,
+          availableChannels: result.availableChannels,
         });
       } else {
         // 5. Save the session tokens to context and SecureStore
@@ -187,7 +189,7 @@ export default function LoginScreen({ navigation }) {
               </TouchableOpacity>
               <TouchableOpacity
                 disabled={isLoading}
-                onClick={handleForgotPassword}
+                onPress={handleForgotPassword}
               >
                 <Text style={styles.forgotText}>
                   {t("login.forgotPassword")}

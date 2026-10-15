@@ -1,50 +1,59 @@
-const db = require("../config/supabase");
+const supabase = require("../config/supabase");
+
+// Every update returns the changed rows so callers can tell "not found" (0)
+// apart from success, like MySQL's affectedRows did.
+const updateCount = async (query) => {
+  const { data, error } = await query.select("user_notification_id");
+  if (error) {
+    throw error;
+  }
+  return data.length;
+};
 
 exports.createUserNotification = async (userId, alertId) => {
-  const sql = `
-    INSERT INTO UserNotification (user_id, alert_id, is_read, is_hidden, last_updated)
-    VALUES (?, ?, FALSE, FALSE, NOW())
-  `;
-  const [result] = await db.query(sql, [userId, alertId]);
-  return result.insertId;
+  const { data, error } = await supabase
+    .from("user_notifications")
+    .insert({ user_id: userId, alert_id: alertId })
+    .select("user_notification_id")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data.user_notification_id;
 };
 
-exports.markRead = async (userId, alertId) => {
-  const sql = `
-    UPDATE UserNotification
-    SET is_read = TRUE
-    WHERE user_id = ? AND alert_id = ?
-  `;
-  const [result] = await db.query(sql, [userId, alertId]);
-  return result.affectedRows;
-};
+exports.markRead = (userId, alertId) =>
+  updateCount(
+    supabase
+      .from("user_notifications")
+      .update({ is_read: true, last_updated: new Date().toISOString() })
+      .eq("user_id", userId)
+      .eq("alert_id", alertId),
+  );
 
-exports.markAllRead = async (userId) => {
-  const sql = `
-    UPDATE UserNotification
-    SET is_read = TRUE
-    WHERE user_id = ?
-  `;
-  const [result] = await db.query(sql, [userId]);
-  return result.affectedRows;
-};
+exports.markAllRead = (userId) =>
+  updateCount(
+    supabase
+      .from("user_notifications")
+      .update({ is_read: true, last_updated: new Date().toISOString() })
+      .eq("user_id", userId),
+  );
 
-exports.hideNotification = async (userId, alertId) => {
-  const sql = `
-    UPDATE UserNotification
-    SET is_hidden = TRUE
-    WHERE user_id = ? AND alert_id = ?
-  `;
-  const [result] = await db.query(sql, [userId, alertId]);
-  return result.affectedRows;
-};
+exports.hideNotification = (userId, alertId) =>
+  updateCount(
+    supabase
+      .from("user_notifications")
+      .update({ is_hidden: true, last_updated: new Date().toISOString() })
+      .eq("user_id", userId)
+      .eq("alert_id", alertId),
+  );
 
-exports.hideAllNotifications = async (userId) => {
-  const sql = `
-    UPDATE UserNotification
-    SET is_hidden = TRUE
-    WHERE user_id = ?
-  `;
-  const [result] = await db.query(sql, [userId]);
-  return result.affectedRows;
-};
+exports.hideAllNotifications = (userId) =>
+  updateCount(
+    supabase
+      .from("user_notifications")
+      .update({ is_hidden: true, last_updated: new Date().toISOString() })
+      .eq("user_id", userId),
+  );
