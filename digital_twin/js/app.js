@@ -150,8 +150,6 @@ var FB = FB || {};
     var f = FB.FIRE[scenario.fire];
     $("fireNote").className = "note " + f.tone;
     $("fireNote").innerHTML = "<b>" + f.cls + " — " + f.label + ".</b> " + f.note;
-    $("nozNote").className = "note";
-    $("nozNote").textContent = FB.NOZ[scenario.nozzle].note;
   }
 
   function rebuild() {
@@ -290,15 +288,6 @@ var FB = FB || {};
       if (b.dataset.fire !== "A") b.classList.add("warn");
       scenario.fire = b.dataset.fire;
       syncNotes();
-      rebuild();
-    });
-    group("data-noz", function (b) {
-      scenario.nozzle = b.dataset.noz;
-      syncNotes();
-      rebuild();
-    });
-    group("data-wind", function (b) {
-      scenario.wind = +b.dataset.wind;
       rebuild();
     });
     group("data-sp", function (b) { speed = +b.dataset.sp; });
