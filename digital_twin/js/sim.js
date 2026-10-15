@@ -211,6 +211,24 @@ var FB = FB || {};
     }
   }
 
+  /* Live mode: show real sensor readings instead of running the model. The
+     caller supplies getReading(cell) -> {temp, smoke, co, flame} or null. A cell
+     with no fresh reading is flagged noData and shown at ambient. */
+  Sim.prototype.applyLive = function (getReading) {
+    for (var i = 0; i < this.cells.length; i++) {
+      var c = this.cells[i], r = getReading(c);
+      c.supp = 0;
+      if (!r) {
+        c.noData = true;
+        c.temp = AMBIENT; c.smoke = 0; c.co = 0; c.state = "safe";
+        continue;
+      }
+      c.noData = false;
+      c.temp = r.temp; c.smoke = r.smoke; c.co = r.co;
+      c.state = r.flame ? "burning" : "safe";
+    }
+  };
+
   Sim.prototype.cellAt = function (id) {
     for (var i = 0; i < this.cells.length; i++) {
       if (this.cells[i].id === id) return this.cells[i];
