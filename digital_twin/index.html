@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FireBomba — Digital Twin</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <div id="topbar">
+    <div class="brand">
+      <div class="brand-dot">🔥</div>
+      <div>
+        <div class="brand-txt">FireBomba Digital Twin</div>
+        <div class="brand-sub">SARAWAK LONGHOUSE · FIRE SCENARIO SIM</div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="seg">
+      <button id="v2d" class="on">2D Plan</button>
+      <button id="v3d">3D View</button>
+    </div>
+    <button class="tog on" id="roofBtn">Roof</button>
+    <button class="tog on" id="wallBtn">Walls</button>
+    <button class="sysbtn on" id="sysBtn"><span class="led"></span><span id="sysTxt">System ON</span></button>
+  </div>
+
+  <div id="main">
+    <div id="stage">
+      <canvas id="c2d"></canvas>
+      <canvas id="gl"></canvas>
+      <div class="stage-tag" id="stageTag">FLOOR PLAN</div>
+      <div id="places"></div>
+      <div class="bigclock"><div class="t" id="clock">00:00</div><div class="l">ELAPSED</div></div>
+      <div class="hint" id="hint">Pick a place above · click a room to set the ignition point</div>
+      <div class="flash" id="flash"></div>
+      <div id="cams">
+        <button data-cam="iso">Overview</button>
+        <button data-cam="ruai">Along ruai</button>
+        <button data-cam="end">End on</button>
+        <button data-cam="top">Top down</button>
+      </div>
+      <div id="glmsg">
+        <div class="glcard">
+          <h4>3D could not start</h4>
+          <p>WebGL is unavailable in this browser. The 2D plan runs the identical simulation and gives the same results.</p>
+          <button id="glback">Back to 2D plan</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="rail">
+      <div class="sect">
+        <h3>Fire Class</h3>
+        <div class="row">
+          <button class="chip on" data-fire="A">Timber<br>Class A</button>
+          <button class="chip" data-fire="K">Cooking oil<br>Class K</button>
+          <button class="chip" data-fire="C">Electrical<br>Class C</button>
+        </div>
+        <div class="note" id="fireNote"></div>
+      </div>
+      <div class="sect">
+        <h3>Suppression Strategy</h3>
+        <div class="row">
+          <button class="chip on" data-noz="direct">Direct spray</button>
+          <button class="chip" data-noz="perimeter">Perimeter containment</button>
+        </div>
+        <div class="note" id="nozNote"></div>
+      </div>
+      <div class="sect">
+        <h3>Conditions</h3>
+        <div class="row">
+          <button class="chip" data-wind="0">Still air</button>
+          <button class="chip on" data-wind="1">Breeze</button>
+          <button class="chip" data-wind="2">Strong wind</button>
+        </div>
+      </div>
+      <div class="sect">
+        <h3>Sensor Telemetry</h3>
+        <div class="tele-head">
+          <div class="tele-name" id="telName">B3 · Dapur</div>
+          <div class="tele-state" id="telState">SAFE</div>
+        </div>
+        <div class="gauges">
+          <div class="g"><div class="lbl">TEMPERATURE</div><div class="val" id="gT">28<span> °C</span></div><div class="bar"><i id="bT"></i></div></div>
+          <div class="g"><div class="lbl">SMOKE</div><div class="val" id="gS">0<span> %</span></div><div class="bar"><i id="bS"></i></div></div>
+          <div class="g"><div class="lbl">CO</div><div class="val" id="gC">0<span> ppm</span></div><div class="bar"><i id="bC"></i></div></div>
+          <div class="g"><div class="lbl">FLAME</div><div class="val" id="gF" style="font-size:15px">Clear</div><div class="bar"><i id="bF"></i></div></div>
+        </div>
+      </div>
+      <div class="sect">
+        <h3>Response Metrics</h3>
+        <div class="mrow"><span class="k">Detection</span><span class="v" id="mDet">—</span></div>
+        <div class="mrow"><span class="k">Alert pushed</span><span class="v" id="mAlert">—</span></div>
+        <div class="mrow"><span class="k">Pump active</span><span class="v" id="mPump">—</span></div>
+        <div class="mrow"><span class="k">Rooms involved</span><span class="v" id="mRooms">0 / 24</span></div>
+        <div class="mrow"><span class="k">Bilik lost</span><span class="v" id="mBilik">0 / 6</span></div>
+        <div class="mrow"><span class="k">Time gained</span><span class="v" id="mGain" style="color:var(--green)">—</span></div>
+      </div>
+      <div class="sect">
+        <h3>Spread vs Baseline</h3>
+        <canvas id="chart"></canvas>
+        <div class="legend">
+          <span><i style="background:var(--red)"></i>With FireBomba</span>
+          <span><i style="background:#6E6560"></i>No system</span>
+        </div>
+      </div>
+      <div class="sect">
+        <h3>Event Log</h3>
+        <div id="log"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="transport">
+    <button class="tbtn primary" id="playBtn">▶ Run</button>
+    <button class="tbtn" id="resetBtn">↺ Reset</button>
+    <div id="track"><i id="trackFill"></i></div>
+    <div class="speed">
+      <button data-sp="1" class="on">1×</button>
+      <button data-sp="4">4×</button>
+      <button data-sp="12">12×</button>
+    </div>
+  </div>
+</div>
+
+<!-- three.js r128 UMD build. Newer releases ship ES modules only, which will
+     not load from a file:// page, so this version is pinned deliberately. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<!-- Classic (non-module) scripts, so index.html still opens by double-clicking
+     with no server. Load order matters: app.js boots the application. -->
+<script src="js/sim.js"></script>
+<script src="js/render2d.js"></script>
+<script src="js/render3d.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
