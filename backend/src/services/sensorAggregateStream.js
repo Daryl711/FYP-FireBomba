@@ -34,20 +34,6 @@ exports.publishSensorAggregate = (aggregate) => {
   }, String(aggregate.room_id));
 };
 
-exports.publishSensorPrediction = (roomId, predictions) => {
-  const roomKey = String(roomId);
-  const clients = roomClients.get(roomKey);
-  if (!clients) return;
-
-  publishToClients(clients, (response) => {
-    exports.sendSensorPrediction(response, predictions);
-  }, roomKey);
-};
-
-exports.sendSensorPrediction = (response, forecast) => {
-  response.write(`event: sensor-prediction\ndata: ${JSON.stringify(forecast)}\n\n`);
-};
-
 function publishToClients(clients, publish, roomKey) {
   for (const response of clients) {
     if (response.destroyed || response.writableEnded) {

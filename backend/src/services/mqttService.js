@@ -1,21 +1,17 @@
 const mqtt = require("mqtt");
 const mqttConfig = require("../config/mqtt");
 const EventEmitter = require("events");
-const { normalizePrediction } = require("../utils/sensorPrediction");
 
 const brokerUrl = `${mqttConfig.protocol}://${mqttConfig.host}:${mqttConfig.port}`;
 
 const mqttEvents = new EventEmitter();
-const sensorPredictionTopicPattern =
-  /^firebomba\/room\/([1-9]\d*)\/sensor-prediction$/;
-
 const client = mqtt.connect(brokerUrl, mqttConfig);
 
 client.on("connect", () => {
   console.log("Connected to AWS IoT Core MQTT broker");
 
   client.subscribe(
-    ["firebomba/room/+/pump/status", "firebomba/room/+/sensor-prediction"],
+    ["firebomba/room/+/pump/status"],
     { qos: 1 },
     (err, granted) => {
       if (err) {
@@ -51,17 +47,6 @@ client.on("reconnect", () => {
 });
 
 client.on("message", (topic, message) => {
-  const predictionMatch = topic.match(sensorPredictionTopicPattern);
-  if (predictionMatch) {
-    try {
-      const forecast = normalizePrediction(predictionMatch[1], JSON.parse(message.toString()));
-      mqttEvents.emit("sensor-prediction", forecast);
-    } catch (err) {
-      console.error("Invalid sensor prediction:", err.message);
-    }
-    return;
-  }
-
   if (!/^firebomba\/room\/\d+\/pump\/status$/.test(topic)) {
     return;
   }

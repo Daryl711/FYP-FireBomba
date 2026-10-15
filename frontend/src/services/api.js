@@ -213,7 +213,6 @@ export async function subscribeToSensorReadings(roomId, onReading, onError) {
 export async function subscribeToSensorAggregates(
   roomId,
   onAggregate,
-  onPrediction,
   onError,
 ) {
   const token = await getAccessToken();
@@ -238,13 +237,6 @@ export async function subscribeToSensorAggregates(
     eventSource.addEventListener("sensor-aggregate", (event) => {
       try {
         onAggregate(JSON.parse(event.data));
-      } catch (error) {
-        onError(error);
-      }
-    });
-    eventSource.addEventListener("sensor-prediction", (event) => {
-      try {
-        onPrediction(JSON.parse(event.data));
       } catch (error) {
         onError(error);
       }
