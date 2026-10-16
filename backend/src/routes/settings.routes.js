@@ -9,5 +9,8 @@ settingsRouter.put('/update-camera-status', authMiddleware, settingsController.u
 
 settingsRouter.get('/get-camera-status', authMiddleware, settingsController.getCameraStatus);
 
+settingsRouter.get('/avatar', authMiddleware, settingsController.getAvatar);
+settingsRouter.put('/avatar', authMiddleware, settingsController.updateAvatar);
+
 
 module.exports = settingsRouter;

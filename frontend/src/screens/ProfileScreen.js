@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,9 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Image,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
 import supabase from "../config/supabase";
@@ -88,8 +91,51 @@ export default function ProfileScreen({ navigation }) {
     setLanguage,
     t,
     openTutorial,
+    avatarUrl,
+    updateAvatar,
   } = useApp();
   const roomData = Array.isArray(rawRoomData) ? rawRoomData : NO_ROOMS;
+  const [avatarUploading, setAvatarUploading] = useState(false);
+
+  // Square crop and reduced quality keep the upload well under the 5 MB cap.
+  const pickAvatar = async (source) => {
+    const permission =
+      source === "camera"
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(t("profile.photoTitle"), t("profile.photoPermission"));
+      return;
+    }
+
+    const options = {
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+      base64: true,
+    };
+    const result =
+      source === "camera"
+        ? await ImagePicker.launchCameraAsync(options)
+        : await ImagePicker.launchImageLibraryAsync(options);
+    if (result.canceled || !result.assets?.[0]?.base64) return;
+
+    setAvatarUploading(true);
+    const upload = await updateAvatar(result.assets[0].base64);
+    setAvatarUploading(false);
+    if (!upload.ok) {
+      Alert.alert(t("profile.photoTitle"), upload.error || t("profile.photoFailed"));
+    }
+  };
+
+  const handleChangeAvatar = () => {
+    Alert.alert(t("profile.photoTitle"), undefined, [
+      { text: t("profile.photoTake"), onPress: () => pickAvatar("camera") },
+      { text: t("profile.photoChoose"), onPress: () => pickAvatar("library") },
+      { text: t("common.cancel"), style: "cancel" },
+    ]);
+  };
 
   const handleLogout = () => {
     Alert.alert(t("profile.signOutTitle"), t("profile.signOutConfirm"), [
@@ -129,14 +175,28 @@ export default function ProfileScreen({ navigation }) {
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.profileHeader}>
-          <View style={styles.avatarWrap}>
+          <TouchableOpacity
+            style={styles.avatarWrap}
+            onPress={handleChangeAvatar}
+            disabled={avatarUploading}
+            activeOpacity={0.8}
+          >
             <View style={styles.avatar}>
-              <Ionicons name="person" size={34} color="rgba(255,255,255,0.9)" />
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+              ) : (
+                <Ionicons name="person" size={34} color="rgba(255,255,255,0.9)" />
+              )}
+              {avatarUploading && (
+                <View style={styles.avatarOverlay}>
+                  <ActivityIndicator color={COLORS.white} />
+                </View>
+              )}
             </View>
-            <TouchableOpacity style={styles.avatarCam}>
+            <View style={styles.avatarCam}>
               <Ionicons name="camera" size={13} color={COLORS.text} />
-            </TouchableOpacity>
-          </View>
+            </View>
+          </TouchableOpacity>
           <Text style={styles.profileName}>{displayName}</Text>
           <Text style={styles.profileEmail}>{displayEmail}</Text>
 
@@ -329,6 +389,17 @@ const styles = StyleSheet.create({
     height: 70,
     backgroundColor: "rgba(255,255,255,0.25)",
     borderRadius: 35,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+  },
+  avatarOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.35)",
     alignItems: "center",
     justifyContent: "center",
   },

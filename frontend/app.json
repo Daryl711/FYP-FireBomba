@@ -43,6 +43,13 @@
         {
           "faceIDPermission": "Allow FireBomba to unlock your account with Face ID."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow FireBomba to use a photo as your profile picture.",
+          "cameraPermission": "Allow FireBomba to take your profile picture."
+        }
       ]
     ]
   }

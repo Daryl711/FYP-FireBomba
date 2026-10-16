@@ -421,6 +421,28 @@ export async function controlWaterPumpStatus(waterPumpStatus) {
   }
 }
 
+export async function getAvatar() {
+  try {
+    const response = await authFetch(`${API_ROOT}/settings/avatar`);
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+// imageBase64 is the raw base64 from expo-image-picker (no data: prefix).
+export async function uploadAvatar(imageBase64) {
+  try {
+    const response = await authFetch(`${API_ROOT}/settings/avatar`, {
+      method: "PUT",
+      body: JSON.stringify({ imageBase64 }),
+    });
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
 export async function updateCameraStatus(cameraStatus) {
   try {
     const response = await authFetch(

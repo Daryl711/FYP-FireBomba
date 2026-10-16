@@ -28,6 +28,8 @@ import {
   setOnSessionExpired,
   getBiometricPreference,
   setBiometricPreference,
+  getAvatar as apiGetAvatar,
+  uploadAvatar as apiUploadAvatar,
 } from "../services/api";
 import { getBiometricSupport, promptBiometrics } from "../services/biometrics";
 
@@ -136,6 +138,11 @@ const translations = {
       signOut: "Sign Out",
       signOutTitle: "Sign Out",
       signOutConfirm: "Are you sure you want to sign out?",
+      photoTitle: "Profile Picture",
+      photoTake: "Take Photo",
+      photoChoose: "Choose from Gallery",
+      photoPermission: "Please allow access in your phone settings to change your profile picture.",
+      photoFailed: "Could not update your profile picture.",
       userFallback: "User",
       language: "Language",
       languageSubtitle: "Choose app language",
@@ -490,6 +497,11 @@ const translations = {
       signOut: "Log Keluar",
       signOutTitle: "Log Keluar",
       signOutConfirm: "Adakah anda pasti mahu log keluar?",
+      photoTitle: "Gambar Profil",
+      photoTake: "Ambil Gambar",
+      photoChoose: "Pilih dari Galeri",
+      photoPermission: "Sila benarkan akses dalam tetapan telefon anda untuk menukar gambar profil.",
+      photoFailed: "Tidak dapat mengemas kini gambar profil anda.",
       userFallback: "Pengguna",
       language: "Bahasa",
       languageSubtitle: "Pilih bahasa aplikasi",
@@ -730,6 +742,7 @@ export function AppProvider({ children }) {
   const [roomData, setRoomData] = useState(null);
   const [bilik, setBilik] = useState(null);
   const [tutorialVisible, setTutorialVisible] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(null);
 
   const alertRef = useRef(null);
   const sensorDataRef = useRef(null);
@@ -897,6 +910,27 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (token) fetchRoomData();
   }, [token]);
+
+  // Profile picture follows the session: loaded on login, dropped on logout.
+  useEffect(() => {
+    if (!token) {
+      setAvatarUrl(null);
+      return;
+    }
+    apiGetAvatar().then((result) => {
+      if (!result?.error) setAvatarUrl(result?.avatarUrl ?? null);
+    });
+  }, [token]);
+
+  // Returns { ok } so the caller can show its own error message.
+  const updateAvatar = async (imageBase64) => {
+    const result = await apiUploadAvatar(imageBase64);
+    if (result?.error || !result?.avatarUrl) {
+      return { ok: false, error: result?.error };
+    }
+    setAvatarUrl(result.avatarUrl);
+    return { ok: true };
+  };
 
   // ---- First-launch tutorial ----------------------------------------
   // We persist a "seen" flag in SecureStore so the walkthrough only
@@ -1095,6 +1129,8 @@ export function AppProvider({ children }) {
       },
       tutorialVisible,
       openTutorial,
+      avatarUrl,
+      updateAvatar,
       closeTutorial,
       realtimeError: null,
       systemStatus: {
@@ -1117,6 +1153,7 @@ export function AppProvider({ children }) {
     biometricSupport,
     biometricEnabled,
     tutorialVisible,
+    avatarUrl,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

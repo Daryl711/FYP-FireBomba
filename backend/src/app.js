@@ -14,6 +14,9 @@ const app = express();
 // Set TRUST_PROXY to the number of proxy hops, usually 1.
 if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY));
 app.use(cors());
+// Profile pictures arrive as base64 JSON, far over the 100kb default. Parsed
+// here first; the general parser below then skips the already-read body.
+app.use('/api/settings/avatar', express.json({ limit: '8mb' }));
 app.use(express.json());
 
 app.use('/api', authRoutes);
