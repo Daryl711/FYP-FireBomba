@@ -15,7 +15,7 @@ from torchvision import models, transforms
 DEFAULT_CHECKPOINT = Path(__file__).resolve().parent / "best_model.pth"
 
 
-class YoloClassifier:
+class MobileNetClassifier:
     """Load once, then call predict() for each image or detector ROI crop."""
 
     def __init__(
@@ -64,7 +64,8 @@ class YoloClassifier:
 
     @torch.inference_mode()
     def predict(self, image: str | Path | Image.Image) -> dict[str, str | float]:
-        """Return class and softmax confidence (0-1). PIL inputs use RGB order."""
+        print("[1] Starting prediction", flush=True)
+
         if isinstance(image, (str, Path)):
             with Image.open(image) as source:
                 rgb = ImageOps.exif_transpose(source).convert("RGB")
@@ -73,17 +74,35 @@ class YoloClassifier:
         else:
             raise TypeError("image must be a file path or PIL.Image.Image")
 
-        # Match train.py: center on RGB(114) square, then resize with bicubic.
+        print("[2] Image converted to RGB", flush=True)
+
         width, height = rgb.size
         side = max(width, height)
         square = Image.new("RGB", (side, side), (114, 114, 114))
         square.paste(rgb, ((side - width) // 2, (side - height) // 2))
+
         resized = square.resize(
-            (self.image_size, self.image_size), Image.Resampling.BICUBIC
+            (self.image_size, self.image_size),
+            Image.Resampling.BICUBIC
         )
-        tensor = self.transform(resized).unsqueeze(0).to(self.device)
-        probabilities = self.model(tensor).float().softmax(dim=1)[0]
+
+        print("[3] Image resized", flush=True)
+
+        tensor = self.transform(resized)
+        print("[4] Transform completed", flush=True)
+
+        tensor = tensor.unsqueeze(0).to(self.device)
+        print("[5] Tensor ready", flush=True)
+
+        probabilities = self.model(tensor)
+        print("[6] Model inference completed", flush=True)
+
+        probabilities = probabilities.float().softmax(dim=1)[0]
+        print("[7] Softmax completed", flush=True)
+
         confidence, index = probabilities.max(dim=0)
+        print("[8] Prediction completed", flush=True)
+
         return {
             "class": self.class_names[index.item()],
             "confidence": confidence.item(),

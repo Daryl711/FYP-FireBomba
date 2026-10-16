@@ -2,3 +2,6 @@ torch>=2.6
 torchvision>=0.21
 Pillow>=9.1
 opencv-python
+ultralytics
+python-dotenv
+paho-mqtt>=2.0
