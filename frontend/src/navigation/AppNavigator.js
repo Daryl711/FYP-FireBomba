@@ -1,9 +1,18 @@
 // src/navigation/AppNavigator.js
 import React from "react";
-import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
-import { NavigationContainer } from "@react-navigation/native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Pressable,
+} from "react-native";
+import {
+  NavigationContainer,
+  getFocusedRouteNameFromRoute,
+} from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { Ionicons } from "@expo/vector-icons";
 
 import LoginScreen from "../screens/LoginScreen";
@@ -22,7 +31,7 @@ import UnlockScreen from "../screens/UnlockScreen";
 import { useApp } from "../context/AppContext";
 import { COLORS } from "../../constants/theme";
 
-const Tab = createBottomTabNavigator();
+const Tab = createMaterialTopTabNavigator();
 
 const RootStack = createNativeStackNavigator();
 const HomeStackNav = createNativeStackNavigator();
@@ -94,45 +103,106 @@ function ProfileStack() {
   );
 }
 
-// Bottom Tab Navigator
-function MainTabs() {
-  const { unreadCount, t } = useApp();
+// Swipeable tab navigator
+//
+// A pager with the tab bar at the bottom: swipe left/right to move between
+// tabs, or tap a tab as before.
+const TAB_ICONS = {
+  Home: ["home", "home-outline"],
+  Rooms: ["grid", "grid-outline"],
+  Notifications: ["notifications", "notifications-outline"],
+  Profile: ["person", "person-outline"],
+};
+
+// First screen of each tab's stack. Swiping only changes tab from these, so a
+// sideways swipe on a detail screen (charts, room detail) stays on that screen.
+const TAB_ROOT_SCREENS = {
+  Home: "HomeMain",
+  Rooms: "RoomsList",
+  Profile: "ProfileMain",
+};
+
+const isAtTabRoot = (route) => {
+  const root = TAB_ROOT_SCREENS[route.name];
+  if (!root) return true;
+  return (getFocusedRouteNameFromRoute(route) ?? root) === root;
+};
+
+function SwipeTabBar({ state, descriptors, navigation }) {
+  const { unreadCount } = useApp();
 
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.text3,
-        tabBarStyle: {
-          backgroundColor: "#fff",
-          borderTopColor: "rgba(0,0,0,0.08)",
-          borderTopWidth: 1,
-          paddingTop: 6,
-          paddingBottom: 16,
-          height: 72,
-        },
-        tabBarLabelStyle: { fontSize: 10, fontWeight: "600", marginTop: 2 },
-        tabBarIcon: ({ focused, color }) => {
-          let iconName;
-          if (route.name === "Home")
-            iconName = focused ? "home" : "home-outline";
-          else if (route.name === "Rooms")
-            iconName = focused ? "grid" : "grid-outline";
-          else if (route.name === "Notifications")
-            iconName = focused ? "notifications" : "notifications-outline";
-          else if (route.name === "Profile")
-            iconName = focused ? "person" : "person-outline";
+    <View style={tabBar.bar}>
+      {state.routes.map((route, index) => {
+        const focused = state.index === index;
+        const color = focused ? COLORS.primary : COLORS.text3;
+        const [activeIcon, inactiveIcon] = TAB_ICONS[route.name];
 
-          return (
+        // tabPress lets a tab's stack pop back to its first screen when the
+        // already-focused tab is tapped again.
+        const onPress = () => {
+          const event = navigation.emit({
+            type: "tabPress",
+            target: route.key,
+            canPreventDefault: true,
+          });
+          if (!focused && !event.defaultPrevented) {
+            navigation.navigate(route.name, route.params);
+          }
+        };
+
+        return (
+          <Pressable
+            key={route.key}
+            onPress={onPress}
+            style={tabBar.item}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: focused }}
+          >
             <View style={{ position: "relative" }}>
-              <Ionicons name={iconName} size={22} color={color} />
+              <Ionicons
+                name={focused ? activeIcon : inactiveIcon}
+                size={22}
+                color={color}
+              />
               {route.name === "Notifications" && (
                 <TabBadge count={unreadCount} />
               )}
             </View>
-          );
-        },
+            <Text style={[tabBar.label, { color }]}>
+              {descriptors[route.key].options.tabBarLabel}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const tabBar = StyleSheet.create({
+  bar: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    borderTopColor: "rgba(0,0,0,0.08)",
+    borderTopWidth: 1,
+    paddingTop: 6,
+    paddingBottom: 16,
+    height: 72,
+  },
+  item: { flex: 1, alignItems: "center", justifyContent: "center" },
+  label: { fontSize: 10, fontWeight: "600", marginTop: 2 },
+});
+
+function MainTabs() {
+  const { t } = useApp();
+
+  return (
+    <Tab.Navigator
+      tabBarPosition="bottom"
+      tabBar={(props) => <SwipeTabBar {...props} />}
+      screenOptions={({ route }) => ({
+        swipeEnabled: isAtTabRoot(route),
+        lazy: true,
       })}
     >
       <Tab.Screen
