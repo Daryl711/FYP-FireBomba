@@ -6,6 +6,7 @@ const {
   hideNotification: hideUserNotification,
   hideAllNotifications: hideAllUserNotifications,
 } = require("./UserNotification");
+const { sendFireAlarm } = require("../services/pushService");
 
 exports.getAlertsByUser = async (userId) => {
   const { data, error } = await supabase
@@ -49,7 +50,7 @@ exports.createAlert = async (data) => {
   // Users belong to a bilik, so everyone in the room's bilik is notified.
   const { data: room, error: roomError } = await supabase
     .from("rooms")
-    .select("bilik_id")
+    .select("bilik_id, name")
     .eq("room_id", roomId)
     .maybeSingle();
 
@@ -87,6 +88,14 @@ exports.createAlert = async (data) => {
       await createUserNotification(userId, alert.alert_id);
     }
   }
+
+  // Rings phones where the app is backgrounded or closed; open apps also
+  // pick the alert up through polling and loop the in-app alarm.
+  await sendFireAlarm(userIds, {
+    title: `🔥 ${titles[0]}`,
+    body: `${room?.name ?? "A room"}: ${titles.join(", ")}. Open FireBomba now.`,
+    data: { type: "fire", roomId, alertIds: insertIds },
+  });
 
   return insertIds;
 };

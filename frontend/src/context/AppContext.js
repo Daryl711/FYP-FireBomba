@@ -8,6 +8,7 @@ import React, {
   useState,
 } from "react";
 import { useFocusEffect } from "@react-navigation/native";
+import { Platform } from "react-native";
 import { Audio } from "expo-av";
 import * as SecureStore from "expo-secure-store";
 import {
@@ -30,8 +31,14 @@ import {
   setBiometricPreference,
   getAvatar as apiGetAvatar,
   uploadAvatar as apiUploadAvatar,
+  registerPushToken as apiRegisterPushToken,
+  unregisterPushToken as apiUnregisterPushToken,
 } from "../services/api";
 import { getBiometricSupport, promptBiometrics } from "../services/biometrics";
+import {
+  registerForPushNotifications,
+  addNotificationTapListener,
+} from "../services/notifications";
 
 const AppContext = createContext(null);
 
@@ -748,6 +755,7 @@ export function AppProvider({ children }) {
   const sensorDataRef = useRef(null);
   const soundRef = useRef(null);
   const prevUnreadRef = useRef(0);
+  const pushTokenRef = useRef(null);
 
   // Normalises the API's { userId, fullName, email } into the shape the
   // screens read, and marks the app as unlocked.
@@ -880,6 +888,32 @@ export function AppProvider({ children }) {
       });
     }
   };
+
+  // Hand this device's push token to the backend once signed in, so a fire
+  // still rings the phone while the app is in the background or closed.
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    registerForPushNotifications().then((pushToken) => {
+      if (cancelled || !pushToken) return;
+      pushTokenRef.current = pushToken;
+      apiRegisterPushToken(pushToken, Platform.OS).then((result) => {
+        if (result?.error) console.warn("Push token not saved:", result.error);
+        else console.log("Push token saved");
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  // Tapping a fire notification opens the app; pull the new alert straight
+  // away so the in-app alarm starts without waiting for the next poll.
+  useEffect(() => {
+    if (!token) return;
+    const subscription = addNotificationTapListener(() => fetchAlerts());
+    return () => subscription.remove();
+  }, [token]);
 
   // Start polling when the user logs in
   useEffect(() => {
@@ -1039,6 +1073,11 @@ export function AppProvider({ children }) {
     clearInterval(alertRef.current);
     clearInterval(sensorDataRef.current);
     prevUnreadRef.current = 0;
+    // Must run before logoutUser clears the access token it authenticates with.
+    if (pushTokenRef.current) {
+      await apiUnregisterPushToken(pushTokenRef.current);
+      pushTokenRef.current = null;
+    }
     const refreshToken = await getRefreshToken();
     await logoutUser(refreshToken);
     setUser(null);

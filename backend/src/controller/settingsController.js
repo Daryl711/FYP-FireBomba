@@ -1,6 +1,7 @@
 const Room = require("../models/Room");
 const AuditLog = require("../models/auditLog");
 const Avatar = require("../models/Avatar");
+const PushToken = require("../models/PushToken");
 
 exports.updateCameraStatus = async (req, res) => {
   try {
@@ -93,6 +94,36 @@ exports.updateAvatar = async (req, res) => {
 
     const avatarUrl = await Avatar.upload(req.user.userId, buffer, mimeType);
     return res.status(200).json({ message: "Profile picture updated.", avatarUrl });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.savePushToken = async (req, res) => {
+  try {
+    const { pushToken, platform } = req.body || {};
+    if (typeof pushToken !== "string" || !pushToken.startsWith("ExponentPushToken[")) {
+      return res.status(400).json({ error: "A valid Expo push token is required" });
+    }
+
+    await PushToken.saveToken(req.user.userId, pushToken, platform ?? null);
+    return res.status(200).json({ message: "Push token saved" });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.deletePushToken = async (req, res) => {
+  try {
+    const { pushToken } = req.body || {};
+    if (typeof pushToken !== "string") {
+      return res.status(400).json({ error: "pushToken is required" });
+    }
+
+    await PushToken.deleteToken(req.user.userId, pushToken);
+    return res.status(200).json({ message: "Push token removed" });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Server error" });

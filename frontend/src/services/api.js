@@ -540,3 +540,29 @@ export async function resetPassword(resetToken, newPassword) {
     return { error: "Network error. Cannot connect to server." };
   }
 }
+
+// Expo push token for fire alarms while the app is closed.
+export async function registerPushToken(pushToken, platform) {
+  try {
+    const response = await authFetch(`${API_ROOT}/settings/push-token`, {
+      method: "PUT",
+      body: JSON.stringify({ pushToken, platform }),
+    });
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+// Called on logout so a signed-out phone stops ringing for this account.
+export async function unregisterPushToken(pushToken) {
+  try {
+    const response = await authFetch(`${API_ROOT}/settings/push-token`, {
+      method: "DELETE",
+      body: JSON.stringify({ pushToken }),
+    });
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}

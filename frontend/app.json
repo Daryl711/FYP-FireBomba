@@ -14,7 +14,12 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -38,6 +43,15 @@
     },
     "plugins": [
       "@config-plugins/react-native-webrtc",
+      [
+        "expo-notifications",
+        {
+          "color": "#FF3B30",
+          "sounds": [
+            "./assets/sounds/fire_alarm.wav"
+          ]
+        }
+      ],
       [
         "expo-local-authentication",
         {

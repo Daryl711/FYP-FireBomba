@@ -12,5 +12,8 @@ settingsRouter.get('/get-camera-status', authMiddleware, settingsController.getC
 settingsRouter.get('/avatar', authMiddleware, settingsController.getAvatar);
 settingsRouter.put('/avatar', authMiddleware, settingsController.updateAvatar);
 
+settingsRouter.put('/push-token', authMiddleware, settingsController.savePushToken);
+settingsRouter.delete('/push-token', authMiddleware, settingsController.deletePushToken);
+
 
 module.exports = settingsRouter;
