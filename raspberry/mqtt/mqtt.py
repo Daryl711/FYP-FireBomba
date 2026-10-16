@@ -2,8 +2,9 @@ import os
 import json
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
+import csv
 from threading import Thread
 
 import paho.mqtt.client as mqtt
@@ -15,7 +16,7 @@ from mqtt.database import (
 	insert_sensor_reading,
 )
 from sync.sync import AGGREGATE_RETRY_INTERVAL_SECONDS, sync_aggregates
-from time_series_prediction.inference import FireAnomalyDetector
+from anomaly_detection.inference import FireAnomalyDetector
 
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
@@ -40,9 +41,10 @@ cloud_client = mqtt.Client(client_id=CLOUD_CLIENT_ID)
 room_detectors = {}
 ANOMALY_MODEL_PATH = (
 	Path(__file__).resolve().parents[1]
-	/ "time_series_prediction"
+	/ "anomaly_detection"
 	/ "firebomba_baseline.pkl"
 )
+ANOMALY_RESULTS_PATH = Path(__file__).resolve().parent / "anomaly_results.csv"
 
 
 def on_local_connect(client, userdata, flags, rc):
@@ -129,6 +131,11 @@ def on_local_message(client, userdata, message):
 			print(f"Fire anomaly detection for room {room_id}: {json.dumps(result)}")
 		except Exception as error:
 			print(f"Failed to detect fire anomaly for room {room_id}: {error}")
+		else:
+			try:
+				save_anomaly_result(room_id, result, data)
+			except Exception as error:
+				print(f"Failed to save anomaly result for room {room_id}: {error}")
 	except json.JSONDecodeError:
 		print(f"Ignoring invalid sensor JSON: {message.topic}")
 	except Exception as error:
@@ -151,6 +158,39 @@ def detect_room_reading(room_id, data):
 		"avg_co": data.get("co"),
 	})
 
+
+def save_anomaly_result(room_id, result, data):
+    file_exists = ANOMALY_RESULTS_PATH.exists()
+
+    with open(ANOMALY_RESULTS_PATH, "a", newline="") as file:
+        writer = csv.writer(file)
+
+        if not file_exists or ANOMALY_RESULTS_PATH.stat().st_size == 0:
+            writer.writerow([
+                "timestamp",
+                "room_id",
+                "temperature",
+                "humidity",
+                "smoke",
+                "co",
+                "raw_score",
+                "anomaly_score",
+                "value_scores",
+                "trend_scores"
+            ])
+
+        writer.writerow([
+            datetime.now(timezone.utc).isoformat(),
+            room_id,
+            data.get("temperature"),
+            data.get("humidity"),
+            data.get("smoke"),
+            data.get("co"),
+            result["raw_score"],
+            result["anomaly_score"],
+            json.dumps(result["value_scores"]),
+            json.dumps(result["trend_scores"])
+        ])
 
 def configure_clients():
 	local_client.on_connect = on_local_connect
