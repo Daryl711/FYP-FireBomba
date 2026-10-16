@@ -121,9 +121,14 @@ function RoomCameraRow({ room, enabled, onToggle, t }) {
 }
 
 // ── Main screen ───────────────────────────────────────────────────────────────
+// roomData is an error object (or null) until a fetch succeeds; screens that
+// .map over it use this stable empty list instead.
+const NO_ROOMS = [];
+
 export default function SecurityScreen({ navigation }) {
-  const { roomData, t, biometricSupport, biometricEnabled, updateBiometricEnabled } =
+  const { roomData: rawRoomData, t, biometricSupport, biometricEnabled, updateBiometricEnabled } =
     useApp();
+  const roomData = Array.isArray(rawRoomData) ? rawRoomData : NO_ROOMS;
 
 
   const [cameraStates, setCameraStates] = useState({});

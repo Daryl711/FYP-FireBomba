@@ -16,6 +16,12 @@ exports.getRoomIdsByBilik = async (bilikId) => {
 
 // Returns the bilik the room belongs to and every room in that bilik.
 exports.getRoomData = async (roomId) => {
+  // A bilik with no rooms yet gives a null roomId; querying room_id = null
+  // makes Postgres reject "null" as an integer.
+  if (roomId === null || roomId === undefined) {
+    return { bilik: null, rooms: [] };
+  }
+
   const { data: room, error: roomError } = await supabase
     .from("rooms")
     .select("bilik_id")

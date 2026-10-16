@@ -73,17 +73,23 @@ function PrefRow({ item, onPress }) {
   );
 }
 
+// roomData is an error object (or null) until a fetch succeeds; screens that
+// .map over it use this stable empty list instead.
+const NO_ROOMS = [];
+
 export default function ProfileScreen({ navigation }) {
   const {
     user,
     logout,
     unreadCount,
-    roomData,
+    roomData: rawRoomData,
     systemStatus,
     language,
     setLanguage,
     t,
+    openTutorial,
   } = useApp();
+  const roomData = Array.isArray(rawRoomData) ? rawRoomData : NO_ROOMS;
 
   const handleLogout = () => {
     Alert.alert(t("profile.signOutTitle"), t("profile.signOutConfirm"), [

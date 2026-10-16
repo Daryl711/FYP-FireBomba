@@ -11,8 +11,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
 
+// roomData is an error object (or null) until a fetch succeeds; screens that
+// .map over it use this stable empty list instead.
+const NO_ROOMS = [];
+
 export default function RoomsScreen({ navigation }) {
-  const { roomData, t } = useApp();
+  const { roomData: rawRoomData, t } = useApp();
+  const roomData = Array.isArray(rawRoomData) ? rawRoomData : NO_ROOMS;
   // const safeCount = rooms.filter((r) => r.status === 'safe').length;
   // const warnCount = rooms.filter((r) => r.status === 'warning').length;
 

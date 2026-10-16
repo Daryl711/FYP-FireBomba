@@ -51,6 +51,8 @@ const translations = {
       activeRooms: "Active Rooms",
       warnings: "Warnings",
       loading: "Loading...",
+      loadError: "Could not load your rooms.",
+      retry: "Retry",
       systemStatus: "System Status",
       allOperational: "All Systems Operational",
       warningDetected: "Warning Detected",
@@ -408,6 +410,8 @@ const translations = {
       sensorsOnline: "Sensor Dalam Talian",
       uptime: "Masa Operasi",
       loading: "Memuatkan...",
+      loadError: "Tidak dapat memuatkan bilik anda.",
+      retry: "Cuba lagi",
       fireEvents: "Kejadian Kebakaran",
       realtimeUnavailable: "API masa nyata tidak tersedia: {{error}}",
       recentAlerts: "Amaran Terkini",
@@ -877,23 +881,21 @@ export function AppProvider({ children }) {
     };
   }, [token]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (token) {
-        const fetchedRoomData = await apiGetRoomData();
-        if (fetchedRoomData?.error) {
-          setRoomData(fetchedRoomData);
-          setBilik(null);
-          return;
-        }
-        setRoomData(
-          Array.isArray(fetchedRoomData?.rooms) ? fetchedRoomData.rooms : [],
-        );
-        setBilik(fetchedRoomData?.bilik ?? null);
-      }
-    };
+  const fetchRoomData = async () => {
+    const fetchedRoomData = await apiGetRoomData();
+    if (fetchedRoomData?.error) {
+      setRoomData(fetchedRoomData);
+      setBilik(null);
+      return;
+    }
+    setRoomData(
+      Array.isArray(fetchedRoomData?.rooms) ? fetchedRoomData.rooms : [],
+    );
+    setBilik(fetchedRoomData?.bilik ?? null);
+  };
 
-    fetchData();
+  useEffect(() => {
+    if (token) fetchRoomData();
   }, [token]);
 
   // ---- First-launch tutorial ----------------------------------------
@@ -924,15 +926,79 @@ export function AppProvider({ children }) {
     }
   };
 
-  // Accepts { userId, fullName, email } from login response + both tokens
-  const login = async (userData, accessToken, refreshToken) => {
-    await saveTokens(accessToken, refreshToken);
-    setUser({
-      id: userData.userId,
-      name: userData.fullName,
-      email: userData.email,
+  // Accepts { userId, fullName, email } from login response + both tokens.
+  // `options` carries the session deadline and remember-me flag the server
+  // returned, which together drive the biometric unlock on the next launch.
+  const login = async (userData, accessToken, refreshToken, options = {}) => {
+    const { sessionExpiresAt = null, rememberMe = false } = options;
+
+    await saveSession({
+      accessToken,
+      refreshToken,
+      sessionExpiresAt,
+      rememberMe,
+      user: userData,
     });
-    setToken(accessToken);
+
+    // Re-check support here so a password login always re-arms biometrics for
+    // the next cold start.
+    const support = await getBiometricSupport();
+    setBiometricSupport(support);
+
+    setLockedUser(userData);
+    applySession(userData, accessToken);
+    // Open the walkthrough on the very first login only
+    maybeShowTutorialOnFirstLaunch();
+  };
+
+  // Called by the unlock screen. Prompt strings come from the caller so the
+  // scan dialog is translated the same way as the rest of the UI.
+  const unlockWithBiometrics = async (prompts = {}) => {
+    const support = biometricSupport.available
+      ? biometricSupport
+      : await getBiometricSupport();
+
+    if (!support.available) return { ok: false, reason: "UNAVAILABLE" };
+
+    const scan = await promptBiometrics({
+      promptMessage: prompts.promptMessage,
+      cancelLabel: prompts.cancelLabel,
+      fallbackLabel: prompts.fallbackLabel,
+    });
+
+    if (!scan.success) {
+      return { ok: false, reason: scan.cancelled ? "CANCELLED" : "FAILED" };
+    }
+
+    const result = await refreshSession();
+
+    if (result.ok) {
+      applySession(result.user || lockedUser, result.accessToken);
+      return { ok: true };
+    }
+
+    // Keep the user on the unlock screen for a network blip; the session is
+    // untouched and a retry will work once the server is reachable.
+    if (result.reason === "NETWORK") return { ok: false, reason: "NETWORK" };
+
+    // Session is genuinely over - fall through to the password screen.
+    setNeedsUnlock(false);
+    setLockedUser(null);
+    return { ok: false, reason: result.reason };
+  };
+
+  // "Use password instead" on the unlock screen: abandon the stored session.
+  const usePasswordInstead = async () => {
+    await clearTokens();
+    setNeedsUnlock(false);
+    setLockedUser(null);
+    setUser(null);
+    setToken(null);
+  };
+
+  const updateBiometricEnabled = async (enabled) => {
+    setBiometricEnabledState(enabled);
+    await setBiometricPreference(enabled);
   };
 
   const logout = async () => {
@@ -1021,6 +1087,12 @@ export function AppProvider({ children }) {
       clearNotification,
       clearAllNotifications,
       refreshAlerts: () => token && fetchAlerts(),
+      // Back to the loading state, then fetch again (Home's Retry button).
+      refreshRoomData: () => {
+        if (!token) return;
+        setRoomData(null);
+        fetchRoomData();
+      },
       tutorialVisible,
       openTutorial,
       closeTutorial,
@@ -1032,7 +1104,20 @@ export function AppProvider({ children }) {
         fireEvents: 2,
       },
     };
-  }, [language, notifications, user, token, authReady]);
+  }, [
+    language,
+    notifications,
+    user,
+    token,
+    authReady,
+    roomData,
+    bilik,
+    needsUnlock,
+    lockedUser,
+    biometricSupport,
+    biometricEnabled,
+    tutorialVisible,
+  ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

@@ -22,12 +22,33 @@ export default function HomeScreen() {
     systemStatus,
     user,
     realtimeError,
+    refreshRoomData,
     t,
   } = useApp();
 
   // ── Loading gate ───────────────────────────────────────────────────────────
+  // The fetch failed: say so instead of spinning forever.
+  if (roomData?.error) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.loadingWrap}>
+          <Ionicons name="cloud-offline-outline" size={40} color={COLORS.text2} />
+          <Text style={styles.loadingText}>{t("home.loadError")}</Text>
+          <Text style={styles.errorDetail}>{roomData.error}</Text>
+          <TouchableOpacity
+            style={styles.retryBtn}
+            onPress={refreshRoomData}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.retryText}>{t("home.retry")}</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   // roomData is null/undefined while the context is still fetching
-  if (roomData?.error || !roomData) {
+  if (!roomData) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.loadingWrap}>
@@ -288,6 +309,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.text2,
     fontWeight: "500",
+  },
+  errorDetail: {
+    fontSize: 12,
+    color: COLORS.text2,
+    textAlign: "center",
+    paddingHorizontal: SPACING.xl,
+  },
+  retryBtn: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.md,
+  },
+  retryText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
 
   // ── Header ───────────────────────────────────────────────────────────────
