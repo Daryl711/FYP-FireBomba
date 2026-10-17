@@ -2,6 +2,7 @@ const Room = require("../models/Room");
 const AuditLog = require("../models/auditLog");
 const Avatar = require("../models/Avatar");
 const PushToken = require("../models/PushToken");
+const { sendTestAlarm, isAlarmSound } = require("../services/pushService");
 
 exports.updateCameraStatus = async (req, res) => {
   try {
@@ -102,12 +103,15 @@ exports.updateAvatar = async (req, res) => {
 
 exports.savePushToken = async (req, res) => {
   try {
-    const { pushToken, platform } = req.body || {};
+    const { pushToken, platform, alarmSound } = req.body || {};
     if (typeof pushToken !== "string" || !pushToken.startsWith("ExponentPushToken[")) {
       return res.status(400).json({ error: "A valid Expo push token is required" });
     }
+    if (alarmSound != null && !isAlarmSound(alarmSound)) {
+      return res.status(400).json({ error: "Unknown alarm sound" });
+    }
 
-    await PushToken.saveToken(req.user.userId, pushToken, platform ?? null);
+    await PushToken.saveToken(req.user.userId, pushToken, platform ?? null, alarmSound ?? null);
     return res.status(200).json({ message: "Push token saved" });
   } catch (error) {
     console.error(error);
@@ -124,6 +128,32 @@ exports.deletePushToken = async (req, res) => {
 
     await PushToken.deleteToken(req.user.userId, pushToken);
     return res.status(200).json({ message: "Push token removed" });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+// Rings only the device that asked, and only if that device is registered to
+// this account, so it cannot be used to ring someone else's phone.
+exports.sendTestAlarm = async (req, res) => {
+  try {
+    const { pushToken } = req.body || {};
+    if (typeof pushToken !== "string") {
+      return res.status(400).json({ error: "pushToken is required" });
+    }
+
+    const device = await PushToken.getUserToken(req.user.userId, pushToken);
+    if (!device) {
+      return res.status(404).json({ error: "This device is not registered for alerts" });
+    }
+
+    const sent = await sendTestAlarm(device);
+    if (!sent) {
+      return res.status(502).json({ error: "Could not send the test alarm, please try again" });
+    }
+
+    return res.status(200).json({ message: "Test alarm sent" });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Server error" });

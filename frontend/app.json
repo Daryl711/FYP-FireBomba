@@ -48,7 +48,10 @@
         {
           "color": "#FF3B30",
           "sounds": [
-            "./assets/sounds/fire_alarm.wav"
+            "./assets/sounds/fire_alarm.wav",
+            "./assets/sounds/fire_alarm_siren.wav",
+            "./assets/sounds/fire_alarm_beep.wav",
+            "./assets/sounds/fire_alarm_bell.wav"
           ]
         }
       ],

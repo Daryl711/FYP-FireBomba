@@ -34,12 +34,19 @@ import {
   updateStoredUser,
   registerPushToken as apiRegisterPushToken,
   unregisterPushToken as apiUnregisterPushToken,
+  sendTestAlarm as apiSendTestAlarm,
 } from "../services/api";
 import { getBiometricSupport, promptBiometrics } from "../services/biometrics";
 import {
   registerForPushNotifications,
   addNotificationTapListener,
 } from "../services/notifications";
+import {
+  DEFAULT_ALARM_SOUND,
+  getAlarmSound,
+  getAlarmSoundPreference,
+  setAlarmSoundPreference,
+} from "../services/alarmSounds";
 
 const AppContext = createContext(null);
 
@@ -168,6 +175,42 @@ const translations = {
         notif: { title: "Notifications", subtitle: "Alert preferences" },
         settings: { title: "System Settings", subtitle: "Configure sensors" },
       },
+    },
+    notificationSettings: {
+      title: "Notifications",
+      status: "Alert Status",
+      push: "Push notifications",
+      pushOn: "Allowed - alarms ring even when the app is closed",
+      pushOff: "Blocked - you will NOT hear a fire alarm while the app is closed",
+      openSettings: "Open Phone Settings",
+      device: "This device",
+      deviceOn: "Registered to receive fire alerts",
+      deviceOff: "Not registered - fire alerts cannot reach this phone",
+      deviceChecking: "Checking...",
+      retry: "Retry",
+      test: "Test",
+      testAlarm: "Send Test Alarm",
+      testHint: "Rings this phone with the real alarm sound. Nothing is added to your alerts.",
+      testSentTitle: "Test Alarm Sent",
+      testSent: "Your phone should ring in a few seconds. If it does not, check that notifications and sound are allowed.",
+      testFailedTitle: "Test Failed",
+      testNotRegistered: "This device is not registered yet. Allow notifications, then tap Retry.",
+      alarmSound: "Alarm Sound",
+      alarmSoundHint: "Used for the in-app alarm and when the app is closed. Tap play to preview.",
+      preview: "Preview",
+      stop: "Stop",
+      sounds: {
+        classic: { name: "Classic", desc: "The original FireBomba alarm" },
+        siren: { name: "Siren", desc: "Rising and falling wail" },
+        beep: { name: "Evacuation Beep", desc: "Three beeps then a pause, like a smoke detector" },
+        bell: { name: "Fire Bell", desc: "Fast ringing bell" },
+      },
+      triggers: "What Triggers an Alarm",
+      triggerFlame: "Flame or fire detected",
+      triggerTemp: "Temperature at or above 60 °C",
+      triggerSmoke: "Smoke reading at or above 300",
+      triggerGas: "Gas reading at or above 500",
+      alwaysOn: "Fire alarms cannot be turned off - they are there to keep you safe.",
     },
     personalInfo: {
       title: "Personal Information",
@@ -564,6 +607,42 @@ const translations = {
         settings: { title: "Tetapan Sistem", subtitle: "Konfigurasi sensor" },
       },
     },
+    notificationSettings: {
+      title: "Notifikasi",
+      status: "Status Amaran",
+      push: "Notifikasi tolak",
+      pushOn: "Dibenarkan - penggera berbunyi walaupun aplikasi ditutup",
+      pushOff: "Disekat - anda TIDAK akan mendengar penggera kebakaran semasa aplikasi ditutup",
+      openSettings: "Buka Tetapan Telefon",
+      device: "Peranti ini",
+      deviceOn: "Didaftarkan untuk menerima amaran kebakaran",
+      deviceOff: "Tidak didaftarkan - amaran kebakaran tidak dapat sampai ke telefon ini",
+      deviceChecking: "Menyemak...",
+      retry: "Cuba Lagi",
+      test: "Ujian",
+      testAlarm: "Hantar Penggera Ujian",
+      testHint: "Membunyikan telefon ini dengan bunyi penggera sebenar. Tiada apa ditambah pada amaran anda.",
+      testSentTitle: "Penggera Ujian Dihantar",
+      testSent: "Telefon anda sepatutnya berbunyi dalam beberapa saat. Jika tidak, pastikan notifikasi dan bunyi dibenarkan.",
+      testFailedTitle: "Ujian Gagal",
+      testNotRegistered: "Peranti ini belum didaftarkan. Benarkan notifikasi, kemudian tekan Cuba Lagi.",
+      alarmSound: "Bunyi Penggera",
+      alarmSoundHint: "Digunakan untuk penggera dalam aplikasi dan semasa aplikasi ditutup. Tekan main untuk dengar.",
+      preview: "Dengar",
+      stop: "Henti",
+      sounds: {
+        classic: { name: "Klasik", desc: "Penggera asal FireBomba" },
+        siren: { name: "Siren", desc: "Bunyi siren naik dan turun" },
+        beep: { name: "Bip Pemindahan", desc: "Tiga bip kemudian berhenti, seperti pengesan asap" },
+        bell: { name: "Loceng Kebakaran", desc: "Loceng berdering laju" },
+      },
+      triggers: "Apa yang Mencetuskan Penggera",
+      triggerFlame: "Api atau kebakaran dikesan",
+      triggerTemp: "Suhu 60 °C atau lebih",
+      triggerSmoke: "Bacaan asap 300 atau lebih",
+      triggerGas: "Bacaan gas 500 atau lebih",
+      alwaysOn: "Penggera kebakaran tidak boleh dimatikan - ia ada untuk keselamatan anda.",
+    },
     personalInfo: {
       title: "Maklumat Peribadi",
       details: "Butiran Anda",
@@ -829,6 +908,11 @@ export function AppProvider({ children }) {
   const soundRef = useRef(null);
   const prevUnreadRef = useRef(0);
   const pushTokenRef = useRef(null);
+  // null until the first registration attempt finishes.
+  const [pushRegistered, setPushRegistered] = useState(null);
+  const [alarmSound, setAlarmSound] = useState(DEFAULT_ALARM_SOUND);
+  // Read by registerPush, which must send the tone picked most recently.
+  const alarmSoundRef = useRef(DEFAULT_ALARM_SOUND);
 
   // Normalises the API's { userId, fullName, email } into the shape the
   // screens read, and marks the app as unlocked.
@@ -915,25 +999,41 @@ export function AppProvider({ children }) {
     return () => setOnSessionExpired(null);
   }, []);
 
-  // Load alarm sound once on mount
   useEffect(() => {
     Audio.setAudioModeAsync({
       playsInSilentModeIOS: true,
       shouldDuckAndroid: false,
     }).catch(() => {});
-    Audio.Sound.createAsync(require("../../assets/sounds/alarm.wav"), {
+    getAlarmSoundPreference().then((id) => {
+      alarmSoundRef.current = id;
+      setAlarmSound(id);
+    });
+  }, []);
+
+  // (Re)load the in-app alarm whenever the chosen tone changes.
+  useEffect(() => {
+    let cancelled = false;
+    let loaded = null;
+    Audio.Sound.createAsync(getAlarmSound(alarmSound).inApp, {
       isLooping: true,
     })
       .then(({ sound }) => {
+        if (cancelled) {
+          sound.unloadAsync();
+          return;
+        }
+        loaded = sound;
         soundRef.current = sound;
       })
       .catch((e) => {
         console.warn("Alarm sound failed to load:", e);
       });
     return () => {
-      soundRef.current?.unloadAsync();
+      cancelled = true;
+      if (soundRef.current === loaded) soundRef.current = null;
+      loaded?.unloadAsync();
     };
-  }, []);
+  }, [alarmSound]);
 
   const fetchAlerts = async () => {
     const result = await getAlerts();
@@ -962,23 +1062,49 @@ export function AppProvider({ children }) {
     }
   };
 
-  // Hand this device's push token to the backend once signed in, so a fire
-  // still rings the phone while the app is in the background or closed.
+  // Hand this device's push token to the backend, so a fire still rings the
+  // phone while the app is in the background or closed. Also the Retry
+  // button on the Notifications screen; resolves to whether it worked.
+  const registerPush = useCallback(async () => {
+    const pushToken = await registerForPushNotifications();
+    if (!pushToken) {
+      setPushRegistered(false);
+      return false;
+    }
+    pushTokenRef.current = pushToken;
+    const result = await apiRegisterPushToken(
+      pushToken,
+      Platform.OS,
+      alarmSoundRef.current,
+    );
+    if (result?.error) console.warn("Push token not saved:", result.error);
+    else console.log("Push token saved");
+    setPushRegistered(!result?.error);
+    return !result?.error;
+  }, []);
+
   useEffect(() => {
-    if (!token) return;
-    let cancelled = false;
-    registerForPushNotifications().then((pushToken) => {
-      if (cancelled || !pushToken) return;
-      pushTokenRef.current = pushToken;
-      apiRegisterPushToken(pushToken, Platform.OS).then((result) => {
-        if (result?.error) console.warn("Push token not saved:", result.error);
-        else console.log("Push token saved");
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
+    if (token) registerPush();
   }, [token]);
+
+  // Saves the tone on this phone, switches the in-app alarm, and tells the
+  // backend so closed-app pushes use it too.
+  const changeAlarmSound = async (id) => {
+    const chosen = getAlarmSound(id).id;
+    alarmSoundRef.current = chosen;
+    setAlarmSound(chosen);
+    await setAlarmSoundPreference(chosen);
+    if (token) await registerPush();
+  };
+
+  // The Notifications screen's "Send test alarm" - rings this device only.
+  const sendTestAlarm = async () => {
+    if (!pushTokenRef.current) {
+      return { ok: false };
+    }
+    const result = await apiSendTestAlarm(pushTokenRef.current);
+    return result?.error ? { ok: false, error: result.error } : { ok: true };
+  };
 
   // Tapping a fire notification opens the app; pull the new alert straight
   // away so the in-app alarm starts without waiting for the next poll.
@@ -1159,6 +1285,7 @@ export function AppProvider({ children }) {
       await apiUnregisterPushToken(pushTokenRef.current);
       pushTokenRef.current = null;
     }
+    setPushRegistered(null);
     const refreshToken = await getRefreshToken();
     await logoutUser(refreshToken);
     setUser(null);
@@ -1252,6 +1379,11 @@ export function AppProvider({ children }) {
       avatarUrl,
       updateAvatar,
       updateUserName,
+      pushRegistered,
+      registerPush,
+      alarmSound,
+      changeAlarmSound,
+      sendTestAlarm,
       closeTutorial,
       realtimeError: null,
       systemStatus: {
@@ -1273,6 +1405,8 @@ export function AppProvider({ children }) {
     lockedUser,
     biometricSupport,
     biometricEnabled,
+    pushRegistered,
+    alarmSound,
     tutorialVisible,
     avatarUrl,
   ]);

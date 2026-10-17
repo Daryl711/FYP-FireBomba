@@ -598,11 +598,12 @@ export async function resetPassword(resetToken, newPassword) {
 }
 
 // Expo push token for fire alarms while the app is closed.
-export async function registerPushToken(pushToken, platform) {
+// alarmSound is the tone this device rings with (an id from alarmSounds.js).
+export async function registerPushToken(pushToken, platform, alarmSound) {
   try {
     const response = await authFetch(`${API_ROOT}/settings/push-token`, {
       method: "PUT",
-      body: JSON.stringify({ pushToken, platform }),
+      body: JSON.stringify({ pushToken, platform, alarmSound }),
     });
     return await safeParseResponse(response);
   } catch (error) {
@@ -615,6 +616,20 @@ export async function unregisterPushToken(pushToken) {
   try {
     const response = await authFetch(`${API_ROOT}/settings/push-token`, {
       method: "DELETE",
+      body: JSON.stringify({ pushToken }),
+    });
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+// Rings this device with the fire alarm sound; pushToken must be one this
+// account registered.
+export async function sendTestAlarm(pushToken) {
+  try {
+    const response = await authFetch(`${API_ROOT}/settings/test-alarm`, {
+      method: "POST",
       body: JSON.stringify({ pushToken }),
     });
     return await safeParseResponse(response);

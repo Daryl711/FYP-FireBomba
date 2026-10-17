@@ -27,6 +27,7 @@ import AlertsScreen from "../screens/AlertsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import SecurityScreen from "../screens/SecurityScreen";
 import PersonalInfoScreen from "../screens/PersonalInfoScreen";
+import NotificationSettingsScreen from "../screens/NotificationSettingsScreen";
 import UnlockScreen from "../screens/UnlockScreen";
 
 import { useApp } from "../context/AppContext";
@@ -97,7 +98,7 @@ function ProfileStack() {
       <ProfileStackNav.Screen name="Security" component={SecurityScreen} />
       <ProfileStackNav.Screen
         name="NotificationSettings"
-        component={ProfileScreen}
+        component={NotificationSettingsScreen}
       />
       <ProfileStackNav.Screen name="SystemSettings" component={ProfileScreen} />
     </ProfileStackNav.Navigator>
