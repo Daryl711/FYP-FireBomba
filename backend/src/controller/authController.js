@@ -171,9 +171,15 @@ const generateTokens = (userId, email, roomId) => {
 exports.signup = async (req, res) => {
   const { fullName, password } = req.body;
   const email = String(req.body.email || "").trim().toLowerCase();
+  // Optional; null when blank so the UNIQUE column allows many phone-less users.
+  const phone = normalisePhone(String(req.body.phone || "").trim());
 
   if (!fullName || !email || !password) {
     return res.status(400).json({ error: "Full name, email and password are required" });
+  }
+
+  if (phone && !/^\+?\d{8,15}$/.test(phone)) {
+    return res.status(400).json({ error: "Invalid phone number" });
   }
 
   try {
@@ -183,8 +189,12 @@ exports.signup = async (req, res) => {
       return res.status(400).json({ error: "Email already registered" });
     }
 
+    if (phone && (await UserProfile.getByPhone(phone))) {
+      return res.status(400).json({ error: "Phone number already registered" });
+    }
+
     // Supabase Auth hashes the password itself.
-    const userId = await User.addUser(fullName, email, password);
+    const userId = await User.addUser(fullName, email, password, phone);
 
     return res.status(201).json({
       message: "Account created successfully!",

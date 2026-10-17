@@ -21,7 +21,7 @@ exports.checkEmail = async (email) => {
 // Creates the Supabase Auth account and its public.users profile. If the
 // profile insert fails the auth account is removed again, so a half-made user
 // cannot sign in to a "User profile not found" error.
-exports.addUser = async (fullName, email, password, bilikId = DEFAULT_BILIK_ID) => {
+exports.addUser = async (fullName, email, password, phone = null, bilikId = DEFAULT_BILIK_ID) => {
   const { data, error } = await supabase.auth.admin.createUser({
     email,
     password,
@@ -38,6 +38,7 @@ exports.addUser = async (fullName, email, password, bilikId = DEFAULT_BILIK_ID) 
   const { error: profileError } = await supabase.from("users").insert({
     user_id: userId,
     email,
+    phone,
     full_name: fullName,
     role: "user",
     bilik_id: bilikId,

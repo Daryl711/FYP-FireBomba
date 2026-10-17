@@ -23,6 +23,7 @@ export default function SignUpScreen({ navigation }) {
   const { t } = useApp();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -33,6 +34,13 @@ export default function SignUpScreen({ navigation }) {
   const validateEmail = (emailText) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(emailText);
+  };
+
+  // Optional, but if given it must look like a phone number (8-15 digits,
+  // spaces, dashes and a leading + allowed). The backend normalises it.
+  const validatePhone = (phoneText) => {
+    const digits = phoneText.replace(/[\s-]/g, "");
+    return /^\+?\d{8,15}$/.test(digits);
   };
 
   const handleTermsAndCondition = async () => {
@@ -51,6 +59,10 @@ export default function SignUpScreen({ navigation }) {
     }
     if (!validateEmail(email.trim())) {
       alert(t("signup.invalidEmail"));
+      return;
+    }
+    if (phone.trim() && !validatePhone(phone.trim())) {
+      alert(t("signup.invalidPhone"));
       return;
     }
     if (!password.trim()) {
@@ -76,6 +88,7 @@ export default function SignUpScreen({ navigation }) {
         fullName.trim(),
         email.trim(),
         password,
+        phone.trim(),
       );
 
       if (result.error) {
@@ -161,6 +174,28 @@ export default function SignUpScreen({ navigation }) {
                   autoCapitalize="none"
                   value={email}
                   onChangeText={setEmail}
+                />
+              </View>
+            </View>
+
+            {/* Phone (optional) */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>{t("signup.phone")}</Text>
+              <View style={styles.inputWrap}>
+                <Ionicons
+                  name="call-outline"
+                  size={18}
+                  color={COLORS.text3}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder={t("signup.phonePlaceholder")}
+                  placeholderTextColor={COLORS.text3}
+                  keyboardType="phone-pad"
+                  autoComplete="tel"
+                  value={phone}
+                  onChangeText={setPhone}
                 />
               </View>
             </View>

@@ -260,13 +260,13 @@ async function authFetch(url, options = {}) {
 
 // ─── Auth endpoints ───────────────────────────────────────────────────────────
 
-// phone is required by the backend; email is optional and omitted when blank.
+// email is required by the backend; phone is optional and omitted when blank.
 export async function registerUser(fullName, email, password, phone) {
   try {
     const response = await fetch(`${API_ROOT}/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fullName, phone, password, email: email || null }),
+      body: JSON.stringify({ fullName, email, password, phone: phone || null }),
     });
     return await safeParseResponse(response);
   } catch (error) {
