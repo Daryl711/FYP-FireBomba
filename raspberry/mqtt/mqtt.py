@@ -132,6 +132,14 @@ def on_local_message(client, userdata, message):
 		except Exception as error:
 			print(f"Failed to detect fire anomaly for room {room_id}: {error}")
 		else:
+			client.publish(
+				f"firebomba/room/{room_id}/anomaly",
+				json.dumps({
+					"anomaly_score": result["anomaly_score"],
+					"timestamp": datetime.now(timezone.utc).isoformat(),
+				}),
+				qos=1,
+			)
 			try:
 				save_anomaly_result(room_id, result, data)
 			except Exception as error:

@@ -138,6 +138,7 @@ const unsigned long publishInterval = 5000;  // 5 seconds
 // Define variables to store the publish messages
 String serialData = "";
 String sensorPayload = "";
+String flamePayload = "";
 String alertPayload = "";
 String lastAlertSent = "";
 bool alertActive = false;
@@ -227,6 +228,13 @@ void loop() {
       sensorPayload += "\"co\":" + co;
       sensorPayload += "}";
 
+      // Publish the binary flame output separately for the risk engine.
+      if (flame == "0" || flame == "1") {
+        flamePayload = "{\"flame_detected\":" + flame + "}";
+      } else {
+        flamePayload = "";
+      }
+
       // Parse alert messages
       String flameAlert = getValue(serialData, "FlameAlert:");
       String temperatureAlert = getValue(serialData, "TemperatureAlert:");
@@ -283,6 +291,9 @@ void loop() {
     Serial.println("Publishing sensor readings to MQTT:");
     Serial.println(sensorPayload);
     client.publish("firebomba/room/1/sensor-data", sensorPayload.c_str());
+    if (flamePayload != "") {
+      client.publish("firebomba/room/1/flame", flamePayload.c_str());
+    }
   }
 
   // Only publish when alert is NEW (not same as last one)

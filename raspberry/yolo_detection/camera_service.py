@@ -19,13 +19,13 @@ from yolo_detection.inference import MobileNetClassifier
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 RTSP_URL = os.environ["TAPO_RTSP_URL"]
-MQTT_HOST = os.getenv("MQTT_HOST", "localhost")
-MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
+MQTT_HOST = os.getenv("LOCAL_MQTT_BROKER", os.getenv("MQTT_HOST", "localhost"))
+MQTT_PORT = int(os.getenv("LOCAL_MQTT_PORT", os.getenv("MQTT_PORT", "1883")))
 
 
 DEVICE_ID = "ESP32_ROOM_01"
-BILIK_ID = 1
-TOPIC = f"firebomba/room/{BILIK_ID}/yolo/detection"
+BILIK_ID = os.getenv("ROOM_ID", "1")
+TOPIC = f"firebomba/room/{BILIK_ID}/yolo"
 
 INTERVAL = 5.0
 MIN_CONFIDENCE = 0.60  # Initial experimental threshold
@@ -221,13 +221,16 @@ def generate_crops(frame, detector):
         if x2 <= x1 or y2 <= y1:
             continue
 
+        crop = Image.fromarray(cv2.cvtColor(frame[y1:y2, x1:x2], cv2.COLOR_BGR2RGB))
+        yield crop, (x1, y1, x2, y2), result["confidence"]
+
 def classify_frame(frame, classifier, detector):
     """Classify YOLO crops, annotate the frame, and return fire/smoke detections."""
 
     detections = []
     annotations = []
 
-    for crop, bbox in generate_crops(frame, detector) or []:
+    for crop, bbox, yolo_confidence in generate_crops(frame, detector):
         result = classifier.predict(crop)
         annotations.append((bbox, result))
 
@@ -235,7 +238,9 @@ def classify_frame(frame, classifier, detector):
             result["class"] in ("fire", "smoke")
             and result["confidence"] >= MIN_CONFIDENCE
         ):
-            detections.append({**result, "bbox": bbox})
+            detections.append({
+                **result, "bbox": bbox, "yolo_confidence": yolo_confidence
+            })
 
     # Draw only after all crops have been classified to keep overlapping ROIs clean.
     for (x1, y1, x2, y2), result in annotations:
@@ -325,6 +330,9 @@ def main():
                             for d in detections
                         ),
                         "detections": detections,
+                        "yolo_confidence": max(
+                            (d["yolo_confidence"] for d in detections), default=0.0
+                        ),
                         "source": "yolo_mobilenet",
                     }
 
