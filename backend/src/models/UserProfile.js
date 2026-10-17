@@ -38,12 +38,27 @@ const normalisePhone = (phone) => {
 };
 exports.normalisePhone = normalisePhone;
 
+// Checks a phone AFTER normalisePhone: optional +, then 8-15 digits.
+exports.isValidPhone = (phone) => /^\+?\d{8,15}$/.test(phone);
+
 // Login accepts an email OR a phone number in one field. Anything containing
 // "@" is an email; everything else is looked up by phone.
 exports.getByIdentifier = (rawIdentifier) =>
   String(rawIdentifier).includes("@")
     ? exports.getByEmail(String(rawIdentifier).trim().toLowerCase())
     : exports.getByPhone(normalisePhone(rawIdentifier));
+
+// fields uses column names, e.g. { full_name, phone, phone_verified }.
+exports.updateById = async (userId, fields) => {
+  const { data, error } = await supabase
+    .from("users")
+    .update(fields)
+    .eq("user_id", userId)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data;
+};
 
 exports.markPhoneVerified = async (userId) => {
   const { error } = await supabase

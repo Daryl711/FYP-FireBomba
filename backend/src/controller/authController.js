@@ -178,7 +178,7 @@ exports.signup = async (req, res) => {
     return res.status(400).json({ error: "Full name, email and password are required" });
   }
 
-  if (phone && !/^\+?\d{8,15}$/.test(phone)) {
+  if (phone && !UserProfile.isValidPhone(phone)) {
     return res.status(400).json({ error: "Invalid phone number" });
   }
 

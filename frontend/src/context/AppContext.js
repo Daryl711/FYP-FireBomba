@@ -31,6 +31,7 @@ import {
   setBiometricPreference,
   getAvatar as apiGetAvatar,
   uploadAvatar as apiUploadAvatar,
+  updateStoredUser,
   registerPushToken as apiRegisterPushToken,
   unregisterPushToken as apiUnregisterPushToken,
 } from "../services/api";
@@ -168,6 +169,40 @@ const translations = {
         notif: { title: "Notifications", subtitle: "Alert preferences" },
         settings: { title: "System Settings", subtitle: "Configure sensors" },
       },
+    },
+    personalInfo: {
+      title: "Personal Information",
+      details: "Your Details",
+      fullName: "Full Name",
+      fullNamePlaceholder: "John Doe",
+      phone: "Phone Number",
+      phonePlaceholder: "012-345 6789 (optional)",
+      phoneHint: "Used for SMS codes and to sign in with your phone number. Leave blank to remove it.",
+      save: "Save Changes",
+      saving: "Saving...",
+      saved: "Your details have been updated.",
+      savedTitle: "Saved",
+      errorTitle: "Error",
+      loadError: "Could not load your details.",
+      retry: "Retry",
+      enterFullName: "Please enter your full name.",
+      invalidPhone: "Please enter a valid phone number, e.g. 012-345 6789.",
+      verified: "Verified",
+      notVerified: "Not verified",
+      verifyPhone: "Verify Phone Number",
+      verifyTitle: "Verify Phone Number",
+      codeSent: "We sent a 6-digit code by SMS to {{phone}}.",
+      codePlaceholder: "6-digit code",
+      verifyCode: "Verify",
+      resend: "Resend code",
+      enterFullCode: "Please enter all 6 digits.",
+      phoneVerified: "Your phone number is verified.",
+      unsavedPhone: "Save your new phone number before verifying it.",
+      account: "Account",
+      email: "Email",
+      emailHint: "Your email is also your login and cannot be changed here.",
+      room: "Bilik",
+      memberSince: "Member Since",
     },
     security: {
       title: "Security Settings",
@@ -530,6 +565,40 @@ const translations = {
         notif: { title: "Notifikasi", subtitle: "Keutamaan amaran" },
         settings: { title: "Tetapan Sistem", subtitle: "Konfigurasi sensor" },
       },
+    },
+    personalInfo: {
+      title: "Maklumat Peribadi",
+      details: "Butiran Anda",
+      fullName: "Nama Penuh",
+      fullNamePlaceholder: "Ali Ahmad",
+      phone: "Nombor Telefon",
+      phonePlaceholder: "012-345 6789 (pilihan)",
+      phoneHint: "Digunakan untuk kod SMS dan log masuk dengan nombor telefon. Biarkan kosong untuk membuangnya.",
+      save: "Simpan Perubahan",
+      saving: "Menyimpan...",
+      saved: "Butiran anda telah dikemas kini.",
+      savedTitle: "Disimpan",
+      errorTitle: "Ralat",
+      loadError: "Tidak dapat memuatkan butiran anda.",
+      retry: "Cuba Lagi",
+      enterFullName: "Sila masukkan nama penuh anda.",
+      invalidPhone: "Sila masukkan nombor telefon yang sah, cth. 012-345 6789.",
+      verified: "Disahkan",
+      notVerified: "Belum disahkan",
+      verifyPhone: "Sahkan Nombor Telefon",
+      verifyTitle: "Sahkan Nombor Telefon",
+      codeSent: "Kami menghantar kod 6 digit melalui SMS ke {{phone}}.",
+      codePlaceholder: "Kod 6 digit",
+      verifyCode: "Sahkan",
+      resend: "Hantar semula kod",
+      enterFullCode: "Sila masukkan kesemua 6 digit.",
+      phoneVerified: "Nombor telefon anda telah disahkan.",
+      unsavedPhone: "Simpan nombor telefon baharu anda sebelum mengesahkannya.",
+      account: "Akaun",
+      email: "E-mel",
+      emailHint: "E-mel anda juga ialah log masuk anda dan tidak boleh ditukar di sini.",
+      room: "Bilik",
+      memberSince: "Ahli Sejak",
     },
     login: {
       title: "Selamat Kembali",
@@ -972,6 +1041,14 @@ export function AppProvider({ children }) {
     return { ok: true };
   };
 
+  // Called after Personal Information saves a new name, so the Profile tab
+  // and the unlock screen show it without signing in again.
+  const updateUserName = async (fullName) => {
+    setUser((prev) => (prev ? { ...prev, name: fullName } : prev));
+    setLockedUser((prev) => (prev ? { ...prev, fullName } : prev));
+    await updateStoredUser({ fullName });
+  };
+
   // ---- First-launch tutorial ----------------------------------------
   // We persist a "seen" flag in SecureStore so the walkthrough only
   // auto-opens once, the first time a user reaches the app after signing in.
@@ -1176,6 +1253,7 @@ export function AppProvider({ children }) {
       openTutorial,
       avatarUrl,
       updateAvatar,
+      updateUserName,
       closeTutorial,
       realtimeError: null,
       systemStatus: {

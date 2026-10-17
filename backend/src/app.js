@@ -8,6 +8,7 @@ const alertRoutes = require('./routes/alerts.routes');
 const homeRoutes = require('./routes/home.routes');
 const settingRoutes = require('./routes/settings.routes');
 const syncRoutes = require('./routes/sync.routes');
+const profileRoutes = require('./routes/profile.routes');
 
 const app = express();
 // Behind a proxy (Render, nginx, ...) the rate limiter needs the real client IP.
@@ -25,6 +26,7 @@ app.use('/api/alerts', alertRoutes);
 app.use('/api/home', homeRoutes);
 app.use('/api/settings', settingRoutes);
 app.use('/api/sync', syncRoutes);
+app.use('/api/profile', profileRoutes);
 
 
 

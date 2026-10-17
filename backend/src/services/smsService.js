@@ -50,7 +50,8 @@ const sendSms = async (phone, message) => {
 };
 
 const sendOtpSms = async (phone, code, purpose) => {
-  const action = purpose === "reset" ? "reset your password" : "log in";
+  const actions = { reset: "reset your password", verify_phone: "verify your phone number" };
+  const action = actions[purpose] || "log in";
   const message = `Your FireBomba code is ${code}. Use it to ${action}. It expires in 5 minutes. Do not share this code.`;
 
   return sendSms(phone, message);

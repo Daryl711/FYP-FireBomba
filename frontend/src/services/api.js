@@ -430,6 +430,62 @@ export async function getAvatar() {
   }
 }
 
+// ─── Personal information ────────────────────────────────────────────────────
+
+// Resolves to { fullName, email, phone, phoneVerified, createdAt }.
+export async function getProfile() {
+  try {
+    const response = await authFetch(`${API_ROOT}/profile`);
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+// fields: { fullName?, phone? }. A blank phone removes it from the account.
+export async function updateProfile(fields) {
+  try {
+    const response = await authFetch(`${API_ROOT}/profile`, {
+      method: "PATCH",
+      body: JSON.stringify(fields),
+    });
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+export async function sendPhoneVerificationCode() {
+  try {
+    const response = await authFetch(`${API_ROOT}/profile/phone/send-code`, {
+      method: "POST",
+    });
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+export async function verifyPhoneCode(code) {
+  try {
+    const response = await authFetch(`${API_ROOT}/profile/phone/verify`, {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    });
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+// Keeps the cached sign-in user (shown on the biometric unlock screen) in step
+// after a profile edit.
+export const updateStoredUser = async (changes) => {
+  const { user } = await getStoredSession();
+  if (!user) return;
+  await writeItem(SESSION_USER_KEY, JSON.stringify({ ...user, ...changes }));
+};
+
 // imageBase64 is the raw base64 from expo-image-picker (no data: prefix).
 export async function uploadAvatar(imageBase64) {
   try {
