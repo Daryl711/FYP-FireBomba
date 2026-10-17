@@ -162,7 +162,6 @@ const translations = {
           title: "Personal Information",
           subtitle: "Update your details",
         },
-        email: { title: "Email & Contact", subtitle: "Manage contact info" },
         security: { title: "Security", subtitle: "Manage security settings" },
       },
       prefItems: {
@@ -558,7 +557,6 @@ const translations = {
           title: "Maklumat Peribadi",
           subtitle: "Kemas kini butiran anda",
         },
-        email: { title: "E-mel & Kontak", subtitle: "Urus maklumat hubungan" },
         security: { title: "Keselamatan", subtitle: "Kata laluan & 2FA" },
       },
       prefItems: {

@@ -25,13 +25,6 @@ const ACCOUNT_ITEMS = [
     screen: "PersonalInfo",
   },
   {
-    id: "email",
-    icon: "mail-outline",
-    iconBg: COLORS.greenLight,
-    iconColor: COLORS.green,
-    screen: null,
-  },
-  {
     id: "security",
     icon: "shield-outline",
     iconBg: "#F3F0FF",
