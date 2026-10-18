@@ -637,3 +637,14 @@ export async function sendTestAlarm(pushToken) {
     return { error: "Network error. Cannot connect to server." };
   }
 }
+
+// Read-only health of every room in the user's bilik (System Settings) and
+// the summary behind the Home / Profile status tiles.
+export async function getSystemHealth() {
+  try {
+    const response = await authFetch(`${API_ROOT}/settings/system-health`);
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}

@@ -115,3 +115,20 @@ exports.deleteAlert = async (id, userId) => {
 exports.hideAllAlerts = async (userId) => {
   return hideAllUserNotifications(userId);
 };
+
+// Alerts raised in these rooms since a date - the "Fire Events" stat.
+exports.countSince = async (roomIds, since) => {
+  if (roomIds.length === 0) return 0;
+
+  const { count, error } = await supabase
+    .from("alert_notifications")
+    .select("alert_id", { count: "exact", head: true })
+    .in("room_id", roomIds)
+    .gte("timestamp", since.toISOString());
+
+  if (error) {
+    throw error;
+  }
+
+  return count ?? 0;
+};

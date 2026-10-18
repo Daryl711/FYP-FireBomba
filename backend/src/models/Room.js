@@ -111,3 +111,18 @@ exports.updateCameraStatus = async (cameraStatus, roomId) => {
     throw error;
   }
 };
+
+// Every room the user's bilik owns, for the System Settings health check.
+exports.getRoomsByBilik = async (bilikId) => {
+  const { data, error } = await supabase
+    .from("rooms")
+    .select("room_id, name, space_type, camera_enabled")
+    .eq("bilik_id", bilikId)
+    .order("room_id");
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+};

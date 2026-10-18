@@ -201,7 +201,7 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.quickStatDivider} />
             <View style={styles.quickStat}>
               <Text style={styles.quickStatVal}>
-                {systemStatus.sensorsOnline}
+                {systemStatus.roomsOnline ?? "-"}/{systemStatus.roomsTotal ?? "-"}
               </Text>
               <Text style={styles.quickStatLbl}>{t("profile.sensors")}</Text>
             </View>

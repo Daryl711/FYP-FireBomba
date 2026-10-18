@@ -24,6 +24,7 @@ settingsRouter.put('/avatar', authMiddleware, settingsController.updateAvatar);
 
 settingsRouter.put('/push-token', authMiddleware, settingsController.savePushToken);
 settingsRouter.delete('/push-token', authMiddleware, settingsController.deletePushToken);
+settingsRouter.get('/system-health', authMiddleware, settingsController.getSystemHealth);
 settingsRouter.post('/test-alarm', authMiddleware, testAlarmLimiter, settingsController.sendTestAlarm);
 
 

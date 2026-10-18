@@ -1,4 +1,9 @@
 const Room = require("../models/Room");
+const SensorReading = require("../models/SensorReading");
+const Actuator = require("../models/Actuator");
+const AlertNotification = require("../models/AlertNotification");
+const THRESHOLDS = require("../config/thresholds");
+const { client: mqttClient } = require("../services/mqttService");
 const AuditLog = require("../models/auditLog");
 const Avatar = require("../models/Avatar");
 const PushToken = require("../models/PushToken");
@@ -154,6 +159,85 @@ exports.sendTestAlarm = async (req, res) => {
     }
 
     return res.status(200).json({ message: "Test alarm sent" });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+// The Pi syncs every ~10 s; a room silent for longer than this is offline.
+const SENSOR_OFFLINE_AFTER_MS = 2 * 60 * 1000;
+const FIRE_EVENTS_WINDOW_DAYS = 30;
+
+const isFlame = (value) =>
+  value === true || value === 1 || value === "1" || value === "true";
+
+// Read-only health of every room in the user's bilik, plus the summary the
+// Home and Profile tiles show.
+exports.getSystemHealth = async (req, res) => {
+  try {
+    const rooms =
+      req.user.bilikId == null ? [] : await Room.getRoomsByBilik(req.user.bilikId);
+    const now = Date.now();
+
+    const roomHealth = await Promise.all(
+      rooms.map(async (room) => {
+        const [reading, pumpOn] = await Promise.all([
+          SensorReading.getLatestSensorReading(room.room_id),
+          Actuator.getWaterPumpStatus(room.room_id),
+        ]);
+        const lastReadingAt = reading?.timestamp ?? reading?.created_at ?? null;
+        const online =
+          lastReadingAt !== null &&
+          now - new Date(lastReadingAt).getTime() <= SENSOR_OFFLINE_AFTER_MS;
+
+        return {
+          roomId: room.room_id,
+          name: room.name,
+          spaceType: room.space_type,
+          online,
+          lastReadingAt,
+          reading: reading
+            ? {
+                temperature: reading.temperature,
+                humidity: reading.humidity,
+                smoke: reading.smoke,
+                gas: reading.co,
+                flame: isFlame(reading.flame_detected),
+              }
+            : null,
+          cameraEnabled: room.camera_enabled === true,
+          pumpOn,
+        };
+      })
+    );
+
+    const since = new Date(now - FIRE_EVENTS_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    const fireEvents = await AlertNotification.countSince(
+      rooms.map((room) => room.room_id),
+      since
+    );
+
+    const roomsOnline = roomHealth.filter((room) => room.online).length;
+    const flameNow = roomHealth.some((room) => room.online && room.reading?.flame);
+
+    return res.status(200).json({
+      summary: {
+        roomsTotal: roomHealth.length,
+        roomsOnline,
+        camerasOn: roomHealth.filter((room) => room.cameraEnabled).length,
+        fireEvents,
+        fireEventsWindowDays: FIRE_EVENTS_WINDOW_DAYS,
+        allOperational:
+          roomHealth.length > 0 && roomsOnline === roomHealth.length && !flameNow,
+      },
+      server: {
+        brokerConnected: mqttClient.connected === true,
+      },
+      offlineAfterSeconds: SENSOR_OFFLINE_AFTER_MS / 1000,
+      thresholds: THRESHOLDS,
+      rooms: roomHealth,
+    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Server error" });

@@ -35,6 +35,7 @@ import {
   registerPushToken as apiRegisterPushToken,
   unregisterPushToken as apiUnregisterPushToken,
   sendTestAlarm as apiSendTestAlarm,
+  getSystemHealth as apiGetSystemHealth,
 } from "../services/api";
 import { getBiometricSupport, promptBiometrics } from "../services/biometrics";
 import {
@@ -74,8 +75,8 @@ const translations = {
       allOperational: "All Systems Operational",
       warningDetected: "Warning Detected",
       sensorsOnline: "Sensors Online",
-      uptime: "Uptime",
-      fireEvents: "Fire Events",
+      camerasOn: "Cameras On",
+      fireEvents: "Fire Events (30d)",
       realtimeUnavailable: "Realtime API unavailable: {{error}}",
       recentAlerts: "Recent Alerts",
       viewAll: "View all",
@@ -173,8 +174,46 @@ const translations = {
       },
       prefItems: {
         notif: { title: "Notifications", subtitle: "Alert preferences" },
-        settings: { title: "System Settings", subtitle: "Configure sensors" },
+        settings: { title: "System Settings", subtitle: "Sensor & device health" },
       },
+    },
+    systemSettings: {
+      title: "System Settings",
+      overview: "Overview",
+      allOk: "All systems operational",
+      attention: "Attention needed - check the rooms below",
+      roomsOnline: "Rooms Online",
+      camerasOn: "Cameras On",
+      fireEvents: "Fire Events ({{days}} days)",
+      cloudOn: "Device cloud connected",
+      cloudOff: "Device cloud disconnected",
+      cloudOffHint: "Live updates and water pump control may not work until the server reconnects.",
+      rooms: "Rooms",
+      noRooms: "No rooms are linked to your account yet.",
+      online: "Online",
+      offline: "Offline",
+      noReadings: "No readings yet",
+      justNow: "just now",
+      minutesAgo: "{{n}} min ago",
+      hoursAgo: "{{n}} h ago",
+      daysAgo: "{{n}} days ago",
+      offlineHint: "A room is offline when its sensors have sent nothing for {{minutes}} minutes. Pull down to refresh.",
+      temperature: "Temperature",
+      humidity: "Humidity",
+      smoke: "Smoke",
+      gas: "Gas",
+      flame: "Flame",
+      flameYes: "Detected",
+      flameNo: "None",
+      cameraOn: "Camera on",
+      cameraOff: "Camera off",
+      pumpOn: "Pump running",
+      pumpOff: "Pump off",
+      thresholds: "Alarm Thresholds",
+      anyFlame: "Any flame",
+      adminOnly: "Only an administrator can change these thresholds.",
+      about: "About",
+      appVersion: "App version",
     },
     notificationSettings: {
       title: "Notifications",
@@ -449,7 +488,7 @@ const translations = {
         },
         systemStatus: {
           title: "System Status",
-          desc: "Part of monitoring: this panel shows sensors online, uptime, and fire events. A green badge means everything is operating normally.",
+          desc: "Part of monitoring: this panel shows how many rooms have sensors online, how many cameras are on, and fire events in the last 30 days. A green badge means everything is operating normally.",
         },
         recentAlerts: {
           title: "Recent Alerts",
@@ -502,11 +541,11 @@ const translations = {
       allOperational: "Semua Sistem Beroperasi",
       warningDetected: "Amaran Dikesan",
       sensorsOnline: "Sensor Dalam Talian",
-      uptime: "Masa Operasi",
+      camerasOn: "Kamera Aktif",
       loading: "Memuatkan...",
       loadError: "Tidak dapat memuatkan bilik anda.",
       retry: "Cuba lagi",
-      fireEvents: "Kejadian Kebakaran",
+      fireEvents: "Kebakaran (30h)",
       realtimeUnavailable: "API masa nyata tidak tersedia: {{error}}",
       recentAlerts: "Amaran Terkini",
       viewAll: "Lihat semua",
@@ -604,8 +643,46 @@ const translations = {
       },
       prefItems: {
         notif: { title: "Notifikasi", subtitle: "Keutamaan amaran" },
-        settings: { title: "Tetapan Sistem", subtitle: "Konfigurasi sensor" },
+        settings: { title: "Tetapan Sistem", subtitle: "Status sensor & peranti" },
       },
+    },
+    systemSettings: {
+      title: "Tetapan Sistem",
+      overview: "Gambaran Keseluruhan",
+      allOk: "Semua sistem beroperasi",
+      attention: "Perlu perhatian - semak bilik di bawah",
+      roomsOnline: "Bilik Dalam Talian",
+      camerasOn: "Kamera Aktif",
+      fireEvents: "Kebakaran ({{days}} hari)",
+      cloudOn: "Awan peranti bersambung",
+      cloudOff: "Awan peranti terputus",
+      cloudOffHint: "Kemas kini langsung dan kawalan pam air mungkin tidak berfungsi sehingga pelayan bersambung semula.",
+      rooms: "Bilik",
+      noRooms: "Tiada bilik dipautkan ke akaun anda lagi.",
+      online: "Dalam talian",
+      offline: "Luar talian",
+      noReadings: "Tiada bacaan lagi",
+      justNow: "baru sahaja",
+      minutesAgo: "{{n}} min lalu",
+      hoursAgo: "{{n}} jam lalu",
+      daysAgo: "{{n}} hari lalu",
+      offlineHint: "Bilik dianggap luar talian apabila sensornya tidak menghantar apa-apa selama {{minutes}} minit. Tarik ke bawah untuk muat semula.",
+      temperature: "Suhu",
+      humidity: "Kelembapan",
+      smoke: "Asap",
+      gas: "Gas",
+      flame: "Api",
+      flameYes: "Dikesan",
+      flameNo: "Tiada",
+      cameraOn: "Kamera hidup",
+      cameraOff: "Kamera mati",
+      pumpOn: "Pam berjalan",
+      pumpOff: "Pam mati",
+      thresholds: "Had Penggera",
+      anyFlame: "Sebarang api",
+      adminOnly: "Hanya pentadbir boleh menukar had ini.",
+      about: "Tentang",
+      appVersion: "Versi aplikasi",
     },
     notificationSettings: {
       title: "Notifikasi",
@@ -826,7 +903,7 @@ const translations = {
         },
         systemStatus: {
           title: "Status Sistem",
-          desc: "Sebahagian daripada pemantauan: panel ini menunjukkan sensor dalam talian, masa operasi, dan kejadian kebakaran. Lencana hijau bermakna semuanya beroperasi normal.",
+          desc: "Sebahagian daripada pemantauan: panel ini menunjukkan bilangan bilik dengan sensor dalam talian, kamera yang aktif, dan kejadian kebakaran dalam 30 hari lepas. Lencana hijau bermakna semuanya beroperasi normal.",
         },
         recentAlerts: {
           title: "Amaran Terkini",
@@ -911,6 +988,9 @@ export function AppProvider({ children }) {
   // null until the first registration attempt finishes.
   const [pushRegistered, setPushRegistered] = useState(null);
   const [alarmSound, setAlarmSound] = useState(DEFAULT_ALARM_SOUND);
+  // null until the first /system-health answer arrives.
+  const [systemHealth, setSystemHealth] = useState(null);
+  const systemHealthRef = useRef(null);
   // Read by registerPush, which must send the tone picked most recently.
   const alarmSoundRef = useRef(DEFAULT_ALARM_SOUND);
 
@@ -1114,16 +1194,27 @@ export function AppProvider({ children }) {
     return () => subscription.remove();
   }, [token]);
 
+  // A failed fetch keeps the last good answer rather than blanking the tiles.
+  const fetchSystemHealth = async () => {
+    const result = await apiGetSystemHealth();
+    if (!result?.error && result?.summary) setSystemHealth(result);
+  };
+
   // Start polling when the user logs in
   useEffect(() => {
     if (token) {
       fetchAlerts();
+      fetchSystemHealth();
       alertRef.current = setInterval(() => fetchAlerts(), 10000);
       sensorDataRef.current = setInterval(() => fetchSensorData(), 5000);
+      systemHealthRef.current = setInterval(() => fetchSystemHealth(), 60000);
+    } else {
+      setSystemHealth(null);
     }
     return () => {
       clearInterval(alertRef.current);
       clearInterval(sensorDataRef.current);
+      clearInterval(systemHealthRef.current);
     };
   }, [token]);
 
@@ -1386,11 +1477,15 @@ export function AppProvider({ children }) {
       sendTestAlarm,
       closeTutorial,
       realtimeError: null,
+      systemHealth,
+      refreshSystemHealth: () => token && fetchSystemHealth(),
+      // The Home / Profile tiles; null values render as "-" until loaded.
       systemStatus: {
-        allOperational: false,
-        sensorsOnline: 28,
-        uptime: 99.8,
-        fireEvents: 2,
+        allOperational: systemHealth?.summary.allOperational ?? false,
+        roomsOnline: systemHealth?.summary.roomsOnline ?? null,
+        roomsTotal: systemHealth?.summary.roomsTotal ?? null,
+        camerasOn: systemHealth?.summary.camerasOn ?? null,
+        fireEvents: systemHealth?.summary.fireEvents ?? null,
       },
     };
   }, [
@@ -1407,6 +1502,7 @@ export function AppProvider({ children }) {
     biometricEnabled,
     pushRegistered,
     alarmSound,
+    systemHealth,
     tutorialVisible,
     avatarUrl,
   ]);

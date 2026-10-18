@@ -5,11 +5,7 @@ const { mqttEvents } = require("../services/mqttService");
 const alertPattern = /^home\/room-(\d+)\/alerts$/;
 
 // Thresholds that trigger a warning alert
-const THRESHOLDS = {
-  temperature: 60.0,
-  smoke: 300.0,
-  gas: 500.0,
-};
+const THRESHOLDS = require("../config/thresholds");
 
 mqttEvents.on("new-reading", async ({ topic, data }) => {
   const match = topic.match(alertPattern);

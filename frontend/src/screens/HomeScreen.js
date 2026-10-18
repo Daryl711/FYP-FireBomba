@@ -143,8 +143,18 @@ export default function HomeScreen() {
         <View style={styles.statusCard}>
           <View style={styles.statusCardTop}>
             <Text style={styles.sectionTitle}>{t("home.systemStatus")}</Text>
-            <View style={styles.operationalBadge}>
-              <Text style={styles.operationalText}>
+            <View
+              style={[
+                styles.operationalBadge,
+                !systemStatus.allOperational && styles.warningBadge,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.operationalText,
+                  !systemStatus.allOperational && styles.warningText,
+                ]}
+              >
                 {systemStatus.allOperational
                   ? t("home.allOperational")
                   : t("home.warningDetected")}
@@ -155,19 +165,19 @@ export default function HomeScreen() {
           <View style={styles.statusRow}>
             <View style={styles.statusItem}>
               <Text style={[styles.statusVal, { color: COLORS.blue }]}>
-                {systemStatus.sensorsOnline}
+                {systemStatus.roomsOnline ?? "-"}/{systemStatus.roomsTotal ?? "-"}
               </Text>
               <Text style={styles.statusLbl}>{t("home.sensorsOnline")}</Text>
             </View>
             <View style={styles.statusItem}>
               <Text style={[styles.statusVal, { color: COLORS.green }]}>
-                {systemStatus.uptime}%
+                {systemStatus.camerasOn ?? "-"}
               </Text>
-              <Text style={styles.statusLbl}>{t("home.uptime")}</Text>
+              <Text style={styles.statusLbl}>{t("home.camerasOn")}</Text>
             </View>
             <View style={styles.statusItem}>
               <Text style={[styles.statusVal, { color: COLORS.primary }]}>
-                {systemStatus.fireEvents}
+                {systemStatus.fireEvents ?? "-"}
               </Text>
               <Text style={styles.statusLbl}>{t("home.fireEvents")}</Text>
             </View>
@@ -412,6 +422,8 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: COLORS.green,
   },
+  warningBadge: { backgroundColor: COLORS.primaryLight },
+  warningText: { color: COLORS.primary },
   statusRow: {
     flexDirection: "row",
     justifyContent: "space-around",
