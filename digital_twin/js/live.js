@@ -17,13 +17,13 @@ var FB = FB || {};
 (function (FB) {
   "use strict";
 
-  var PLACEHOLDER = "ws://[pi-ipaddress]:9001"; // 100.76.238.23
+  var PLACEHOLDER = "ws://[pi-ipaddress]:9001";
   var BROKER_URL = PLACEHOLDER;                 // TODO: set to the Pi's address
   /* Read-only broker account (ACL: read firebomba/room/+/sensor-data only).
    * Visible to anyone who opens the page, so never reuse a device login here.
    * Override per session with ?user=...&pass=... */
   var MQTT_USER = "firebomba";
-  var MQTT_PASS = "firebomba@cgpa4.0";                           
+  var MQTT_PASS = "";                           // set locally, or open with ?pass=...
   var TOPIC = "firebomba/room/+/sensor-data";
   var TOPIC_RE = /^firebomba\/room\/(\d+)\/sensor-data$/;
   var STALE_MS = 15000;                         // sensors publish every 5 s
