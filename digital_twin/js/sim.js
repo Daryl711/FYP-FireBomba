@@ -20,7 +20,7 @@ var FB = FB || {};
   "use strict";
 
   /* ---------------------------------------------------------- constants */
-  var BILIK_COUNT = 6;
+  var BILIK_COUNT = 6;        // default layout; a live layout may differ
   var BILIK_W = 6.0;          // metres across the building
   var BILIK_D = 11.0;         // metres deep (dapur + living rooms)
   var RUAI_D  = 5.0;
@@ -81,15 +81,39 @@ var FB = FB || {};
 
   var WIND = [{ mult: 0.75, dir: 0 }, { mult: 1.00, dir: 1 }, { mult: 1.45, dir: 1 }];
 
+  /* ------------------------------------------------------------- layout */
+  /* A layout says how many bilik there are and which database room id sits in
+     each slot. Slot -> { roomId, name } or null for a slot with no sensor.
+       { source, bilik: [{ number, short, rooms: {dapur, tidur, ruang} }],
+         ruai: {roomId, name} | null, tanju: {roomId, name} | null }
+     The default layout is the six-bilik model the simulation was built on,
+     with room ids 1-18 for the bilik, 19 for the ruai and 20 for the tanju. */
+  function defaultLayout() {
+    var bilik = [], n = 1, k, r;
+    for (k = 0; k < BILIK_COUNT; k++) {
+      var rooms = {};
+      for (r = 0; r < BILIK_ROOMS.length; r++) {
+        rooms[BILIK_ROOMS[r].key] = { roomId: n++, name: null };
+      }
+      bilik.push({ number: "Bilik " + (k + 1), short: "B" + (k + 1), rooms: rooms });
+    }
+    return {
+      source: "default", bilik: bilik,
+      ruai: { roomId: 19, name: null }, tanju: { roomId: 20, name: null }
+    };
+  }
+
+  function layoutWidth(layout) { return layout.bilik.length * BILIK_W; }
+
   /* ------------------------------------------------------------- places */
   /* A "place" is what the user selects and the 2D plan draws: one bilik, or
      the whole ruai, or the whole tanju. */
-  function buildPlaces() {
-    var places = [], k;
-    for (k = 0; k < BILIK_COUNT; k++) {
+  function buildPlaces(layout) {
+    var places = [], k, total = layoutWidth(layout);
+    for (k = 0; k < layout.bilik.length; k++) {
       places.push({
         id: "bilik-" + k, kind: "bilik", index: k,
-        label: "Bilik " + (k + 1), short: "B" + (k + 1),
+        label: layout.bilik[k].number, short: layout.bilik[k].short,
         x: k * BILIK_W, y: 0, w: BILIK_W, h: BILIK_D
       });
     }
@@ -97,13 +121,13 @@ var FB = FB || {};
       id: "ruai", kind: "ruai", index: -1,
       label: "Ruai", short: "Ruai",
       sub: "Shared covered corridor",
-      x: 0, y: RUAI_Y, w: TOTAL_W, h: RUAI_D
+      x: 0, y: RUAI_Y, w: total, h: RUAI_D
     });
     places.push({
       id: "tanju", kind: "tanju", index: -1,
       label: "Tanju", short: "Tanju",
       sub: "Open drying platform",
-      x: 0, y: TANJU_Y, w: TOTAL_W, h: TANJU_D
+      x: 0, y: TANJU_Y, w: total, h: TANJU_D
     });
     return places;
   }
@@ -114,41 +138,47 @@ var FB = FB || {};
       id: o.id, place: o.place, kind: o.kind, label: o.label, name: o.name,
       x: o.x, y: o.y, w: o.w, h: o.h,
       fuelMax: o.fuel, fuel: o.fuel, couple: o.couple, sensors: o.sensors,
-      bilik: o.bilik,
+      bilik: o.bilik, roomId: o.roomId == null ? null : o.roomId,
+      unmonitored: !o.sensors,
       temp: AMBIENT, smoke: 0, co: 0, state: "safe", supp: 0, nb: []
     };
   }
 
-  function buildCells() {
-    var cells = [], byId = {}, k, r, t;
+  function buildCells(layout) {
+    var cells = [], byId = {}, k, r, t, count = layout.bilik.length;
 
-    for (k = 0; k < BILIK_COUNT; k++) {
+    for (k = 0; k < count; k++) {
       for (r = 0; r < BILIK_ROOMS.length; r++) {
         t = BILIK_ROOMS[r];
+        var slot = layout.bilik[k].rooms[t.key] || null;
+        var label = (slot && slot.name) || t.label;
         var c = makeCell({
           id: "b" + k + "-" + t.key, place: "bilik-" + k, kind: t.key,
-          label: t.label, name: "B" + (k + 1) + " · " + t.label,
+          label: label, name: layout.bilik[k].short + " · " + label,
           x: k * BILIK_W + t.x, y: t.y, w: t.w, h: t.h,
-          fuel: t.fuel, couple: t.couple, sensors: true, bilik: k
+          fuel: t.fuel, couple: t.couple, bilik: k,
+          sensors: !!slot, roomId: slot ? slot.roomId : null
         });
         cells.push(c); byId[c.id] = c;
       }
     }
-    for (k = 0; k < BILIK_COUNT; k++) {
+    for (k = 0; k < count; k++) {
       var ru = makeCell({
         id: "ruai-" + k, place: "ruai", kind: "ruai",
         label: "Ruai", name: "Ruai · bay " + (k + 1),
         x: k * BILIK_W, y: RUAI_Y, w: BILIK_W, h: RUAI_D,
-        fuel: RUAI_FUEL, couple: RUAI_COUPLE, sensors: true, bilik: k
+        fuel: RUAI_FUEL, couple: RUAI_COUPLE, bilik: k,
+        sensors: !!layout.ruai, roomId: layout.ruai ? layout.ruai.roomId : null
       });
       cells.push(ru); byId[ru.id] = ru;
     }
-    for (k = 0; k < BILIK_COUNT; k++) {
+    for (k = 0; k < count; k++) {
       var ta = makeCell({
         id: "tanju-" + k, place: "tanju", kind: "tanju",
         label: "Tanju", name: "Tanju · bay " + (k + 1),
         x: k * BILIK_W, y: TANJU_Y, w: BILIK_W, h: TANJU_D,
-        fuel: TANJU_FUEL, couple: TANJU_COUPLE, sensors: true, bilik: k
+        fuel: TANJU_FUEL, couple: TANJU_COUPLE, bilik: k,
+        sensors: !!layout.tanju, roomId: layout.tanju ? layout.tanju.roomId : null
       });
       cells.push(ta); byId[ta.id] = ta;
     }
@@ -161,7 +191,7 @@ var FB = FB || {};
       cb.nb.push({ c: ca, k: weight });
     }
 
-    for (k = 0; k < BILIK_COUNT; k++) {
+    for (k = 0; k < count; k++) {
       /* inside one bilik */
       link("b" + k + "-dapur", "b" + k + "-tidur", EDGE.wall);
       link("b" + k + "-dapur", "b" + k + "-ruang", EDGE.door);
@@ -172,14 +202,14 @@ var FB = FB || {};
       link("b" + k + "-tidur", "ruai-" + k, EDGE.wall);
 
       /* party walls to the next bilik along */
-      if (k + 1 < BILIK_COUNT) {
+      if (k + 1 < count) {
         link("b" + k + "-dapur", "b" + (k + 1) + "-dapur", EDGE.wall);
         link("b" + k + "-ruang", "b" + (k + 1) + "-tidur", EDGE.wall);
       }
 
       /* the ruai is undivided, so its bays conduct freely */
-      if (k + 1 < BILIK_COUNT) link("ruai-" + k, "ruai-" + (k + 1), EDGE.open);
-      if (k + 1 < BILIK_COUNT) link("tanju-" + k, "tanju-" + (k + 1), EDGE.open);
+      if (k + 1 < count) link("ruai-" + k, "ruai-" + (k + 1), EDGE.open);
+      if (k + 1 < count) link("tanju-" + k, "tanju-" + (k + 1), EDGE.open);
 
       link("ruai-" + k, "tanju-" + k, EDGE.eaves);
     }
@@ -188,10 +218,11 @@ var FB = FB || {};
   }
 
   /* --------------------------------------------------------- simulation */
-  function Sim(cfg) {
+  function Sim(cfg, layout) {
     this.cfg = cfg;
-    this.cells = buildCells();
-    this.places = buildPlaces();
+    this.layout = layout || defaultLayout();
+    this.cells = buildCells(this.layout);
+    this.places = buildPlaces(this.layout);
     this.t = 0;
     this.detectT = -1;
     this.alertT = -1;
@@ -379,7 +410,8 @@ var FB = FB || {};
     return {
       involved: inv,
       total: this.cells.length,
-      bilik: Object.keys(bil).length
+      bilik: Object.keys(bil).length,
+      bilikTotal: this.layout.bilik.length
     };
   };
 
@@ -424,6 +456,12 @@ var FB = FB || {};
   FB.WIND = WIND;
   FB.buildCells = buildCells;
   FB.buildPlaces = buildPlaces;
+  FB.defaultLayout = defaultLayout;
+  /* Point the renderers' shared dimensions at a layout. Call before drawing. */
+  FB.useLayout = function (layout) {
+    FB.config.BILIK_COUNT = layout.bilik.length;
+    FB.config.TOTAL_W = layoutWidth(layout);
+  };
   FB.Sim = Sim;
   FB.baseline = baseline;
 

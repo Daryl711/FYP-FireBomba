@@ -350,7 +350,8 @@ var FB = FB || {};
       cells = [{
         x: place.x, y: place.y, w: place.w, h: place.h, label: place.label,
         temp: sim.placeStatus(place.id).temp,
-        noData: cells.every(function (c) { return c.noData; })
+        noData: cells.every(function (c) { return c.noData; }),
+        unmonitored: cells.every(function (c) { return c.unmonitored; })
       }];
     }
     cells.forEach(function (c) {
@@ -370,7 +371,7 @@ var FB = FB || {};
 
       ctx.fillStyle = hot ? "rgba(22,14,8,.95)" : "rgba(238,231,226,.6)";
       ctx.font = "600 " + (big * 0.78) + 'px "JetBrains Mono", monospace';
-      ctx.fillText(c.noData ? "no data" : Math.round(c.temp) + "\u00B0C", p.x, p.y + 28);
+      ctx.fillText(c.unmonitored ? "no sensor" : c.noData ? "no data" : Math.round(c.temp) + "\u00B0C", p.x, p.y + 28);
     });
   }
 

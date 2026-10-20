@@ -16,7 +16,8 @@ var FB = FB || {};
 
   var canvas, renderer, scene, cam, ray, mouse;
   var tiles = [], fires = [], smokes = [], sprays = [];
-  var roofGrp = null, wallGrp = null;
+  var roofGrp = null, wallGrp = null, world = null;
+  var roofOn = true, wallsOn = true;
   var ready = false, tried = false;
 
   var orb = { az: -0.95, el: 0.58, dist: 68, tx: 0, tz: 0 };
@@ -49,11 +50,11 @@ var FB = FB || {};
     );
     ground.rotation.x = -Math.PI / 2;
     ground.position.set(cfg.TOTAL_W / 2, -0.02, cfg.TOTAL_H / 2);
-    scene.add(ground);
+    world.add(ground);
 
     var grid = new THREE.GridHelper(260, 65, 0x221D1A, 0x18120F);
     grid.position.set(cfg.TOTAL_W / 2, 0.01, cfg.TOTAL_H / 2);
-    scene.add(grid);
+    world.add(grid);
   }
 
   function buildStilts(cfg) {
@@ -63,7 +64,7 @@ var FB = FB || {};
       for (var sz = 0; sz <= cfg.TOTAL_H + 0.1; sz += 5) {
         var st = new THREE.Mesh(g, m);
         st.position.set(sx, PLAT / 2, sz);
-        scene.add(st);
+        world.add(st);
       }
     }
     var deck = new THREE.Mesh(
@@ -71,7 +72,7 @@ var FB = FB || {};
       new THREE.MeshStandardMaterial({ color: 0x2E2620, roughness: 0.95 })
     );
     deck.position.set(cfg.TOTAL_W / 2, PLAT, cfg.TOTAL_H / 2);
-    scene.add(deck);
+    world.add(deck);
   }
 
   function buildCells(cells) {
@@ -88,7 +89,7 @@ var FB = FB || {};
       );
       tile.position.set(c.x + c.w / 2, PLAT + 0.28, c.y + c.h / 2);
       tile.userData.id = c.id;
-      scene.add(tile);
+      world.add(tile);
       tiles.push(tile);
 
       var fs = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -97,14 +98,14 @@ var FB = FB || {};
       }));
       fs.position.set(c.x + c.w / 2, PLAT + 2.0, c.y + c.h / 2);
       fs.scale.set(5, 7, 1);
-      scene.add(fs); fires.push(fs);
+      world.add(fs); fires.push(fs);
 
       var sk = new THREE.Sprite(new THREE.SpriteMaterial({
         map: smokeTex, depthWrite: false, transparent: true, opacity: 0
       }));
       sk.position.set(c.x + c.w / 2, PLAT + 8, c.y + c.h / 2);
       sk.scale.set(10, 10, 1);
-      scene.add(sk); smokes.push(sk);
+      world.add(sk); smokes.push(sk);
 
       var sp = new THREE.Sprite(new THREE.SpriteMaterial({
         map: sprayTex, blending: THREE.AdditiveBlending,
@@ -112,7 +113,7 @@ var FB = FB || {};
       }));
       sp.position.set(c.x + c.w / 2, PLAT + 1.6, c.y + c.h / 2);
       sp.scale.set(6, 3, 1);
-      scene.add(sp); sprays.push(sp);
+      world.add(sp); sprays.push(sp);
     }
   }
 
@@ -159,7 +160,8 @@ var FB = FB || {};
       po.position.set(q * cfg.BILIK_W, PLAT + 1.6, cfg.TANJU_Y);
       wallGrp.add(po);
     }
-    scene.add(wallGrp);
+    wallGrp.visible = wallsOn;
+    world.add(wallGrp);
   }
 
   function buildRoof(cfg) {
@@ -189,7 +191,8 @@ var FB = FB || {};
     ridge.position.set(cfg.TOTAL_W / 2, PLAT + 5.9, ROOF_D / 2);
     roofGrp.add(ridge);
 
-    scene.add(roofGrp);
+    roofGrp.visible = roofOn;
+    world.add(roofGrp);
   }
 
   function init(glCanvas, cells) {
@@ -205,10 +208,6 @@ var FB = FB || {};
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.outputEncoding = THREE.sRGBEncoding;
-
-    var cfg = FB.config;
-    orb.tx = cfg.TOTAL_W / 2;
-    orb.tz = cfg.TOTAL_H / 2;
 
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x070706);
@@ -226,14 +225,43 @@ var FB = FB || {};
     rim.position.set(-30, 24, -20);
     scene.add(rim);
 
+    buildWorld(cells);
+
+    ready = true;
+    return true;
+  }
+
+  /* Everything that depends on the layout lives in `world`, so a different
+     layout can replace it without touching the renderer, camera or lights. */
+  function buildWorld(cells) {
+    var cfg = FB.config;
+    if (world) {
+      scene.remove(world);
+      world.traverse(function (o) {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) {
+          if (o.material.map) o.material.map.dispose();
+          o.material.dispose();
+        }
+      });
+    }
+    tiles = []; fires = []; smokes = []; sprays = [];
+    world = new THREE.Group();
+    scene.add(world);
+
+    orb.tx = cfg.TOTAL_W / 2;
+    orb.tz = cfg.TOTAL_H / 2;
+
     buildGround(cfg);
     buildStilts(cfg);
     buildCells(cells);
     buildWalls(cfg);
     buildRoof(cfg);
+  }
 
-    ready = true;
-    return true;
+  /* Swap in a new set of cells (call after FB.useLayout). No-op until init. */
+  function rebuild(cells) {
+    if (ready) buildWorld(cells);
   }
 
   function applyCam() {
@@ -245,7 +273,7 @@ var FB = FB || {};
   }
 
   function draw(sim, selected) {
-    if (!ready) return;
+    if (!ready || tiles.length !== sim.cells.length) return;
     var cfg = FB.config;
     var W = canvas.clientWidth, H = canvas.clientHeight;
     if (canvas.width !== W || canvas.height !== H) {
@@ -267,6 +295,10 @@ var FB = FB || {};
       } else {
         m.material.color.setRGB(0.235 + t * 0.60, 0.193 + t * 0.20, 0.165);
         m.material.emissive.setRGB(t * t * 1.0, t * t * 0.28, 0);
+      }
+      if (c.noData) {                       // Live mode, no fresh reading
+        m.material.color.setHex(0x2A2420);
+        m.material.emissive.setRGB(0, 0, 0);
       }
       if (c.id === selected) {
         m.material.emissive.r = Math.max(m.material.emissive.r, 0.26);
@@ -346,12 +378,12 @@ var FB = FB || {};
     if (!p) return;
     orb.az = p.az; orb.el = p.el; orb.dist = p.dist;
   }
-  function setRoof(v) { if (roofGrp) roofGrp.visible = v; }
-  function setWalls(v) { if (wallGrp) wallGrp.visible = v; }
+  function setRoof(v) { roofOn = v; if (roofGrp) roofGrp.visible = v; }
+  function setWalls(v) { wallsOn = v; if (wallGrp) wallGrp.visible = v; }
   function isReady() { return ready; }
 
   FB.Render3D = {
-    init: init, draw: draw, attachControls: attachControls,
+    init: init, rebuild: rebuild, draw: draw, attachControls: attachControls,
     setCamera: setCamera, setRoof: setRoof, setWalls: setWalls,
     isReady: isReady
   };

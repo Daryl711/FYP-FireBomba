@@ -23,6 +23,8 @@ var FB = FB || {};
 
   var running = false, speed = 1, selected = "b2-dapur", view = "2d", mode = "sim";
   var place = "bilik-2";                  // which place the 2D plan shows
+  var layoutNote = "";                    // Live mode: where the layout came from
+  var modeToken = 0;                      // drops a layout fetch that lost a mode switch
   var lastFrame = performance.now(), flashUntil = 0, serieT = 0, lastAlert = -1;
 
   /* ------------------------------------------------------------ helpers */
@@ -88,7 +90,7 @@ var FB = FB || {};
     var c = sim.cellAt(selected);
     $("telName").textContent = c.name;
     if (c.noData) {
-      $("telState").textContent = "NO DATA";
+      $("telState").textContent = c.unmonitored ? "NO SENSOR" : "NO DATA";
       $("telState").style.color = "#6E6560";
       $("gT").innerHTML = "—"; $("gS").innerHTML = "—"; $("gC").innerHTML = "—";
       $("gF").textContent = "—"; $("gF").style.color = "#6E6560";
@@ -125,7 +127,7 @@ var FB = FB || {};
     $("mAlert").textContent = mmss(sim.alertT);
     $("mPump").textContent = sim.pumpOn ? mmss(sim.pumpT) : "—";
     $("mRooms").textContent = s.involved + " / " + s.total;
-    $("mBilik").textContent = s.bilik + " / 6";
+    $("mBilik").textContent = s.bilik + " / " + s.bilikTotal;
 
     /* time gained = how much later we reach this involvement than the
        no-system baseline. Negative means the system made things worse. */
@@ -243,9 +245,56 @@ var FB = FB || {};
     $("liveNote").className = "note" + (st === "connected" ? " ok" : st === "offline" || st === "setup" ? " danger" : "");
     $("liveNote").textContent = txt[1];
     $("liveBroker").textContent = FB.Live.brokerUrl();
-    $("liveRooms").textContent = FB.Live.liveCount(now) + " / 20";
+    var ids = monitoredIds();
+    $("liveLayout").textContent = layoutNote || "—";
+    $("liveRooms").textContent = FB.Live.liveCount(now, ids) + " / " + ids.length;
     var last = FB.Live.lastAt();
     $("liveLast").textContent = last ? Math.round((now - last) / 1000) + " s ago" : "—";
+  }
+
+  /* Distinct database room ids shown by the current layout. */
+  function monitoredIds() {
+    var seen = {}, out = [];
+    sim.cells.forEach(function (c) {
+      if (c.roomId != null && !seen[c.roomId]) { seen[c.roomId] = 1; out.push(c.roomId); }
+    });
+    return out;
+  }
+
+  /* Make `next` the running sim and point every view at its layout. */
+  function adopt(next) {
+    sim = next;
+    FB.useLayout(sim.layout);
+    FB.Render3D.rebuild(sim.cells);
+    place = sim.places[0].id;
+    var first = sim.cells.filter(function (c) { return !c.unmonitored; })[0] || sim.cells[0];
+    selected = first.id;
+    buildPlaceBar();
+    stageTitle();
+    syncTelemetry();
+  }
+
+  function stageTitle() {
+    if (view === "3d") {
+      $("stageTag").textContent = "3D LONGHOUSE · " + cfg.BILIK_COUNT + " BILIK ON STILTS";
+    }
+  }
+
+  /* Live mode draws the floor plan stored in the database. If the backend
+     cannot be reached the default six-bilik plan stays, and the panel says so. */
+  function loadLiveLayout() {
+    var token = ++modeToken;
+    layoutNote = "loading…";
+    FB.Layout.load().then(function (layout) {
+      if (token !== modeToken || mode !== "live") return;
+      var n = layout.bilik.length, r = layout.roomIds.length;
+      layoutNote = "Database · " + n + " bilik, " + r + " rooms";
+      if (layout.warnings.length) layoutNote += " (" + layout.warnings.length + " skipped)";
+      adopt(new FB.Sim({ ignition: "b0-dapur", fire: "A", nozzle: "direct", wind: 1, system: false }, layout));
+    }).catch(function (err) {
+      if (token !== modeToken || mode !== "live") return;
+      layoutNote = "Default plan · " + (err && err.message ? err.message : "backend unreachable");
+    });
   }
 
   function setMode(next) {
@@ -260,9 +309,16 @@ var FB = FB || {};
       $("playBtn").classList.add("primary");
       FB.Live.onStatus(syncLiveStatus);
       FB.Live.connect();
+      loadLiveLayout();
       syncLiveStatus();
     } else {
+      modeToken++;                        // abandon any layout still loading
       FB.Live.disconnect();
+      adopt(new FB.Sim(scenario));        // default plan again
+      var ig = scenario.ignition;
+      var home = sim.cells.filter(function (c) { return c.id === ig; })[0] ||
+                 sim.cellsOfPlace(ig)[0] || sim.cells[0];
+      selected = home.id; place = home.place;
       rebuild();                          // back to a fresh simulation
     }
   }
@@ -287,7 +343,7 @@ var FB = FB || {};
       $("roofBtn").classList.add("show");
       $("wallBtn").classList.add("show");
       $("places").style.display = "none";
-      $("stageTag").textContent = "3D LONGHOUSE · 6 BILIK ON STILTS";
+      stageTitle();
       $("hint").textContent = "Drag to orbit · scroll to zoom · click a room to select";
     } else {
       view = "2d";
