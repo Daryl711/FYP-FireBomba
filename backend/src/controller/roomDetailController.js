@@ -6,6 +6,7 @@ const SensorReading = require("../models/SensorReading");
 const SensorAggregate = require("../models/SensorAggregate");
 const sensorReadingStream = require("../services/sensorReadingStream");
 const sensorAggregateStream = require("../services/sensorAggregateStream");
+const riskStatusStream = require("../services/riskStatusStream");
 
 // const roomPattern = /^firebomba\/room\/(\d+)\/sensor-data$/;
 const waterPumpStatusPattern = /^firebomba\/room\/(\d+)\/pump\/status$/;
@@ -89,6 +90,7 @@ exports.streamSensorReadings = async (req, res) => {
     res.write("retry: 5000\n\n");
 
     const unsubscribe = sensorReadingStream.subscribeToRoom(roomId, res);
+    const unsubscribeRisk = riskStatusStream.subscribeToRoom(roomId, res);
     const heartbeat = setInterval(() => {
       if (!res.destroyed && !res.writableEnded) {
         res.write(": keep-alive\n\n");
@@ -101,6 +103,7 @@ exports.streamSensorReadings = async (req, res) => {
       closed = true;
       clearInterval(heartbeat);
       unsubscribe();
+      unsubscribeRisk();
     };
 
     res.on("close", closeStream);

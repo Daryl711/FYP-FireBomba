@@ -1,6 +1,7 @@
 const mqtt = require("mqtt");
 const mqttConfig = require("../config/mqtt");
 const EventEmitter = require("events");
+const riskStatusStream = require("./riskStatusStream");
 
 const brokerUrl = `${mqttConfig.protocol}://${mqttConfig.host}:${mqttConfig.port}`;
 
@@ -47,23 +48,19 @@ client.on("reconnect", () => {
 });
 
 client.on("message", (topic, message) => {
-  if (/^firebomba\/room\/\d+\/sensor-data$/.test(topic)) {
-    try {
-      mqttEvents.emit("sensor-data", { topic, data: JSON.parse(message.toString()) });
-    } catch (err) {
-      console.error("Invalid sensor JSON:", err.message);
-    }
-    return;
-  }
-
-  if (!/^firebomba\/room\/\d+\/pump\/status$/.test(topic)) {
+  const riskMatch = /^firebomba\/room\/(\d+)\/risk$/.exec(topic);
+  if (!riskMatch && !/^firebomba\/room\/\d+\/pump\/status$/.test(topic)) {
     return;
   }
 
   try {
     const data = JSON.parse(message.toString());
 
-    mqttEvents.emit("pump-status", { topic, data });
+    if (riskMatch) {
+      riskStatusStream.publishRiskStatus(riskMatch[1], data);
+    } else {
+      mqttEvents.emit("pump-status", { topic, data });
+    }
   } catch (err) {
     console.error("Invalid JSON:", err.message);
   }

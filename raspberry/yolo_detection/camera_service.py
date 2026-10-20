@@ -1,7 +1,5 @@
 import os
 import time
-import json
-from datetime import datetime, timezone
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -13,6 +11,7 @@ import numpy as np
 
 
 from yolo_detection.inference import MobileNetClassifier
+from yolo_detection.mqtt_output import publish_camera_output
 
 
 # Configuration
@@ -290,8 +289,9 @@ def main():
 
             if not cap.isOpened():
                 print("Camera unavailable; retrying in 5 seconds")
+                publish_camera_output(client, TOPIC, DEVICE_ID, "disconnected")
                 cap.release()
-                time.sleep(5)
+                time.sleep(INTERVAL)
                 continue
 
             print("Tapo camera connected")
@@ -303,6 +303,7 @@ def main():
 
                     if not success:
                         print("Camera disconnected")
+                        publish_camera_output(client, TOPIC, DEVICE_ID, "disconnected")
                         break
 
                     now = time.monotonic()
@@ -316,41 +317,14 @@ def main():
                         frame, classifier, detector
                     )
 
-                    payload = {
-                        "device_id": DEVICE_ID,
-                        "timestamp": datetime.now(
-                            timezone.utc
-                        ).isoformat(),
-                        "fire_detected": any(
-                            d["class"] == "fire"
-                            for d in detections
-                        ),
-                        "smoke_detected": any(
-                            d["class"] == "smoke"
-                            for d in detections
-                        ),
-                        "detections": detections,
-                        "yolo_confidence": max(
-                            (d["yolo_confidence"] for d in detections), default=0.0
-                        ),
-                        "source": "yolo_mobilenet",
-                    }
-
-                    result = client.publish(
-                        TOPIC,
-                        json.dumps(payload),
-                        qos=1
+                    publish_camera_output(
+                        client, TOPIC, DEVICE_ID, "connected", detections
                     )
-
-                    if result.rc != mqtt.MQTT_ERR_SUCCESS:
-                        print("MQTT publish failed:", result.rc)
-
-                    print(json.dumps(payload), flush=True)
 
             finally:
                 cap.release()
 
-            time.sleep(5)
+            time.sleep(INTERVAL)
 
     except KeyboardInterrupt:
         print("Stopping camera service")
