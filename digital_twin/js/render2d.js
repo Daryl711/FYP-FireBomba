@@ -306,6 +306,17 @@ var FB = FB || {};
     door(X + 4.1, D, 1.2, "h", -1);
   }
 
+  /* A bilik missing some of its rooms (Live mode): wall only the rooms present. */
+  function drawRoomShells(cells) {
+    ctx.fillStyle = INK;
+    cells.forEach(function (c) {
+      wallHGap(c.x, c.x + c.w, c.y, []);
+      wallHGap(c.x, c.x + c.w, c.y + c.h, []);
+      wallVGap(c.x, c.y, c.y + c.h, []);
+      wallVGap(c.x + c.w, c.y, c.y + c.h, []);
+    });
+  }
+
   function drawRuaiShell(place, lw) {
     var cfg = FB.config;
     var y0 = place.y, y1 = place.y + place.h;
@@ -521,6 +532,8 @@ var FB = FB || {};
     ctx.restore();
   }
 
+  function cfg0() { return FB.config; }
+
   /* ---------------------------------------------------------------- draw */
   function draw(sim, selected, placeId) {
     var place = sim.placeAt(placeId);
@@ -549,7 +562,10 @@ var FB = FB || {};
     cells.forEach(function (c) { fixturesFor(c, lw); });
     if (place.kind !== "bilik") communalFixtures(place, lw);
 
-    if (place.kind === "bilik") drawBilikShell(place, lw);
+    if (place.kind === "bilik") {
+      if (cells.length === cfg0().BILIK_ROOMS.length) drawBilikShell(place, lw);
+      else drawRoomShells(cells);
+    }
     else if (place.kind === "ruai") drawRuaiShell(place, lw);
     else drawTanjuShell(place, lw);
 

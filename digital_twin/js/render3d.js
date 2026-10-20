@@ -117,7 +117,7 @@ var FB = FB || {};
     }
   }
 
-  function buildWalls(cfg) {
+  function buildWalls(cfg, cells) {
     wallGrp = new THREE.Group();
     var mat = new THREE.MeshStandardMaterial({
       color: 0x463A30, roughness: 0.92,
@@ -126,36 +126,45 @@ var FB = FB || {};
     var D = cfg.BILIK_D;                       // enclosed depth, 11 m
     var yK = cfg.BILIK_ROOMS[0].h;             // dapur divider, 4 m
     var xT = cfg.BILIK_ROOMS[1].w;             // tidur divider, 3.2 m
+    var done = {};
 
-    /* party walls between bilik, plus the two ends */
-    for (var k = 0; k <= cfg.BILIK_COUNT; k++) {
-      var w = new THREE.Mesh(new THREE.BoxGeometry(0.18, 3.1, D), mat);
-      w.position.set(k * cfg.BILIK_W, PLAT + 1.7, D / 2);
-      wallGrp.add(w);
+    /* one wall between two points on the floor plan, never drawn twice */
+    function seg(x0, z0, x1, z1) {
+      var key = [x0, z0, x1, z1].join(",");
+      if (done[key]) return;
+      done[key] = 1;
+      var len = Math.abs(x1 - x0) + Math.abs(z1 - z0), alongX = z0 === z1;
+      var m = new THREE.Mesh(
+        new THREE.BoxGeometry(alongX ? len : 0.16, 3.1, alongX ? 0.16 : len), mat);
+      m.position.set((x0 + x1) / 2, PLAT + 1.7, (z0 + z1) / 2);
+      wallGrp.add(m);
     }
-    /* external back wall */
-    var back = new THREE.Mesh(new THREE.BoxGeometry(cfg.TOTAL_W, 3.1, 0.18), mat);
-    back.position.set(cfg.TOTAL_W / 2, PLAT + 1.7, 0);
-    wallGrp.add(back);
 
-    /* dapur divider and the wall onto the ruai, full length */
-    [yK, D].forEach(function (zz) {
-      var m2 = new THREE.Mesh(new THREE.BoxGeometry(cfg.TOTAL_W, 3.1, 0.14), mat);
-      m2.position.set(cfg.TOTAL_W / 2, PLAT + 1.7, zz);
-      wallGrp.add(m2);
-    });
-
-    /* internal tidur / ruang partitions */
     for (var b = 0; b < cfg.BILIK_COUNT; b++) {
-      var p = new THREE.Mesh(new THREE.BoxGeometry(0.12, 3.1, D - yK), mat);
-      p.position.set(b * cfg.BILIK_W + xT, PLAT + 1.7, yK + (D - yK) / 2);
-      wallGrp.add(p);
+      var X = b * cfg.BILIK_W, mine = cells.filter(function (c) { return c.place === "bilik-" + b; });
+      if (mine.length === cfg.BILIK_ROOMS.length) {
+        seg(X, 0, X + cfg.BILIK_W, 0);                 // back wall
+        seg(X, yK, X + cfg.BILIK_W, yK);               // dapur divider
+        seg(X, D, X + cfg.BILIK_W, D);                 // wall onto the ruai
+        seg(X, 0, X, D);                               // party walls
+        seg(X + cfg.BILIK_W, 0, X + cfg.BILIK_W, D);
+        seg(X + xT, yK, X + xT, D);                    // tidur / ruang partition
+      } else {
+        /* Live mode: a bilik with fewer rooms walls only the rooms it has */
+        mine.forEach(function (c) {
+          seg(c.x, c.y, c.x + c.w, c.y);
+          seg(c.x, c.y + c.h, c.x + c.w, c.y + c.h);
+          seg(c.x, c.y, c.x, c.y + c.h);
+          seg(c.x + c.w, c.y, c.x + c.w, c.y + c.h);
+        });
+      }
     }
 
     /* the ruai is open to the tanju: posts, not a wall */
     var postG = new THREE.CylinderGeometry(0.16, 0.16, 3.0, 6);
     var postM = new THREE.MeshStandardMaterial({ color: 0x3A2F27, roughness: 0.95 });
-    for (var q = 0; q <= cfg.BILIK_COUNT; q++) {
+    var hasTanju = cells.some(function (c) { return c.kind === "tanju"; });
+    for (var q = 0; hasTanju && q <= cfg.BILIK_COUNT; q++) {
       var po = new THREE.Mesh(postG, postM);
       po.position.set(q * cfg.BILIK_W, PLAT + 1.6, cfg.TANJU_Y);
       wallGrp.add(po);
@@ -255,7 +264,7 @@ var FB = FB || {};
     buildGround(cfg);
     buildStilts(cfg);
     buildCells(cells);
-    buildWalls(cfg);
+    buildWalls(cfg, cells);
     buildRoof(cfg);
   }
 
