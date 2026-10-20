@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import EventSource from "react-native-sse";
 
 const RAW_API_URL = (process.env.EXPO_PUBLIC_API_URL || "").trim();
 const API_BASE = RAW_API_URL.replace(/\/+$/, "");
@@ -306,10 +307,11 @@ export async function logoutUser(refreshToken) {
 
 // ─── Protected endpoints (auto-refresh on 401) ───────────────────────────────
 
-export async function getSensorReading() {
+export async function getSensorReading(roomId) {
   try {
+
     const response = await authFetch(
-      `${API_ROOT}/room-detail/get-latest-readings`,
+      `${API_ROOT}/room-detail/get-latest-readings?roomId=${roomId}`,
     );
     return await safeParseResponse(response);
   } catch (error) {
@@ -318,10 +320,110 @@ export async function getSensorReading() {
   }
 }
 
-export async function getSensorAggregates(limit = 10) {
+export async function subscribeToSensorReadings(roomId, onReading, onError) {
+  const token = await getAccessToken();
+  if (!token) {
+    throw new Error("Sign in to receive live sensor readings.");
+  }
+
+  let eventSource;
+  let closed = false;
+
+  const connect = (accessToken) => {
+    if (closed) return;
+
+    eventSource = new EventSource(
+      `${API_ROOT}/room-detail/sensor-readings/stream?roomId=${encodeURIComponent(roomId)}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        pollingInterval: 5000,
+      },
+    );
+
+    eventSource.addEventListener("sensor-reading", (event) => {
+      try {
+        onReading(JSON.parse(event.data));
+      } catch (error) {
+        onError(error);
+      }
+    });
+    eventSource.addEventListener("error", async (event) => {
+      if (event.xhrStatus === 401 || event.xhrStatus === 403) {
+        eventSource.close();
+        const refreshedToken = await tryRefreshToken();
+        if (refreshedToken && !closed) {
+          connect(refreshedToken);
+          return;
+        }
+      }
+
+      onError(new Error(event.message || "Sensor stream connection failed."));
+    });
+  };
+
+  connect(token);
+  return () => {
+    closed = true;
+    eventSource?.close();
+  };
+}
+
+export async function subscribeToSensorAggregates(
+  roomId,
+  onAggregate,
+  onError,
+) {
+  const token = await getAccessToken();
+  if (!token) {
+    throw new Error("Sign in to receive live sensor aggregates.");
+  }
+
+  let eventSource;
+  let closed = false;
+
+  const connect = (accessToken) => {
+    if (closed) return;
+
+    eventSource = new EventSource(
+      `${API_ROOT}/room-detail/sensor-aggregates/stream?roomId=${encodeURIComponent(roomId)}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        pollingInterval: 5000,
+      },
+    );
+
+    eventSource.addEventListener("sensor-aggregate", (event) => {
+      try {
+        onAggregate(JSON.parse(event.data));
+      } catch (error) {
+        onError(error);
+      }
+    });
+    eventSource.addEventListener("error", async (event) => {
+      if (event.xhrStatus === 401 || event.xhrStatus === 403) {
+        eventSource.close();
+        const refreshedToken = await tryRefreshToken();
+        if (refreshedToken && !closed) {
+          connect(refreshedToken);
+          return;
+        }
+      }
+
+      onError(new Error(event.message || "Sensor aggregate stream failed."));
+    });
+  };
+
+  connect(token);
+  return () => {
+    closed = true;
+    eventSource?.close();
+  };
+}
+
+export async function getSensorAggregates(roomId, limit = 10) {
   try {
     const response = await authFetch(
-      `${API_ROOT}/room-detail/sensor-aggregates?limit=${limit}`,
+      `${API_ROOT}/room-detail/sensor-aggregates?roomId=${roomId}&limit=${limit}`,
     );
     const data = await safeParseResponse(response);
     return data.data || [];
@@ -340,9 +442,19 @@ export async function getAlerts() {
   }
 }
 
-export async function getRoomData() {
+export async function getBilikData() {
   try {
-    const response = await authFetch(`${API_ROOT}/home/room-data`);
+    const response = await authFetch(`${API_ROOT}/home/bilik-data`);
+    return await safeParseResponse(response);
+  } catch (error) {
+    console.error(error);
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+export async function getRoomsByBilik(bilikId) {
+  try {
+    const response = await authFetch(`${API_ROOT}/home/bilik/${bilikId}/rooms`);
     return await safeParseResponse(response);
   } catch (error) {
     console.error(error);
@@ -394,10 +506,10 @@ export async function hideAllAlerts() {
   }
 }
 
-export async function getPumpStatus() {
+export async function getPumpStatus(roomId) {
   try {
     const response = await authFetch(
-      `${API_ROOT}/room-detail/get-water-pump-status`,
+      `${API_ROOT}/room-detail/get-water-pump-status?roomId=${roomId}`,
     );
     const data = await safeParseResponse(response);
     return data;
@@ -406,13 +518,13 @@ export async function getPumpStatus() {
   }
 }
 
-export async function controlWaterPumpStatus(waterPumpStatus) {
+export async function controlWaterPumpStatus(roomId, waterPumpStatus) {
   try {
     const response = await authFetch(
       `${API_ROOT}/room-detail/control-water-pump`,
       {
         method: "PUT",
-        body: JSON.stringify({ waterPumpStatus }),
+        body: JSON.stringify({ roomId, waterPumpStatus }),
       },
     );
     return await safeParseResponse(response);

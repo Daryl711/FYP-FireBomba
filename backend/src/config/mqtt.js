@@ -11,6 +11,12 @@ const resolveCertificatePath = (filePath) => {
   return path.resolve(__dirname, "..", filePath);
 };
 
+// Without a host, mqtt.js quietly falls back to localhost and just loops on
+// ECONNREFUSED. Fail loudly instead.
+if (!process.env.AWS_IOT_ENDPOINT) {
+  throw new Error("Missing AWS_IOT_ENDPOINT in backend/.env (IoT Core > Settings > Device data endpoint)");
+}
+
 const rootCertificate = process.env.AWS_IOT_ROOT_CA_PATH;
 const clientCertificate = process.env.AWS_IOT_CERTIFICATE_PATH;
 const privateKey = process.env.AWS_IOT_PRIVATE_KEY_PATH;

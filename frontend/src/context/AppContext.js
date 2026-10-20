@@ -17,8 +17,7 @@ import {
   markAllAlertsRead as apiMarkAllRead,
   deleteAlert as apiDeleteAlert,
   hideAllAlerts as apiHideAllAlerts,
-  getSensorReading as apiGetSensorReading,
-  getRoomData as apiGetRoomData,
+  getBilikData as apiGetBilikData,
   logoutUser,
   saveSession,
   getRefreshToken,
@@ -973,15 +972,19 @@ export function AppProvider({ children }) {
   });
   const [biometricEnabled, setBiometricEnabledState] = useState(true);
   const [language, setLanguage] = useState("en");
-  const [sensorReading, setSensorReading] = useState({});
   const [notifications, setNotifications] = useState([]);
-  const [roomData, setRoomData] = useState(null);
+  const [roomData, setRoomData] = useState([]);
   const [bilik, setBilik] = useState(null);
+<<<<<<< HEAD
   const [tutorialVisible, setTutorialVisible] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(null);
+=======
+  const [bilikLoading, setBilikLoading] = useState(true);
+  const [bilikError, setBilikError] = useState(null);
+  const [bilikRequest, setBilikRequest] = useState(0);
+>>>>>>> 4f827bb47a8016a6647c08de07f9eed4be0565f3
 
   const alertRef = useRef(null);
-  const sensorDataRef = useRef(null);
   const soundRef = useRef(null);
   const prevUnreadRef = useRef(0);
   const pushTokenRef = useRef(null);
@@ -1132,6 +1135,7 @@ export function AppProvider({ children }) {
     }
   };
 
+<<<<<<< HEAD
   const fetchSensorData = async () => {
     const result = await apiGetSensorReading();
     if (result && typeof result === "object" && !Array.isArray(result)) {
@@ -1217,6 +1221,18 @@ export function AppProvider({ children }) {
       clearInterval(systemHealthRef.current);
     };
   }, [token]);
+=======
+  // Start polling when the user logs in
+  // useEffect(() => {
+  //   if (token) {
+  //     fetchAlerts();
+  //     alertRef.current = setInterval(() => fetchAlerts(), 10000);
+  //   }
+  //   return () => {
+  //     clearInterval(alertRef.current);
+  //   };
+  // }, [token]);
+>>>>>>> 4f827bb47a8016a6647c08de07f9eed4be0565f3
 
   const fetchRoomData = async () => {
     const fetchedRoomData = await apiGetRoomData();
@@ -1232,8 +1248,49 @@ export function AppProvider({ children }) {
   };
 
   useEffect(() => {
+<<<<<<< HEAD
     if (token) fetchRoomData();
   }, [token]);
+=======
+    let mounted = true;
+    const fetchData = async () => {
+      if (!token) {
+        setBilik(null);
+        setBilikError(null);
+        setBilikLoading(false);
+        return;
+      }
+
+      setBilikLoading(true);
+      setBilikError(null);
+      try {
+        const fetchedBilik = await apiGetBilikData();
+        if (!mounted) return;
+        if (fetchedBilik?.error) {
+          setRoomData([]);
+          setBilik(null);
+          setBilikError(fetchedBilik.error);
+          return;
+        }
+        setBilik(fetchedBilik);
+      } catch (error) {
+        if (mounted) {
+          setBilik(null);
+          setBilikError(error.message || "Could not load Bilik information.");
+        }
+      } finally {
+        if (mounted) setBilikLoading(false);
+      }
+    };
+
+    fetchData();
+    return () => {
+      mounted = false;
+    };
+  }, [token, bilikRequest]);
+
+  const refreshBilik = () => setBilikRequest((request) => request + 1);
+>>>>>>> 4f827bb47a8016a6647c08de07f9eed4be0565f3
 
   // Profile picture follows the session: loaded on login, dropped on logout.
   useEffect(() => {
@@ -1369,7 +1426,6 @@ export function AppProvider({ children }) {
 
   const logout = async () => {
     clearInterval(alertRef.current);
-    clearInterval(sensorDataRef.current);
     prevUnreadRef.current = 0;
     // Must run before logoutUser clears the access token it authenticates with.
     if (pushTokenRef.current) {
@@ -1451,8 +1507,10 @@ export function AppProvider({ children }) {
       logout,
       roomData,
       bilik,
+      bilikLoading,
+      bilikError,
+      refreshBilik,
       notifications,
-      sensorReading,
       unreadCount,
       markAllRead,
       markNotificationRead,
@@ -1496,6 +1554,7 @@ export function AppProvider({ children }) {
     authReady,
     roomData,
     bilik,
+<<<<<<< HEAD
     needsUnlock,
     lockedUser,
     biometricSupport,
@@ -1505,6 +1564,10 @@ export function AppProvider({ children }) {
     systemHealth,
     tutorialVisible,
     avatarUrl,
+=======
+    bilikLoading,
+    bilikError,
+>>>>>>> 4f827bb47a8016a6647c08de07f9eed4be0565f3
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -24,6 +24,26 @@ CREATE TABLE IF NOT EXISTS SensorReadings (
       ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS SensorAggregates (
+  aggregate_id INT PRIMARY KEY AUTO_INCREMENT,
+  room_id INT NOT NULL,
+  window_start DATETIME NOT NULL,
+  window_end DATETIME NOT NULL,
+  avg_temperature FLOAT,
+  avg_smoke FLOAT,
+  avg_co FLOAT,
+  avg_humidity FLOAT,
+  cloud_sync_status ENUM('PENDING', 'SYNCED', 'FAILED')
+      DEFAULT 'PENDING',
+  cloud_synced_at DATETIME NULL,
+  cloud_sync_attempted_at DATETIME NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_room_window (room_id, window_start),
+  FOREIGN KEY (room_id)
+      REFERENCES Rooms(room_id)
+      ON DELETE CASCADE
+);
+
 -- Insert dummy room data into the table
 INSERT INTO Rooms (device_id)
   VALUES
@@ -31,4 +51,3 @@ INSERT INTO Rooms (device_id)
   ('ESP32_ROOM_02'),
   ('ESP32_ROOM_03')
 ;
-

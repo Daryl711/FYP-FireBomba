@@ -188,6 +188,7 @@ CREATE TABLE IF NOT EXISTS SensorAggregates (
     flame_trigger_count INT,
     total_readings INT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_room_window (room_id, window_start),
     FOREIGN KEY (room_id) REFERENCES Rooms(room_id) ON DELETE CASCADE
 );
 

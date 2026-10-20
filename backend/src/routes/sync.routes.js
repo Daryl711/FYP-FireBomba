@@ -5,4 +5,9 @@ const syncRouter = express.Router();
 
 syncRouter.post("/insert-sensor-readings", syncController.insertSensorReading);
 
+syncRouter.post(
+  "/insert-sensor-aggregates",
+  syncController.insertSensorAggregate,
+);
+
 module.exports = syncRouter;

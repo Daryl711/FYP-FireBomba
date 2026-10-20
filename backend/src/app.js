@@ -30,6 +30,9 @@ app.use('/api/sync', syncRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/twin', twinRoutes);
 
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 
 
 module.exports = app;

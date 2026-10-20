@@ -14,7 +14,8 @@ var FB = FB || {};
 (function (FB) {
   "use strict";
 
-  var API_URL = "http://localhost:3000";        // TODO: set to the backend's address
+  // var API_URL = "https://firebomba-mobile-backend.duckdns.org/";
+  var API_URL = "http://localhost:3000";
   var SLOTS = ["dapur", "tidur", "ruang"];
   var FALLBACK_ORDER = ["tidur", "ruang", "dapur"];
 

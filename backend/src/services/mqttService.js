@@ -5,19 +5,23 @@ const EventEmitter = require("events");
 const brokerUrl = `${mqttConfig.protocol}://${mqttConfig.host}:${mqttConfig.port}`;
 
 const mqttEvents = new EventEmitter();
-
 const client = mqtt.connect(brokerUrl, mqttConfig);
 
 client.on("connect", () => {
   console.log("Connected to AWS IoT Core MQTT broker");
 
-  client.subscribe("firebomba/room/+/pump/status", { qos: 1 }, (err) => {
-    if (!err) {
-      console.log("Subscribed to firebomba/room/+/pump/status");
-    } else {
-      console.error("MQTT subscription error:", err);
-    }
-  });
+  client.subscribe(
+    ["firebomba/room/+/pump/status", "firebomba/room/+/risk"],
+    { qos: 1 },
+    (err, granted) => {
+      if (err) {
+        console.error("MQTT subscription error:", err);
+        return;
+      }
+
+      console.log("MQTT subscriptions granted:", granted);
+    },
+  );
 });
 
 client.on("error", (err) => {
@@ -43,6 +47,19 @@ client.on("reconnect", () => {
 });
 
 client.on("message", (topic, message) => {
+  if (/^firebomba\/room\/\d+\/sensor-data$/.test(topic)) {
+    try {
+      mqttEvents.emit("sensor-data", { topic, data: JSON.parse(message.toString()) });
+    } catch (err) {
+      console.error("Invalid sensor JSON:", err.message);
+    }
+    return;
+  }
+
+  if (!/^firebomba\/room\/\d+\/pump\/status$/.test(topic)) {
+    return;
+  }
+
   try {
     const data = JSON.parse(message.toString());
 
