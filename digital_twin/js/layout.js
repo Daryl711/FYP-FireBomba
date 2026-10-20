@@ -34,11 +34,6 @@ var FB = FB || {};
     return null;
   }
 
-  function shortOf(number, index) {
-    var m = /(\d+)\s*$/.exec(String(number || ""));
-    return "B" + (m ? m[1] : index + 1);
-  }
-
   function byId(a, b) { return a.roomId - b.roomId; }
 
   /* Turn the API payload into a layout. Throws if there is nothing to draw. */
@@ -50,12 +45,12 @@ var FB = FB || {};
     var bilik = bilikRows.slice().sort(function (a, b) { return a.bilikId - b.bilikId; })
       .map(function (b, i) {
         var mine = rooms.filter(function (r) {
-          return r.spaceType === "BILIK_ROOM" && r.bilikId === b.bilikId;
+          return (r.spaceType === "BILIK_ROOM" || r.spaceType === "DAPUR") && r.bilikId === b.bilikId;
         }).sort(byId);
         var slots = {}, spare = [];
 
         mine.forEach(function (r) {
-          var want = slotFor(r.name);
+          var want = r.spaceType === "DAPUR" ? "dapur" : slotFor(r.name);
           if (want && !slots[want]) slots[want] = { roomId: r.roomId, name: r.name };
           else spare.push(r);
         });
@@ -66,8 +61,9 @@ var FB = FB || {};
         });
 
         return {
-          number: b.bilikNumber || ("Bilik " + (i + 1)),
-          short: shortOf(b.bilikNumber, i),
+          /* numbered by position, so the labels stay 1..N whatever bilik_number says */
+          number: "Bilik " + (i + 1),
+          short: "B" + (i + 1),
           rooms: { dapur: slots.dapur || null, tidur: slots.tidur || null, ruang: slots.ruang || null }
         };
       });
