@@ -110,6 +110,7 @@ var FB = FB || {};
      the whole ruai, or the whole tanju. */
   function buildPlaces(layout) {
     var places = [], k, total = layoutWidth(layout);
+    var live = layout.source === "database";
     for (k = 0; k < layout.bilik.length; k++) {
       places.push({
         id: "bilik-" + k, kind: "bilik", index: k,
@@ -117,13 +118,13 @@ var FB = FB || {};
         x: k * BILIK_W, y: 0, w: BILIK_W, h: BILIK_D
       });
     }
-    places.push({
+    if (!live || layout.ruai) places.push({
       id: "ruai", kind: "ruai", index: -1,
       label: "Ruai", short: "Ruai",
       sub: "Shared covered corridor",
       x: 0, y: RUAI_Y, w: total, h: RUAI_D
     });
-    places.push({
+    if (!live || layout.tanju) places.push({
       id: "tanju", kind: "tanju", index: -1,
       label: "Tanju", short: "Tanju",
       sub: "Open drying platform",
@@ -146,11 +147,15 @@ var FB = FB || {};
 
   function buildCells(layout) {
     var cells = [], byId = {}, k, r, t, count = layout.bilik.length;
+    /* a database layout draws only the rooms that exist; the default plan
+       always has all three rooms and both communal areas */
+    var live = layout.source === "database";
 
     for (k = 0; k < count; k++) {
       for (r = 0; r < BILIK_ROOMS.length; r++) {
         t = BILIK_ROOMS[r];
         var slot = layout.bilik[k].rooms[t.key] || null;
+        if (live && !slot) continue;
         var label = (slot && slot.name) || t.label;
         var c = makeCell({
           id: "b" + k + "-" + t.key, place: "bilik-" + k, kind: t.key,
@@ -162,7 +167,7 @@ var FB = FB || {};
         cells.push(c); byId[c.id] = c;
       }
     }
-    for (k = 0; k < count; k++) {
+    for (k = 0; k < count && (!live || layout.ruai); k++) {
       var ru = makeCell({
         id: "ruai-" + k, place: "ruai", kind: "ruai",
         label: "Ruai", name: "Ruai · bay " + (k + 1),
@@ -172,7 +177,7 @@ var FB = FB || {};
       });
       cells.push(ru); byId[ru.id] = ru;
     }
-    for (k = 0; k < count; k++) {
+    for (k = 0; k < count && (!live || layout.tanju); k++) {
       var ta = makeCell({
         id: "tanju-" + k, place: "tanju", kind: "tanju",
         label: "Tanju", name: "Tanju · bay " + (k + 1),
@@ -237,7 +242,7 @@ var FB = FB || {};
       var area = this.cellsOfPlace(cfg.ignition);
       for (var k = 0; k < area.length; k++) this.ignite(area[k], true, true);
       this.log("red", "Ignition — " + area[0].label + " (whole area)");
-    } else {
+    } else if (this.cells.length) {
       this.ignite(this.cellAt(cfg.ignition), true);
     }
   }
