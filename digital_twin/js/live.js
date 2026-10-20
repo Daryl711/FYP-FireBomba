@@ -1,15 +1,21 @@
-/* live.js — read-only live feed from the FireBomba MQTT broker.
+/* live.js — read-only live feed of the FireBomba sensors.
  *
- * The browser subscribes to the same sensor topics the Raspberry Pi bridge
- * listens to, over MQTT-on-WebSocket. It NEVER publishes: Live mode cannot
- * trigger a pump or raise an alert on the real system.
+ * Two sources, same data, same topics:
+ *   cloud (default)  the backend relays what AWS IoT Core receives from the Pi
+ *                    as a Server-Sent Events stream: <API>/api/twin/stream.
+ *                    No AWS credentials ever reach the browser.
+ *   pi               MQTT-on-WebSocket straight to the Raspberry Pi's Mosquitto.
+ *                    Open the page with ?source=pi.
+ * It NEVER publishes: Live mode cannot trigger a pump or raise an alert on
+ * the real system.
  *
  * Mapping: the room id in the topic is the database room_id, and each cell of
  * the active layout (see layout.js / sim.js) carries the room_id it shows. The
  * ruai and tanju are single communal spaces, so one reading covers every bay
  * of that place.
  *
- * Set the broker address in BROKER_URL below, or open the page with
+ * For the cloud source set the backend address in layout.js (or ?api=...).
+ * For the Pi source set BROKER_URL below, or open the page with
  * ?broker=ws://<host>:9001 to override it for one session.
  */
 var FB = FB || {};
@@ -17,8 +23,9 @@ var FB = FB || {};
 (function (FB) {
   "use strict";
 
-  var PLACEHOLDER = "ws://[pi-ipaddress]:9001";
-  var BROKER_URL = PLACEHOLDER;                 // TODO: set to the Pi's address
+  var DEFAULT_SOURCE = "cloud";                 // "cloud" | "pi"
+  var PLACEHOLDER = "ws://[pi-ipaddress]:9001"; // "not configured" marker, leave as is
+  var BROKER_URL = "ws://100.76.238.23:9001";   // the Pi's address
   /* Read-only broker account (ACL: read firebomba/room/+/sensor-data only).
    * Visible to anyone who opens the page, so never reuse a device login here.
    * Override per session with ?user=...&pass=... */
@@ -30,7 +37,7 @@ var FB = FB || {};
 
   var latest = {};            // room_id -> { r: reading, at: ms }
   var status = "idle";        // idle | setup | connecting | connected | offline
-  var client = null, listener = null, lastAt = 0;
+  var client = null, stream = null, listener = null, lastAt = 0;
 
   function setStatus(s) {
     status = s;
@@ -77,6 +84,17 @@ var FB = FB || {};
     return n;
   }
 
+  function source() {
+    var q = null;
+    try { q = new URLSearchParams(window.location.search).get("source"); } catch (e) {}
+    return q === "pi" || q === "cloud" ? q : DEFAULT_SOURCE;
+  }
+
+  /* Where the data is coming from, for display. */
+  function endpoint() {
+    return source() === "cloud" ? FB.Layout.apiUrl() + "/api/twin/stream" : brokerUrl();
+  }
+
   function brokerUrl() {
     var q = null;
     try { q = new URLSearchParams(window.location.search).get("broker"); } catch (e) {}
@@ -101,7 +119,25 @@ var FB = FB || {};
     return true;
   }
 
+  /* Cloud source: Server-Sent Events from the backend. EventSource reconnects
+     by itself, so the status just follows its state. */
+  function connectCloud() {
+    if (stream) return;
+    if (typeof EventSource === "undefined") { setStatus("offline"); return; }
+    setStatus("connecting");
+    stream = new EventSource(FB.Layout.apiUrl() + "/api/twin/stream");
+    stream.onopen = function () { setStatus("connected"); };
+    stream.onmessage = function (e) {
+      var m;
+      try { m = JSON.parse(e.data); } catch (err) { return; }
+      /* age: how old the backend's cached copy already was when it was sent */
+      ingest(m.topic, JSON.stringify(m.payload), Date.now() - (m.age || 0));
+    };
+    stream.onerror = function () { setStatus("offline"); };
+  }
+
   function connect() {
+    if (source() === "cloud") { connectCloud(); return; }
     var url = brokerUrl();
     if (url === PLACEHOLDER) { setStatus("setup"); return; }
     if (typeof mqtt === "undefined") { setStatus("offline"); return; }
@@ -133,9 +169,11 @@ var FB = FB || {};
   }
 
   function disconnect() {
-    var c = client;
+    var c = client, s = stream;
     client = null;
+    stream = null;
     if (c) c.end(true);
+    if (s) s.close();
     latest = {};
     setStatus("idle");
   }
@@ -147,6 +185,8 @@ var FB = FB || {};
     liveCount: liveCount,
     status: function () { return status; },
     brokerUrl: brokerUrl,
+    source: source,
+    endpoint: endpoint,
     lastAt: function () { return lastAt; },
     onStatus: function (fn) { listener = fn; },
     PLACEHOLDER: PLACEHOLDER,

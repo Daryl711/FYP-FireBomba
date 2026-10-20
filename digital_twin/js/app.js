@@ -232,9 +232,9 @@ var FB = FB || {};
   var LIVE_TEXT = {
     setup: ["SET BROKER", "No broker address yet. Edit BROKER_URL in js/live.js " +
             "(or open the page with ?broker=ws://host:9001)."],
-    connecting: ["CONNECTING", "Connecting to the broker. Showing real sensor data only; nothing is simulated or sent."],
+    connecting: ["CONNECTING", "Connecting to the live feed. Showing real sensor data only; nothing is simulated or sent."],
     connected: ["CONNECTED", "Read-only live feed. Cells show real sensor readings; nothing is simulated or sent."],
-    offline: ["OFFLINE", "Cannot reach the broker. Check the address, that Mosquitto has a websockets listener, and that the page is not on https."],
+    offline: ["OFFLINE", "Cannot reach the live feed. Cloud: check the backend is running and the AWS IoT link is up. Pi (?source=pi): check the address, that Mosquitto has a websockets listener, and that the page is not on https."],
     idle: ["", ""]
   };
 
@@ -244,7 +244,7 @@ var FB = FB || {};
     $("livePill").textContent = txt[0];
     $("liveNote").className = "note" + (st === "connected" ? " ok" : st === "offline" || st === "setup" ? " danger" : "");
     $("liveNote").textContent = txt[1];
-    $("liveBroker").textContent = FB.Live.brokerUrl();
+    $("liveBroker").textContent = (FB.Live.source() === "cloud" ? "AWS IoT · " : "Pi · ") + FB.Live.endpoint();
     var ids = monitoredIds();
     $("liveLayout").textContent = layoutNote || "—";
     $("liveRooms").textContent = FB.Live.liveCount(now, ids) + " / " + ids.length;
