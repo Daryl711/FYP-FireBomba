@@ -4,9 +4,10 @@
  * listens to, over MQTT-on-WebSocket. It NEVER publishes: Live mode cannot
  * trigger a pump or raise an alert on the real system.
  *
- * Mapping: topic room ids follow bridge/publisher.py's CELL_TO_ROOM. Bilik
- * rooms are 1-18, the ruai is 19 and the tanju is 20. The ruai and tanju are
- * single communal spaces, so one reading covers every bay of that place.
+ * Mapping: the room id in the topic is the database room_id, and each cell of
+ * the active layout (see layout.js / sim.js) carries the room_id it shows. The
+ * ruai and tanju are single communal spaces, so one reading covers every bay
+ * of that place.
  *
  * Set the broker address in BROKER_URL below, or open the page with
  * ?broker=ws://<host>:9001 to override it for one session.
@@ -16,24 +17,18 @@ var FB = FB || {};
 (function (FB) {
   "use strict";
 
-  var PLACEHOLDER = "ws://[pi-ipaddress]:9001";
+  var PLACEHOLDER = "ws://[pi-ipaddress]:9001"; // 100.76.238.23
   var BROKER_URL = PLACEHOLDER;                 // TODO: set to the Pi's address
+  /* Read-only broker account (ACL: read firebomba/room/+/sensor-data only).
+   * Visible to anyone who opens the page, so never reuse a device login here.
+   * Override per session with ?user=...&pass=... */
+  var MQTT_USER = "firebomba";
+  var MQTT_PASS = "firebomba@cgpa4.0";                           
   var TOPIC = "firebomba/room/+/sensor-data";
   var TOPIC_RE = /^firebomba\/room\/(\d+)\/sensor-data$/;
   var STALE_MS = 15000;                         // sensors publish every 5 s
 
-  /* ---- room id -> twin key. A key is a bilik cell id, "ruai" or "tanju". */
-  var ROOM_TO_KEY = {};
-  (function () {
-    var kinds = ["dapur", "tidur", "ruang"], n = 1, k, i;
-    for (k = 0; k < 6; k++) {
-      for (i = 0; i < 3; i++) ROOM_TO_KEY[n++] = "b" + k + "-" + kinds[i];
-    }
-    ROOM_TO_KEY[19] = "ruai";
-    ROOM_TO_KEY[20] = "tanju";
-  })();
-
-  var latest = {};            // key -> { r: reading, at: ms }
+  var latest = {};            // room_id -> { r: reading, at: ms }
   var status = "idle";        // idle | setup | connecting | connected | offline
   var client = null, listener = null, lastAt = 0;
 
@@ -42,12 +37,11 @@ var FB = FB || {};
     if (listener) listener(s);
   }
 
-  /* Turn one MQTT message into { key, reading }, or null if it must be ignored. */
+  /* Turn one MQTT message into { key: room_id, reading }, or null if it must be ignored. */
   function parse(topic, payload) {
     var m = TOPIC_RE.exec(topic);
     if (!m) return null;
-    var key = ROOM_TO_KEY[+m[1]];
-    if (!key) return null;
+    var key = +m[1];
     var d;
     try { d = JSON.parse(payload); } catch (e) { return null; }
     if (!d || typeof d !== "object") return null;
@@ -66,21 +60,19 @@ var FB = FB || {};
     };
   }
 
-  function keyOf(cell) {
-    return (cell.kind === "ruai" || cell.kind === "tanju") ? cell.place : cell.id;
-  }
-
   /* Latest non-stale reading for a cell, or null. */
   function readingFor(cell, now) {
-    var e = latest[keyOf(cell)];
+    if (cell.roomId == null) return null;
+    var e = latest[cell.roomId];
     if (!e || now - e.at > STALE_MS) return null;
     return e.r;
   }
 
-  function liveCount(now) {
+  /* Rooms with a fresh reading; with `ids`, only those room ids are counted. */
+  function liveCount(now, ids) {
     var n = 0;
-    Object.keys(latest).forEach(function (k) {
-      if (now - latest[k].at <= STALE_MS) n++;
+    (ids || Object.keys(latest)).forEach(function (k) {
+      if (latest[k] && now - latest[k].at <= STALE_MS) n++;
     });
     return n;
   }
@@ -89,6 +81,16 @@ var FB = FB || {};
     var q = null;
     try { q = new URLSearchParams(window.location.search).get("broker"); } catch (e) {}
     return q || BROKER_URL;
+  }
+
+  function credentials() {
+    var u = MQTT_USER, p = MQTT_PASS;
+    try {
+      var qs = new URLSearchParams(window.location.search);
+      if (qs.get("user") !== null) u = qs.get("user");
+      if (qs.get("pass") !== null) p = qs.get("pass");
+    } catch (e) {}
+    return { username: u, password: p };
   }
 
   function ingest(topic, payload, now) {
@@ -106,8 +108,11 @@ var FB = FB || {};
     if (client) return;
 
     setStatus("connecting");
+    var cred = credentials();
     client = mqtt.connect(url, {
       clientId: "firebomba-twin-live-" + Math.random().toString(16).slice(2, 8),
+      username: cred.username || undefined,
+      password: cred.password || undefined,
       reconnectPeriod: 3000,
       connectTimeout: 8000,
       clean: true
