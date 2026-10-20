@@ -119,6 +119,8 @@ export default function RoomDetailScreen({ route, navigation }) {
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [camTime, setCamTime] = useState(new Date());
   const [cameraActive, setCameraActive] = useState(false);
+  const [risk, setRisk] = useState(null);
+  const [riskStreamError, setRiskStreamError] = useState(false);
 
   const spinAnim = useRef(new Animated.Value(0)).current;
   const pumpPulse = useRef(new Animated.Value(1)).current;
@@ -150,6 +152,8 @@ export default function RoomDetailScreen({ route, navigation }) {
     let mounted = true;
     let closeStream;
     let lastReadingId = 0;
+    setRisk(null);
+    setRiskStreamError(false);
 
     const handleReading = (reading) => {
       if (!mounted || String(reading.room_id) !== String(room?.roomId)) return;
@@ -175,7 +179,15 @@ export default function RoomDetailScreen({ route, navigation }) {
         room.roomId,
         handleReading,
         (error) => {
-          if (mounted) setSensorError(error.message);
+          if (mounted) {
+            setSensorError(error.message);
+            setRiskStreamError(true);
+          }
+        },
+        (update) => {
+          if (!mounted || String(update.room_id) !== String(room?.roomId)) return;
+          setRisk(update);
+          setRiskStreamError(false);
         },
       )
         .then((close) => {
@@ -344,6 +356,14 @@ export default function RoomDetailScreen({ route, navigation }) {
   const smokePct = Math.min((sensors.smoke / THRESHOLDS.smoke) * 100, 100);
   const coPct = Math.min((sensors.co / THRESHOLDS.co) * 100, 100);
   const humidityPct = Math.min(sensors.humidity ?? 0, 100);
+  const riskFresh = risk && String(risk.room_id) === String(room?.roomId) &&
+    !riskStreamError && camTime.getTime() - Date.parse(risk.timestamp) <= 30000;
+  const riskColor = riskFresh
+    ? { Critical: COLORS.primary, Warning: "#C2410C", Normal: "#047857" }[risk.severity]
+    : COLORS.text2;
+  const riskLabel = riskFresh
+    ? t(`roomDetail.risk${risk.severity}`)
+    : t(risk ? "roomDetail.riskUnavailable" : "roomDetail.riskWaiting");
 
   if (!room) {
     return (
@@ -384,11 +404,27 @@ export default function RoomDetailScreen({ route, navigation }) {
           style={[
             styles.statusDot,
             {
-              backgroundColor:
-                room?.status === "warning" ? COLORS.amber : COLORS.green,
+              backgroundColor: riskColor,
             },
           ]}
         />
+      </View>
+
+      <View style={styles.riskCard} accessibilityLiveRegion="polite">
+        <View style={[styles.riskSquare, { backgroundColor: riskColor }]}>
+          <Ionicons name="shield-checkmark-outline" size={22} color={COLORS.white} />
+          <Text style={styles.riskScore}>{riskFresh ? risk.score : "—"}</Text>
+          <Text style={styles.riskScale}>/ 100</Text>
+        </View>
+        <View style={styles.riskDetails}>
+          <Text style={styles.riskTitle}>{t("roomDetail.fireRisk")}</Text>
+          <Text style={[styles.riskSeverity, { color: riskColor }]}>{riskLabel}</Text>
+          <Text style={styles.riskMeta}>
+            {riskFresh
+              ? `${t("roomDetail.lastUpdate")}: ${formatTime(new Date(risk.timestamp))}`
+              : t("roomDetail.riskAwaitingUpdate")}
+          </Text>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -664,6 +700,35 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginLeft: "auto",
   },
+  riskCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.lg,
+    margin: SPACING.lg,
+    marginBottom: 0,
+    padding: SPACING.md,
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.lg,
+    ...SHADOW.small,
+  },
+  riskSquare: {
+    width: 112,
+    aspectRatio: 1,
+    borderRadius: RADIUS.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  riskScore: {
+    color: COLORS.white,
+    fontSize: 32,
+    fontWeight: "800",
+    fontVariant: ["tabular-nums"],
+  },
+  riskScale: { color: COLORS.white, fontSize: 12, fontWeight: "600" },
+  riskDetails: { flex: 1 },
+  riskTitle: { color: COLORS.text, fontSize: 15, fontWeight: "700" },
+  riskSeverity: { fontSize: 20, fontWeight: "800", marginTop: 4 },
+  riskMeta: { color: COLORS.text2, fontSize: 11, marginTop: 8 },
   cameraBlock: {
     margin: SPACING.lg,
     backgroundColor: "#0D0D0D",

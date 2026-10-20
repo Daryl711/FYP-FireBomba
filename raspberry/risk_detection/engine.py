@@ -4,6 +4,7 @@ import math
 import re
 import time
 from decimal import Decimal
+from datetime import datetime
 from threading import Lock
 
 
@@ -13,6 +14,9 @@ INPUT_FIELDS = {
     "flame": "flame_detected",
     "anomaly": "anomaly_score",
 }
+NORMAL_WEIGHTS = {"yolo": 0.3, "flame": 0.4, "anomaly": 0.3}
+SENSOR_ONLY_WEIGHTS = {"yolo": 0.0, "flame": 0.6, "anomaly": 0.4}
+CAMERA_STATUS_THRESHOLD = 5
 
 
 def validate_input(source, value):
@@ -26,17 +30,16 @@ def validate_input(source, value):
     return float(value)
 
 
-def calculate_risk(yolo_confidence, flame_detected, anomaly_score):
+def calculate_risk(yolo_confidence, flame_detected, anomaly_score, *, sensor_only=False):
     inputs = {
         "yolo": validate_input("yolo", yolo_confidence),
         "flame": validate_input("flame", flame_detected),
         "anomaly": validate_input("anomaly", anomaly_score),
     }
     # Decimal preserves the inclusive 0.45 and 0.75 boundaries.
-    score = sum(
-        Decimal(str(inputs[source])) * Decimal(weight)
-        for source, weight in (("yolo", "0.3"), ("flame", "0.4"), ("anomaly", "0.3"))
-    )
+    weights = SENSOR_ONLY_WEIGHTS if sensor_only else NORMAL_WEIGHTS
+    score = sum(Decimal(str(inputs[source])) * Decimal(str(weight))
+                for source, weight in weights.items())
     score = float(score)
     if score > 0.75:
         level = "Critical"
@@ -50,6 +53,8 @@ def calculate_risk(yolo_confidence, flame_detected, anomaly_score):
         "yolo_confidence": inputs["yolo"],
         "flame_detected": int(inputs["flame"]),
         "anomaly_score": inputs["anomaly"],
+        "weights": dict(weights),
+        "mode": "sensor_only" if sensor_only else "normal",
     }
 
 
@@ -60,6 +65,7 @@ class RiskEngine:
         self.max_age_seconds = max_age_seconds
         self.clock = clock
         self.rooms = {}
+        self.camera_states = {}
         self.lock = Lock()
 
     def update(self, topic, payload):
@@ -70,11 +76,45 @@ class RiskEngine:
         if not isinstance(payload, dict):
             raise ValueError("Input payload must be a JSON object")
         field = INPUT_FIELDS[source]
-        if field not in payload:
+        status = payload.get("status") if source == "yolo" else None
+        if source == "yolo" and "status" in payload and status not in ("connected", "disconnected"):
+            raise ValueError("Camera status must be connected or disconnected")
+        if status == "disconnected":
+            value = None  # A lost camera is not a zero-confidence prediction.
+        elif field not in payload:
             raise ValueError(f"Missing {field}")
-        value = validate_input(source, payload[field])
+        else:
+            value = validate_input(source, payload[field])
+        sample_time = None
+        if source == "yolo" and "timestamp" in payload:
+            try:
+                sample_time = datetime.fromisoformat(payload["timestamp"].replace("Z", "+00:00")).timestamp()
+            except (AttributeError, TypeError, ValueError, OverflowError) as error:
+                raise ValueError("Invalid camera timestamp") from error
         with self.lock:
-            self.rooms.setdefault(room_id, {})[source] = (value, self.clock())
+            now = self.clock()
+            readings = self.rooms.setdefault(room_id, {})
+            if source == "yolo":
+                state = self.camera_states.setdefault(room_id, {
+                    "sensor_only": False, "status": None, "count": 0,
+                    "received": None, "sample_time": None,
+                })
+                # QoS 1 may redeliver a frame; count each timestamp only once.
+                if (sample_time is not None and state["sample_time"] is not None
+                        and sample_time <= state["sample_time"]):
+                    return False
+                consecutive = (status is not None and status == state["status"]
+                               and state["received"] is not None
+                               and now - state["received"] <= self.max_age_seconds)
+                state["count"] = (
+                    min(state["count"] + 1, CAMERA_STATUS_THRESHOLD)
+                    if consecutive else int(status is not None)
+                )
+                state.update(status=status, received=now, sample_time=sample_time)
+                if state["count"] >= CAMERA_STATUS_THRESHOLD:
+                    state["sensor_only"] = status == "disconnected"
+            if value is not None:
+                readings[source] = (value, now)
         return True
 
     def evaluate(self):
@@ -82,11 +122,17 @@ class RiskEngine:
         with self.lock:
             now = self.clock()
             for room_id, readings in self.rooms.items():
-                if not all(source in readings for source in INPUT_FIELDS):
+                state = self.camera_states.get(room_id, {})
+                sensor_only = state.get("sensor_only", False)
+                required = ("flame", "anomaly") if sensor_only else INPUT_FIELDS
+                if not all(source in readings for source in required):
                     continue
-                if any(now - received > self.max_age_seconds for _, received in readings.values()):
+                if any(now - readings[source][1] > self.max_age_seconds for source in required):
                     continue
                 results[room_id] = calculate_risk(
-                    readings["yolo"][0], readings["flame"][0], readings["anomaly"][0]
+                    0.0 if sensor_only else readings["yolo"][0],
+                    readings["flame"][0], readings["anomaly"][0],
+                    sensor_only=sensor_only,
                 )
+                results[room_id]["camera_status"] = state.get("status")
         return results

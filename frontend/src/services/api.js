@@ -162,7 +162,7 @@ export async function getSensorReading(roomId) {
   }
 }
 
-export async function subscribeToSensorReadings(roomId, onReading, onError) {
+export async function subscribeToSensorReadings(roomId, onReading, onError, onRisk) {
   const token = await getAccessToken();
   if (!token) {
     throw new Error("Sign in to receive live sensor readings.");
@@ -185,6 +185,13 @@ export async function subscribeToSensorReadings(roomId, onReading, onError) {
     eventSource.addEventListener("sensor-reading", (event) => {
       try {
         onReading(JSON.parse(event.data));
+      } catch (error) {
+        onError(error);
+      }
+    });
+    eventSource.addEventListener("risk-status", (event) => {
+      try {
+        onRisk?.(JSON.parse(event.data));
       } catch (error) {
         onError(error);
       }

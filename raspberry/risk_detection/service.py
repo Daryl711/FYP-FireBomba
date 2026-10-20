@@ -57,26 +57,54 @@ def publish_risks(client, engine):
             logger.info("%s: %s", topic, result)
 
 
+def create_cloud_client():
+    client = mqtt.Client(
+        mqtt.CallbackAPIVersion.VERSION2,
+        client_id=os.getenv("AWS_IOT_RISK_CLIENT_ID", "firebomba-risk-engine"),
+    )
+    base = Path(__file__).resolve().parents[1]
+
+    def certificate_path(key):
+        path = Path(os.environ[key])
+        return str(path if path.is_absolute() else base / path)
+
+    client.tls_set(
+        ca_certs=certificate_path("AWS_IOT_ROOT_CA_PATH"),
+        certfile=certificate_path("AWS_IOT_CERTIFICATE_PATH"),
+        keyfile=certificate_path("AWS_IOT_PRIVATE_KEY_PATH"),
+    )
+    return client
+
+
 def main():
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     engine = RiskEngine(float(os.getenv("RISK_MAX_INPUT_AGE_SECONDS", "30")))
     client = create_client(engine)
+    cloud_client = create_cloud_client()
     host = os.getenv("LOCAL_MQTT_BROKER", os.getenv("MQTT_HOST", "localhost"))
     port = int(os.getenv("LOCAL_MQTT_PORT", os.getenv("MQTT_PORT", "1883")))
     client.connect(host, port, keepalive=60)
-    client.loop_start()
     stop = Event()
     try:
+        cloud_client.connect(
+            os.environ["AWS_IOT_ENDPOINT"],
+            int(os.getenv("AWS_IOT_PORT", "8883")),
+            keepalive=60,
+        )
+        client.loop_start()
+        cloud_client.loop_start()
         # MQTT receives continuously; fusion and output happen every five seconds.
         while not stop.wait(INTERVAL_SECONDS):
-            if client.is_connected():
-                publish_risks(client, engine)
+            if client.is_connected() and cloud_client.is_connected():
+                publish_risks(cloud_client, engine)
     except KeyboardInterrupt:
         logger.info("Stopping risk engine")
     finally:
         client.disconnect()
         client.loop_stop()
+        cloud_client.disconnect()
+        cloud_client.loop_stop()
 
 
 if __name__ == "__main__":
