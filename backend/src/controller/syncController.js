@@ -1,5 +1,6 @@
 const SensorReading = require("../models/SensorReading");
 const Alert = require("../models/AlertNotification");
+const parseSensorTimestamp = require("../utils/sensorTimestamp");
 
 const FIRE_ALERT_TITLE = "Fire Detected";
 // The Pi syncs a reading every few seconds while a fire burns; one alarm per
@@ -37,11 +38,10 @@ exports.insertSensorReading = async (req, res) => {
       co,
     } = req.body || {};
 
-
-
-
     if (!Number.isInteger(Number(room_id)) || Number(room_id) < 1) {
-      return res.status(400).json({ error: "room_id is required and must be a positive integer" });
+      return res
+        .status(400)
+        .json({ error: "room_id is required and must be a positive integer" });
     }
 
     const reading = await SensorReading.insertSensorReading({
@@ -120,8 +120,7 @@ exports.insertSensorAggregate = async (req, res) => {
       room_id: roomId,
       window_start: start.toISOString(),
       window_end: end.toISOString(),
-      avg_temperature:
-        avg_temperature === undefined ? null : avg_temperature,
+      avg_temperature: avg_temperature === undefined ? null : avg_temperature,
       avg_smoke: avg_smoke === undefined ? null : avg_smoke,
       avg_co: avg_co === undefined ? null : avg_co,
       avg_humidity: avg_humidity === undefined ? null : avg_humidity,
