@@ -1,9 +1,8 @@
 /* live.js — read-only live feed of the FireBomba sensors.
  *
- * Two sources, same data, same topics:
- *   cloud (default)  the backend relays what AWS IoT Core receives from the Pi
- *                    as a Server-Sent Events stream: <API>/api/twin/stream.
- *                    No AWS credentials ever reach the browser.
+ * Two sources:
+ *   cloud (default)  saved sensor readings from the twin's dedicated
+ *                    Server-Sent Events stream: <API>/api/twin/stream.
  *   pi               MQTT-on-WebSocket straight to the Raspberry Pi's Mosquitto.
  *                    Open the page with ?source=pi.
  * It NEVER publishes: Live mode cannot trigger a pump or raise an alert on
@@ -119,6 +118,18 @@ var FB = FB || {};
     return true;
   }
 
+  /* Saved readings share the frontend's sensor-reading event format. Use the
+     measurement time, so replayed history cannot appear live or replace newer data. */
+  function ingestReading(reading) {
+    if (!reading || reading.temperature == null || reading.temperature === "") return false;
+    var roomId = Number(reading.room_id);
+    var at = Date.parse(reading.timestamp);
+    if (!Number.isInteger(roomId) || roomId < 1 || !isFinite(at)) return false;
+    if (at > Date.now() + STALE_MS) return false;
+    if (latest[roomId] && latest[roomId].at >= at) return false;
+    return ingest("firebomba/room/" + roomId + "/sensor-data", JSON.stringify(reading), at);
+  }
+
   /* Cloud source: Server-Sent Events from the backend. EventSource reconnects
      by itself, so the status just follows its state. */
   function connectCloud() {
@@ -127,12 +138,10 @@ var FB = FB || {};
     setStatus("connecting");
     stream = new EventSource(FB.Layout.apiUrl() + "/api/twin/stream");
     stream.onopen = function () { setStatus("connected"); };
-    stream.onmessage = function (e) {
-      var m;
-      try { m = JSON.parse(e.data); } catch (err) { return; }
-      /* age: how old the backend's cached copy already was when it was sent */
-      ingest(m.topic, JSON.stringify(m.payload), Date.now() - (m.age || 0));
-    };
+    stream.addEventListener("sensor-reading", function (e) {
+      try { ingestReading(JSON.parse(e.data)); } catch (err) { return; }
+    });
+    stream.addEventListener("stream-error", function () { setStatus("offline"); });
     stream.onerror = function () { setStatus("offline"); };
   }
 
@@ -191,7 +200,8 @@ var FB = FB || {};
     onStatus: function (fn) { listener = fn; },
     PLACEHOLDER: PLACEHOLDER,
     /* exposed for testing */
-    _parse: parse, _ingest: ingest, _reset: function () { latest = {}; lastAt = 0; }
+    _parse: parse, _ingest: ingest, _ingestReading: ingestReading,
+    _reset: function () { latest = {}; lastAt = 0; }
   };
 
 })(FB);

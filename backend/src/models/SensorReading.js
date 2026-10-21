@@ -1,4 +1,5 @@
 const supabase = require("../config/supabase");
+const { parseSensorTimestamp } = require("../utils/sensorTimestamp");
 
 // exports.getLatestReading = async () => {
 //   const sql = "SELECT * FROM SensorReadings ORDER BY timestamp DESC LIMIT 1";
@@ -33,7 +34,7 @@ exports.insertSensorReading = async (data) => {
 
   const readingTimestamp = data.timestamp || data.reading_timestamp;
   if (readingTimestamp) {
-    const timestamp = new Date(readingTimestamp);
+    const timestamp = parseSensorTimestamp(readingTimestamp);
     if (Number.isNaN(timestamp.getTime())) {
       throw new Error("Invalid sensor reading timestamp");
     }

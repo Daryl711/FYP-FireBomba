@@ -12,11 +12,7 @@ client.on("connect", () => {
   console.log("Connected to AWS IoT Core MQTT broker");
 
   client.subscribe(
-    [
-      "firebomba/room/+/pump/status",
-      "firebomba/room/+/risk",
-      "firebomba/room/+/sensor-data",
-    ],
+    ["firebomba/room/+/pump/status", "firebomba/room/+/risk"],
     { qos: 1 },
     (err, granted) => {
       if (err) {
@@ -54,7 +50,11 @@ client.on("reconnect", () => {
 client.on("message", (topic, message) => {
   const riskMatch = /^firebomba\/room\/(\d+)\/risk$/.exec(topic);
   const isSensorData = /^firebomba\/room\/\d+\/sensor-data$/.test(topic);
-  if (!riskMatch && !isSensorData && !/^firebomba\/room\/\d+\/pump\/status$/.test(topic)) {
+  if (
+    !riskMatch &&
+    !isSensorData &&
+    !/^firebomba\/room\/\d+\/pump\/status$/.test(topic)
+  ) {
     return;
   }
 

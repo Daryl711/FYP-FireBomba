@@ -1,16 +1,6 @@
 const supabase = require("../config/supabase");
-const { mqttEvents } = require("../services/mqttService");
-
-// Latest reading per room, so a twin that connects mid-stream is not blank
-// until every sensor happens to publish again.
-const latest = new Map(); // topic -> { data, at }
-const clients = new Set();
-
-mqttEvents.on("sensor-data", ({ topic, data }) => {
-  latest.set(topic, { data, at: Date.now() });
-  const frame = `data: ${JSON.stringify({ topic, payload: data, age: 0 })}\n\n`;
-  clients.forEach((res) => res.write(frame));
-});
+const SensorReading = require("../models/SensorReading");
+const twinSensorStream = require("../services/twinSensorStream");
 
 // Read-only floor layout for the digital twin. Only ids, names and the
 // bilik/space grouping are returned; no household names or user data.
@@ -45,9 +35,8 @@ exports.getLayout = async (req, res) => {
   }
 };
 
-// Server-Sent Events feed of live sensor readings relayed from AWS IoT Core.
-// Read-only: the twin can watch the stream but cannot send anything back.
-exports.streamSensors = (req, res) => {
+// Dedicated all-room feed of persisted sensor readings for the digital twin.
+exports.streamSensors = async (req, res) => {
   res.set({
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache, no-transform",
@@ -57,16 +46,37 @@ exports.streamSensors = (req, res) => {
   res.flushHeaders();
   res.write("retry: 3000\n\n");
 
-  const now = Date.now();
-  latest.forEach(({ data, at }, topic) => {
-    res.write(`data: ${JSON.stringify({ topic, payload: data, age: now - at })}\n\n`);
-  });
-
-  clients.add(res);
+  // Subscribe before loading the snapshot so readings during the query are kept.
+  // The client uses timestamps to prevent older snapshot rows replacing live data.
+  const unsubscribe = twinSensorStream.subscribe(res);
+  let closed = false;
   // A comment line every 20 s keeps proxies from closing an idle connection.
-  const beat = setInterval(() => res.write(": keep-alive\n\n"), 20000);
-  req.on("close", () => {
+  const beat = setInterval(() => {
+    if (!closed) res.write(": keep-alive\n\n");
+  }, 20000);
+  const closeStream = () => {
+    if (closed) return;
+    closed = true;
     clearInterval(beat);
-    clients.delete(res);
-  });
+    unsubscribe();
+  };
+  req.on("close", closeStream);
+  res.on("close", closeStream);
+
+  try {
+    const { data: rooms, error } = await supabase.from("rooms").select("room_id");
+    if (error) throw error;
+    if (closed) return;
+    await Promise.all((rooms || []).map(async ({ room_id }) => {
+      const reading = await SensorReading.getLatestSensorReading(room_id);
+      if (!closed && reading) twinSensorStream.sendSensorReading(res, reading);
+    }));
+  } catch (error) {
+    console.error("Twin sensor stream error:", error);
+    if (!closed) {
+      res.write(`event: stream-error\ndata: ${JSON.stringify({ error: "Twin sensor stream failed" })}\n\n`);
+      closeStream();
+      res.end();
+    }
+  }
 };

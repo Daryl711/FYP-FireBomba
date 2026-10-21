@@ -3,6 +3,8 @@ const Alert = require("../models/AlertNotification");
 const SensorAggregate = require("../models/SensorAggregate");
 const sensorAggregateStream = require("../services/sensorAggregateStream");
 const { parseSensorTimestamp } = require("../utils/sensorTimestamp");
+const sensorReadingStream = require("../services/sensorReadingStream");
+const twinSensorStream = require("../services/twinSensorStream");
 
 const FIRE_ALERT_TITLE = "Fire Detected";
 // The Pi syncs a reading every few seconds while a fire burns; one alarm per
@@ -56,9 +58,12 @@ exports.insertSensorReading = async (req, res) => {
       co,
     });
 
+    sensorReadingStream.publishSensorReading(reading);
+    twinSensorStream.publishSensorReading(reading);
+
     // Backlogged readings synced after an outage are history, not a live fire.
-    const readingAge = reading_timestamp
-      ? Date.now() - new Date(reading_timestamp).getTime()
+    const readingAge = reading.timestamp
+      ? Date.now() - new Date(reading.timestamp).getTime()
       : 0;
     if (isFlame(flame_detected) && !(readingAge > FIRE_ALERT_COOLDOWN_MS)) {
       await raiseFireAlert(Number(room_id));
