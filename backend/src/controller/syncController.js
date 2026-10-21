@@ -1,6 +1,8 @@
 const SensorReading = require("../models/SensorReading");
 const Alert = require("../models/AlertNotification");
-const parseSensorTimestamp = require("../utils/sensorTimestamp");
+const SensorAggregate = require("../models/SensorAggregate");
+const sensorAggregateStream = require("../services/sensorAggregateStream");
+const { parseSensorTimestamp } = require("../utils/sensorTimestamp");
 
 const FIRE_ALERT_TITLE = "Fire Detected";
 // The Pi syncs a reading every few seconds while a fire burns; one alarm per
