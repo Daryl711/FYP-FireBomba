@@ -19,7 +19,8 @@
         "UIBackgroundModes": [
           "remote-notification"
         ]
-      }
+      },
+      "bitcode": false
     },
     "android": {
       "adaptiveIcon": {
@@ -28,7 +29,20 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.jonathanyeo0728.FireBomba"
+      "package": "com.aeron020403.firebomba",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.CAMERA",
+        "android.permission.INTERNET",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WAKE_LOCK",
+        "android.permission.BLUETOOTH",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ]
     },
     "androidNavigationBar": {
       "visible": "immersive"
@@ -67,7 +81,21 @@
           "photosPermission": "Allow FireBomba to use a photo as your profile picture.",
           "cameraPermission": "Allow FireBomba to take your profile picture."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f4720106-1200-413b-ad6d-1ec1873060f9"
+      }
+    },
+    "owner": "alyc02"
   }
 }

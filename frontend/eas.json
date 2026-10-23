@@ -1,0 +1,19 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://skillful-barbecue-occupier.ngrok-free.dev",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://aziplmsltkblpbbvolii.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_F0bo1_ZT1vfkY5jz7xtltg_kZPkQsIV"
+      }
+    }
+  }
+}

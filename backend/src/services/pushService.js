@@ -36,7 +36,12 @@ const sendAlarmToTokens = async (devices, { title, body, data = {} }) => {
 
   const deadTokens = [];
 
-  for (const batch of chunk(devices, BATCH_SIZE)) {
+  // Expo refuses a request mixing tokens from different projects (e.g. an old
+  // Expo Go install next to the APK). It names each project's tokens, so the
+  // batch is split up and sent again one project at a time.
+  const queue = chunk(devices, BATCH_SIZE);
+  while (queue.length > 0) {
+    const batch = queue.shift();
     const messages = batch.map(({ token, alarmSound }) => ({
       to: token,
       title,
@@ -56,6 +61,15 @@ const sendAlarmToTokens = async (devices, { title, body, data = {} }) => {
       body: JSON.stringify(messages),
     });
     const result = await response.json().catch(() => null);
+
+    const mixed = result?.errors?.find((e) => e.code === "PUSH_TOO_MANY_EXPERIENCE_IDS");
+    if (mixed?.details) {
+      for (const tokens of Object.values(mixed.details)) {
+        const group = batch.filter((device) => tokens.includes(device.token));
+        if (group.length > 0) queue.push(group);
+      }
+      continue;
+    }
 
     if (!response.ok || !Array.isArray(result?.data)) {
       console.error("Expo push failed:", response.status, result);

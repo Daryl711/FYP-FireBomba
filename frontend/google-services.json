@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "165575554817",
+    "project_id": "firebomba-abda1",
+    "storage_bucket": "firebomba-abda1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:165575554817:android:7e6a4f7f5b2a9612938d00",
+        "android_client_info": {
+          "package_name": "com.aeron020403.firebomba"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA5M-aJrSmYCIL_nT0M9KHFUag8pWfd1yA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:165575554817:android:0dd3fa9e4194f402938d00",
+        "android_client_info": {
+          "package_name": "com.jonathanyeo0728.FireBomba"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA5M-aJrSmYCIL_nT0M9KHFUag8pWfd1yA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
