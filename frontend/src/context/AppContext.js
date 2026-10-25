@@ -62,6 +62,7 @@ const translations = {
       cancel: "Cancel",
       comingSoon: "Coming Soon",
       noData: "No data yet.",
+      loading: "Loading...",
     },
     home: {
       welcomeBack: "Welcome Back,",
@@ -570,6 +571,7 @@ const translations = {
       cancel: "Batal",
       comingSoon: "Akan Datang",
       noData: "Tiada data lagi.",
+      loading: "Sedang memuatkan...",
     },
     home: {
       welcomeBack: "Selamat Kembali,",
@@ -580,7 +582,7 @@ const translations = {
       emergencyConfirmTitle: "Adakah ini kecemasan sebenar?",
       emergencyConfirmMessage:
         "Teruskan hanya jika anda memerlukan bantuan kecemasan. Hubungi 999 dan minta bantuan Bomba untuk kecemasan kebakaran atau penyelamatan.",
-      emergencyConfirmCall: "Ya, kecemasan sebenar — Hubungi 999",
+      emergencyConfirmCall: "Ya — Hubungi 999",
       emergencyOpening: "Membuka telefon…",
       emergencyCallError:
         "Tidak dapat membuka aplikasi telefon. Untuk kecemasan sebenar, dail 999 secara manual dan minta bantuan Bomba.",

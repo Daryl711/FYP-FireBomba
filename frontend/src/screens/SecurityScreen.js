@@ -199,20 +199,6 @@ export default function SecurityScreen({ navigation }) {
     ]);
   };
 
-  if (isLoading) {
-    return (
-      <SafeAreaView
-        style={[styles.container, styles.centerContent]}
-        edges={["top", "bottom"]}
-      >
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>
-          {t("common.loading") || "Loading camera states..."}
-        </Text>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
@@ -228,6 +214,12 @@ export default function SecurityScreen({ navigation }) {
         <View style={{ width: 36 }} />
       </View>
 
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>{t("common.loading")}</Text>
+        </View>
+      ) : (
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Biometric login */}
         <View style={styles.section}>
@@ -333,6 +325,7 @@ export default function SecurityScreen({ navigation }) {
 
         <View style={{ height: SPACING.xxl }} />
       </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -503,14 +496,16 @@ const styles = StyleSheet.create({
   },
 
   loadingContainer: {
-    paddingVertical: 32,
+    flex: 1,
+    padding: SPACING.lg,
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: SPACING.sm,
   },
   loadingText: {
     fontSize: 13,
     color: COLORS.text3,
     fontWeight: "500",
+    textAlign: "center",
   },
 });
