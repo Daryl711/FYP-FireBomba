@@ -27,7 +27,7 @@ const ensureFireChannels = async () => {
   for (const { id, pushSound, channelId } of ALARM_SOUNDS) {
     await Notifications.setNotificationChannelAsync(channelId, {
       name: id === "classic" ? "Fire alarm" : `Fire alarm (${id})`,
-      description: "Fire detected in one of your rooms",
+      description: "Fire detected in a monitored room",
       importance: Notifications.AndroidImportance.MAX,
       sound: pushSound,
       // Routed through the alarm stream so it still rings with the ringer silenced.

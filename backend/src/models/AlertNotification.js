@@ -1,5 +1,5 @@
 const supabase = require("../config/supabase");
-const Bilik = require("./Bilik");
+const User = require("./User");
 const {
   createUserNotification,
   markRead: markUserNotificationRead,
@@ -48,10 +48,11 @@ exports.createAlert = async (data) => {
 
   if (titles.length === 0) return [];
 
-  // Users belong to a bilik, so everyone in the room's bilik is notified.
+  // Fire alerts are shared with every user, including other households and
+  // shared-space alerts. Keep each user's read/hidden state in the same pipeline.
   const { data: room, error: roomError } = await supabase
     .from("rooms")
-    .select("bilik_id, name")
+    .select("name")
     .eq("room_id", roomId)
     .maybeSingle();
 
@@ -59,7 +60,8 @@ exports.createAlert = async (data) => {
     throw roomError;
   }
 
-  const userIds = await Bilik.getUserIdsByBilik(room?.bilik_id);
+  const userIds = await User.getAllUserIds();
+  const roomLabel = room?.name ? `${room.name} (Room ${roomId})` : `Room ${roomId}`;
 
   const insertIds = [];
   for (const title of titles) {
@@ -83,8 +85,8 @@ exports.createAlert = async (data) => {
   // pick the alert up through polling and loop the in-app alarm.
   await sendFireAlarm(userIds, {
     title: `🔥 ${titles[0]}`,
-    body: `${room?.name ?? "A room"}: ${titles.join(", ")}. Open FireBomba now.`,
-    data: { type: "fire", roomId, alertIds: insertIds },
+    body: `${roomLabel}: ${titles.join(", ")}. Open FireBomba now.`,
+    data: { type: "fire", roomId, roomName: room?.name ?? null, alertIds: insertIds },
   });
 
   return insertIds;

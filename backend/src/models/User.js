@@ -4,6 +4,23 @@ const supabase = require("../config/supabase");
 // (the MySQL version put everyone in room 1).
 const DEFAULT_BILIK_ID = 1;
 
+// Fire alarms reach every account, regardless of household or role. Page through
+// profiles so the database response limit cannot silently omit recipients.
+exports.getAllUserIds = async () => {
+  const pageSize = 500;
+  const userIds = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase
+      .from("users")
+      .select("user_id")
+      .order("user_id")
+      .range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    userIds.push(...data.map((user) => user.user_id));
+    if (data.length < pageSize) return userIds;
+  }
+};
+
 exports.checkEmail = async (email) => {
   const { data, error } = await supabase
     .from("users")

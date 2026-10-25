@@ -62,25 +62,31 @@ exports.deleteTokens = async (tokens) => {
 
 // Resolves to [{ token, alarmSound }]; alarmSound is null when not chosen.
 exports.getTokensForUsers = async (userIds) => {
-  if (userIds.length === 0) return [];
-
-  let { data, error } = await supabase
-    .from("push_tokens")
-    .select("token, alarm_sound")
-    .in("user_id", userIds);
-
-  if (isMissingAlarmSoundColumn(error)) {
-    ({ data, error } = await supabase
-      .from("push_tokens")
-      .select("token")
-      .in("user_id", userIds));
+  const devices = [];
+  const recipientBatchSize = 100;
+  const pageSize = 500;
+  const uniqueUserIds = [...new Set(userIds)];
+  // Bound the IN filter and page device rows: an all-user alarm must not stop
+  // at the database's row limit, including users with more than one device.
+  for (let start = 0; start < uniqueUserIds.length; start += recipientBatchSize) {
+    const recipients = uniqueUserIds.slice(start, start + recipientBatchSize);
+    for (let offset = 0; ; offset += pageSize) {
+      const query = (columns) => supabase
+        .from("push_tokens")
+        .select(columns)
+        .in("user_id", recipients)
+        .order("token")
+        .range(offset, offset + pageSize - 1);
+      let { data, error } = await query("token, alarm_sound");
+      if (isMissingAlarmSoundColumn(error)) {
+        ({ data, error } = await query("token"));
+      }
+      if (error) throw error;
+      devices.push(...data.map((row) => ({ token: row.token, alarmSound: row.alarm_sound ?? null })));
+      if (data.length < pageSize) break;
+    }
   }
-
-  if (error) {
-    throw error;
-  }
-
-  return data.map((row) => ({ token: row.token, alarmSound: row.alarm_sound ?? null }));
+  return devices;
 };
 
 // The device's row if it is registered to this account, else null.
