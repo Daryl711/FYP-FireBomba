@@ -1,4 +1,5 @@
 const supabase = require("../config/supabase");
+const Bilik = require("./Bilik");
 const {
   createUserNotification,
   markRead: markUserNotificationRead,
@@ -58,18 +59,7 @@ exports.createAlert = async (data) => {
     throw roomError;
   }
 
-  let userIds = [];
-  if (room?.bilik_id != null) {
-    const { data: users, error: usersError } = await supabase
-      .from("users")
-      .select("user_id")
-      .eq("bilik_id", room.bilik_id);
-
-    if (usersError) {
-      throw usersError;
-    }
-    userIds = users.map((user) => user.user_id);
-  }
+  const userIds = await Bilik.getUserIdsByBilik(room?.bilik_id);
 
   const insertIds = [];
   for (const title of titles) {

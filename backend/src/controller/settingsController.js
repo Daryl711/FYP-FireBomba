@@ -1,4 +1,5 @@
 const Room = require("../models/Room");
+const Bilik = require("../models/Bilik");
 const SensorReading = require("../models/SensorReading");
 const Actuator = require("../models/Actuator");
 const AlertNotification = require("../models/AlertNotification");
@@ -176,8 +177,7 @@ const isFlame = (value) =>
 // Home and Profile tiles show.
 exports.getSystemHealth = async (req, res) => {
   try {
-    const rooms =
-      req.user.bilikId == null ? [] : await Room.getRoomsByBilik(req.user.bilikId);
+    const rooms = await Bilik.getRoomsByBilik(req.user.bilikId);
     const now = Date.now();
 
     const roomHealth = await Promise.all(

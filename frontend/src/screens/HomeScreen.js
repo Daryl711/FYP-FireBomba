@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
 import { useNavigation } from "@react-navigation/native";
+import EmergencyCallButton from "../components/EmergencyCallButton";
 
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -43,22 +44,20 @@ export default function HomeScreen() {
             <Text style={styles.retryText}>{t("home.retry")}</Text>
           </TouchableOpacity>
         </View>
+        <EmergencyCallButton t={t} />
       </SafeAreaView>
     );
   }
 
   // roomData is null/undefined while the context is still fetching
-<<<<<<< HEAD
-  if (!roomData) {
-=======
   if (roomData?.error || !bilik) {
->>>>>>> 4f827bb47a8016a6647c08de07f9eed4be0565f3
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>{t("home.loading")}</Text>
         </View>
+        <EmergencyCallButton t={t} />
       </SafeAreaView>
     );
   }
@@ -90,7 +89,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerTop}>
@@ -263,11 +262,13 @@ export default function HomeScreen() {
 
         <View style={{ height: SPACING.xxl }} />
       </ScrollView>
+      <EmergencyCallButton t={t} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  content: { flex: 1 },
   container: {
     flex: 1,
     backgroundColor: COLORS.bg,

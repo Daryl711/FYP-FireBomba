@@ -90,6 +90,7 @@ test("twin stream loads the database snapshot, receives live updates and cleans 
   const controller = load("../src/controller/twinController.js", {
     "../config/supabase": { from: () => ({ select: async () => ({ data: [{ room_id: 1 }] }) }) },
     "../models/SensorReading": { getLatestSensorReading: () => snapshot },
+    "../models/Bilik": {},
     "../services/twinSensorStream": twinStream,
   });
   const req = new EventEmitter(), res = response();
@@ -116,6 +117,7 @@ test("twin closes and unsubscribes when its initial database query fails", async
   const controller = load("../src/controller/twinController.js", {
     "../config/supabase": { from: () => ({ select: async () => ({ error: new Error("offline") }) }) },
     "../models/SensorReading": {}, "../services/twinSensorStream": twinStream,
+    "../models/Bilik": {},
   }, { console: { error() {} } });
   const res = response();
   await controller.streamSensors(new EventEmitter(), res);

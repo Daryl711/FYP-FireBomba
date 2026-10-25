@@ -71,13 +71,12 @@ export default function AlertsScreen() {
                 key={notif.id}
                 style={[styles.notifCard, notif.unread && styles.unreadCard]}
               >
+                {notif.unread && <View style={styles.unreadStripe} />}
                 <TouchableOpacity
                   style={styles.notifMain}
                   activeOpacity={0.75}
                   onPress={() => markNotificationRead(notif.id)}
                 >
-                  {notif.unread && <View style={styles.unreadStripe} />}
-
                   <View style={styles.notifContent}>
                     <Text style={styles.notifTitle}>
                       {t("alerts.warningTitle")}
@@ -97,15 +96,17 @@ export default function AlertsScreen() {
                       </View>
                     </View>
                   </View>
-                  {notif.unread && <View style={styles.unreadDot} />}
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.clearBtn}
-                  onPress={() => clearNotification(notif.id)}
-                >
-                  <Text style={styles.clearBtnText}>{t("alerts.clear")}</Text>
-                </TouchableOpacity>
+                <View style={styles.notifActions}>
+                  {notif.unread && <View style={styles.unreadDot} />}
+                  <TouchableOpacity
+                    style={styles.clearBtn}
+                    onPress={() => clearNotification(notif.id)}
+                  >
+                    <Text style={styles.clearBtnText}>{t("alerts.clear")}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             );
           })}
@@ -127,6 +128,7 @@ const styles = StyleSheet.create({
   },
   notifContent: {
     flex: 1,
+    minWidth: 0,
   },
   container: {
     flex: 1,
@@ -219,6 +221,13 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: SPACING.md,
   },
+  notifActions: {
+    alignSelf: "stretch",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: SPACING.md,
+    flexShrink: 0,
+  },
   unreadCard: {
     backgroundColor: "#FFFAFA",
   },
@@ -252,6 +261,7 @@ const styles = StyleSheet.create({
   },
   notifMeta: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     gap: SPACING.sm,
     marginTop: 7,

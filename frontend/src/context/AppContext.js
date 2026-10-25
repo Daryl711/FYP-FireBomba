@@ -65,6 +65,17 @@ const translations = {
     },
     home: {
       welcomeBack: "Welcome Back,",
+      emergencyCall: "Emergency Call",
+      emergencyService: "Bomba · Emergency services",
+      emergencyCallLabel: "Emergency Call, Bomba, 999",
+      emergencyCallHint: "Opens a confirmation before calling 999.",
+      emergencyConfirmTitle: "Is this a genuine emergency?",
+      emergencyConfirmMessage:
+        "Only continue if you need emergency assistance. Call 999 and ask for Bomba for a fire or rescue emergency.",
+      emergencyConfirmCall: "Yes — Call 999",
+      emergencyOpening: "Opening phone…",
+      emergencyCallError:
+        "Could not open the phone app. For a genuine emergency, dial 999 manually and ask for Bomba.",
       activeRooms: "Active Rooms",
       warnings: "Warnings",
       loading: "Loading...",
@@ -163,7 +174,8 @@ const translations = {
       photoTitle: "Profile Picture",
       photoTake: "Take Photo",
       photoChoose: "Choose from Gallery",
-      photoPermission: "Please allow access in your phone settings to change your profile picture.",
+      photoPermission:
+        "Please allow access in your phone settings to change your profile picture.",
       photoFailed: "Could not update your profile picture.",
       userFallback: "User",
       language: "Language",
@@ -180,7 +192,10 @@ const translations = {
       },
       prefItems: {
         notif: { title: "Notifications", subtitle: "Alert preferences" },
-        settings: { title: "System Settings", subtitle: "Sensor & device health" },
+        settings: {
+          title: "System Settings",
+          subtitle: "Sensor & device health",
+        },
       },
     },
     systemSettings: {
@@ -193,7 +208,8 @@ const translations = {
       fireEvents: "Fire Events ({{days}} days)",
       cloudOn: "Device cloud connected",
       cloudOff: "Device cloud disconnected",
-      cloudOffHint: "Live updates and water pump control may not work until the server reconnects.",
+      cloudOffHint:
+        "Live updates and water pump control may not work until the server reconnects.",
       rooms: "Rooms",
       noRooms: "No rooms are linked to your account yet.",
       online: "Online",
@@ -203,7 +219,8 @@ const translations = {
       minutesAgo: "{{n}} min ago",
       hoursAgo: "{{n}} h ago",
       daysAgo: "{{n}} days ago",
-      offlineHint: "A room is offline when its sensors have sent nothing for {{minutes}} minutes. Pull down to refresh.",
+      offlineHint:
+        "A room is offline when its sensors have sent nothing for {{minutes}} minutes. Pull down to refresh.",
       temperature: "Temperature",
       humidity: "Humidity",
       smoke: "Smoke",
@@ -226,7 +243,8 @@ const translations = {
       status: "Alert Status",
       push: "Push notifications",
       pushOn: "Allowed - alarms ring even when the app is closed",
-      pushOff: "Blocked - you will NOT hear a fire alarm while the app is closed",
+      pushOff:
+        "Blocked - you will NOT hear a fire alarm while the app is closed",
       openSettings: "Open Phone Settings",
       device: "This device",
       deviceOn: "Registered to receive fire alerts",
@@ -235,19 +253,26 @@ const translations = {
       retry: "Retry",
       test: "Test",
       testAlarm: "Send Test Alarm",
-      testHint: "Rings this phone with the real alarm sound. Nothing is added to your alerts.",
+      testHint:
+        "Rings this phone with the real alarm sound. Nothing is added to your alerts.",
       testSentTitle: "Test Alarm Sent",
-      testSent: "Your phone should ring in a few seconds. If it does not, check that notifications and sound are allowed.",
+      testSent:
+        "Your phone should ring in a few seconds. If it does not, check that notifications and sound are allowed.",
       testFailedTitle: "Test Failed",
-      testNotRegistered: "This device is not registered yet. Allow notifications, then tap Retry.",
+      testNotRegistered:
+        "This device is not registered yet. Allow notifications, then tap Retry.",
       alarmSound: "Alarm Sound",
-      alarmSoundHint: "Used for the in-app alarm and when the app is closed. Tap play to preview.",
+      alarmSoundHint:
+        "Used for the in-app alarm and when the app is closed. Tap play to preview.",
       preview: "Preview",
       stop: "Stop",
       sounds: {
         classic: { name: "Classic", desc: "The original FireBomba alarm" },
         siren: { name: "Siren", desc: "Rising and falling wail" },
-        beep: { name: "Evacuation Beep", desc: "Three beeps then a pause, like a smoke detector" },
+        beep: {
+          name: "Evacuation Beep",
+          desc: "Three beeps then a pause, like a smoke detector",
+        },
         bell: { name: "Fire Bell", desc: "Fast ringing bell" },
       },
       triggers: "What Triggers an Alarm",
@@ -255,7 +280,8 @@ const translations = {
       triggerTemp: "Temperature at or above 60 °C",
       triggerSmoke: "Smoke reading at or above 300",
       triggerGas: "Gas reading at or above 500",
-      alwaysOn: "Fire alarms cannot be turned off - they are there to keep you safe.",
+      alwaysOn:
+        "Fire alarms cannot be turned off - they are there to keep you safe.",
     },
     personalInfo: {
       title: "Personal Information",
@@ -264,7 +290,8 @@ const translations = {
       fullNamePlaceholder: "John Doe",
       phone: "Phone Number",
       phonePlaceholder: "012-345 6789 (optional)",
-      phoneHint: "Used for SMS codes and to sign in with your phone number. Leave blank to remove it.",
+      phoneHint:
+        "Used for SMS codes and to sign in with your phone number. Leave blank to remove it.",
       save: "Save Changes",
       saving: "Saving...",
       saved: "Your details have been updated.",
@@ -329,7 +356,8 @@ const translations = {
       noAccount: "Don't have an account?",
       signUp: "Sign Up",
       missingFieldsTitle: "Missing Fields",
-      missingFieldsMessage: "Please enter your email or phone number, and your password.",
+      missingFieldsMessage:
+        "Please enter your email or phone number, and your password.",
       loginFailed: "Login Failed",
       errorTitle: "Error",
       connectError: "Could not connect to the server. Is your backend running?",
@@ -373,13 +401,16 @@ const translations = {
     },
     forgot: {
       title: "Forgot Password",
-      subtitle: "Enter your email or phone number and we will send you a code to reset your password.",
+      subtitle:
+        "Enter your email or phone number and we will send you a code to reset your password.",
       identifier: "Email or Phone Number",
       identifierPlaceholder: "you@example.com or 012-345 6789",
       sendCode: "Send Code",
       codeTitle: "Enter Verification Code",
-      codeSubtitleEmail: "If an account exists for {{identifier}}, we sent a 6-digit code to its email.",
-      codeSubtitleSms: "If an account exists for {{identifier}}, we sent a 6-digit code by SMS.",
+      codeSubtitleEmail:
+        "If an account exists for {{identifier}}, we sent a 6-digit code to its email.",
+      codeSubtitleSms:
+        "If an account exists for {{identifier}}, we sent a 6-digit code by SMS.",
       verify: "Verify",
       resetTitle: "Create New Password",
       resetSubtitle: "Code verified. Choose a new password for your account.",
@@ -399,7 +430,8 @@ const translations = {
       passwordMismatch: "Passwords do not match.",
       failedTitle: "Reset Failed",
       successTitle: "Password Reset",
-      successMessage: "Your password has been changed. Please sign in with your new password.",
+      successMessage:
+        "Your password has been changed. Please sign in with your new password.",
       resentTitle: "Code Sent",
       resentMessage: "If the account exists, a new code is on its way.",
       errorTitle: "Error",
@@ -541,6 +573,17 @@ const translations = {
     },
     home: {
       welcomeBack: "Selamat Kembali,",
+      emergencyCall: "Panggilan Kecemasan",
+      emergencyService: "Bomba · Perkhidmatan kecemasan",
+      emergencyCallLabel: "Panggilan Kecemasan, Bomba, 999",
+      emergencyCallHint: "Membuka pengesahan sebelum menghubungi 999.",
+      emergencyConfirmTitle: "Adakah ini kecemasan sebenar?",
+      emergencyConfirmMessage:
+        "Teruskan hanya jika anda memerlukan bantuan kecemasan. Hubungi 999 dan minta bantuan Bomba untuk kecemasan kebakaran atau penyelamatan.",
+      emergencyConfirmCall: "Ya, kecemasan sebenar — Hubungi 999",
+      emergencyOpening: "Membuka telefon…",
+      emergencyCallError:
+        "Tidak dapat membuka aplikasi telefon. Untuk kecemasan sebenar, dail 999 secara manual dan minta bantuan Bomba.",
       activeRooms: "Bilik Aktif",
       warnings: "Amaran",
       systemStatus: "Status Sistem",
@@ -639,7 +682,8 @@ const translations = {
       photoTitle: "Gambar Profil",
       photoTake: "Ambil Gambar",
       photoChoose: "Pilih dari Galeri",
-      photoPermission: "Sila benarkan akses dalam tetapan telefon anda untuk menukar gambar profil.",
+      photoPermission:
+        "Sila benarkan akses dalam tetapan telefon anda untuk menukar gambar profil.",
       photoFailed: "Tidak dapat mengemas kini gambar profil anda.",
       userFallback: "Pengguna",
       language: "Bahasa",
@@ -656,7 +700,10 @@ const translations = {
       },
       prefItems: {
         notif: { title: "Notifikasi", subtitle: "Keutamaan amaran" },
-        settings: { title: "Tetapan Sistem", subtitle: "Status sensor & peranti" },
+        settings: {
+          title: "Tetapan Sistem",
+          subtitle: "Status sensor & peranti",
+        },
       },
     },
     systemSettings: {
@@ -669,7 +716,8 @@ const translations = {
       fireEvents: "Kebakaran ({{days}} hari)",
       cloudOn: "Awan peranti bersambung",
       cloudOff: "Awan peranti terputus",
-      cloudOffHint: "Kemas kini langsung dan kawalan pam air mungkin tidak berfungsi sehingga pelayan bersambung semula.",
+      cloudOffHint:
+        "Kemas kini langsung dan kawalan pam air mungkin tidak berfungsi sehingga pelayan bersambung semula.",
       rooms: "Bilik",
       noRooms: "Tiada bilik dipautkan ke akaun anda lagi.",
       online: "Dalam talian",
@@ -679,7 +727,8 @@ const translations = {
       minutesAgo: "{{n}} min lalu",
       hoursAgo: "{{n}} jam lalu",
       daysAgo: "{{n}} hari lalu",
-      offlineHint: "Bilik dianggap luar talian apabila sensornya tidak menghantar apa-apa selama {{minutes}} minit. Tarik ke bawah untuk muat semula.",
+      offlineHint:
+        "Bilik dianggap luar talian apabila sensornya tidak menghantar apa-apa selama {{minutes}} minit. Tarik ke bawah untuk muat semula.",
       temperature: "Suhu",
       humidity: "Kelembapan",
       smoke: "Asap",
@@ -702,28 +751,37 @@ const translations = {
       status: "Status Amaran",
       push: "Notifikasi tolak",
       pushOn: "Dibenarkan - penggera berbunyi walaupun aplikasi ditutup",
-      pushOff: "Disekat - anda TIDAK akan mendengar penggera kebakaran semasa aplikasi ditutup",
+      pushOff:
+        "Disekat - anda TIDAK akan mendengar penggera kebakaran semasa aplikasi ditutup",
       openSettings: "Buka Tetapan Telefon",
       device: "Peranti ini",
       deviceOn: "Didaftarkan untuk menerima amaran kebakaran",
-      deviceOff: "Tidak didaftarkan - amaran kebakaran tidak dapat sampai ke telefon ini",
+      deviceOff:
+        "Tidak didaftarkan - amaran kebakaran tidak dapat sampai ke telefon ini",
       deviceChecking: "Menyemak...",
       retry: "Cuba Lagi",
       test: "Ujian",
       testAlarm: "Hantar Penggera Ujian",
-      testHint: "Membunyikan telefon ini dengan bunyi penggera sebenar. Tiada apa ditambah pada amaran anda.",
+      testHint:
+        "Membunyikan telefon ini dengan bunyi penggera sebenar. Tiada apa ditambah pada amaran anda.",
       testSentTitle: "Penggera Ujian Dihantar",
-      testSent: "Telefon anda sepatutnya berbunyi dalam beberapa saat. Jika tidak, pastikan notifikasi dan bunyi dibenarkan.",
+      testSent:
+        "Telefon anda sepatutnya berbunyi dalam beberapa saat. Jika tidak, pastikan notifikasi dan bunyi dibenarkan.",
       testFailedTitle: "Ujian Gagal",
-      testNotRegistered: "Peranti ini belum didaftarkan. Benarkan notifikasi, kemudian tekan Cuba Lagi.",
+      testNotRegistered:
+        "Peranti ini belum didaftarkan. Benarkan notifikasi, kemudian tekan Cuba Lagi.",
       alarmSound: "Bunyi Penggera",
-      alarmSoundHint: "Digunakan untuk penggera dalam aplikasi dan semasa aplikasi ditutup. Tekan main untuk dengar.",
+      alarmSoundHint:
+        "Digunakan untuk penggera dalam aplikasi dan semasa aplikasi ditutup. Tekan main untuk dengar.",
       preview: "Dengar",
       stop: "Henti",
       sounds: {
         classic: { name: "Klasik", desc: "Penggera asal FireBomba" },
         siren: { name: "Siren", desc: "Bunyi siren naik dan turun" },
-        beep: { name: "Bip Pemindahan", desc: "Tiga bip kemudian berhenti, seperti pengesan asap" },
+        beep: {
+          name: "Bip Pemindahan",
+          desc: "Tiga bip kemudian berhenti, seperti pengesan asap",
+        },
         bell: { name: "Loceng Kebakaran", desc: "Loceng berdering laju" },
       },
       triggers: "Apa yang Mencetuskan Penggera",
@@ -731,7 +789,8 @@ const translations = {
       triggerTemp: "Suhu 60 °C atau lebih",
       triggerSmoke: "Bacaan asap 300 atau lebih",
       triggerGas: "Bacaan gas 500 atau lebih",
-      alwaysOn: "Penggera kebakaran tidak boleh dimatikan - ia ada untuk keselamatan anda.",
+      alwaysOn:
+        "Penggera kebakaran tidak boleh dimatikan - ia ada untuk keselamatan anda.",
     },
     personalInfo: {
       title: "Maklumat Peribadi",
@@ -740,7 +799,8 @@ const translations = {
       fullNamePlaceholder: "Ali Ahmad",
       phone: "Nombor Telefon",
       phonePlaceholder: "012-345 6789 (pilihan)",
-      phoneHint: "Digunakan untuk kod SMS dan log masuk dengan nombor telefon. Biarkan kosong untuk membuangnya.",
+      phoneHint:
+        "Digunakan untuk kod SMS dan log masuk dengan nombor telefon. Biarkan kosong untuk membuangnya.",
       save: "Simpan Perubahan",
       saving: "Menyimpan...",
       saved: "Butiran anda telah dikemas kini.",
@@ -763,7 +823,8 @@ const translations = {
       unsavedPhone: "Simpan nombor telefon baharu anda sebelum mengesahkannya.",
       account: "Akaun",
       email: "E-mel",
-      emailHint: "E-mel anda juga ialah log masuk anda dan tidak boleh ditukar di sini.",
+      emailHint:
+        "E-mel anda juga ialah log masuk anda dan tidak boleh ditukar di sini.",
       room: "Bilik",
       memberSince: "Ahli Sejak",
     },
@@ -780,7 +841,8 @@ const translations = {
       noAccount: "Tiada akaun?",
       signUp: "Daftar",
       missingFieldsTitle: "Medan Tidak Lengkap",
-      missingFieldsMessage: "Sila masukkan e-mel atau nombor telefon anda, dan kata laluan.",
+      missingFieldsMessage:
+        "Sila masukkan e-mel atau nombor telefon anda, dan kata laluan.",
       loginFailed: "Log Masuk Gagal",
       errorTitle: "Ralat",
       connectError:
@@ -819,19 +881,23 @@ const translations = {
       invalidTitle: "Pengesahan Gagal",
       expiredTitle: "Sesi Tamat",
       errorTitle: "Ralat",
-      connectError: "Tidak dapat menyambung ke pelayan. Adakah backend anda berjalan?",
+      connectError:
+        "Tidak dapat menyambung ke pelayan. Adakah backend anda berjalan?",
       resentTitle: "Kod Dihantar",
       resentMessage: "Kod baharu telah dihantar ke telefon anda.",
     },
     forgot: {
       title: "Lupa Kata Laluan",
-      subtitle: "Masukkan e-mel atau nombor telefon anda dan kami akan menghantar kod untuk menetapkan semula kata laluan.",
+      subtitle:
+        "Masukkan e-mel atau nombor telefon anda dan kami akan menghantar kod untuk menetapkan semula kata laluan.",
       identifier: "E-mel atau Nombor Telefon",
       identifierPlaceholder: "anda@contoh.com atau 012-345 6789",
       sendCode: "Hantar Kod",
       codeTitle: "Masukkan Kod Pengesahan",
-      codeSubtitleEmail: "Jika akaun wujud untuk {{identifier}}, kami telah menghantar kod 6 digit ke e-melnya.",
-      codeSubtitleSms: "Jika akaun wujud untuk {{identifier}}, kami telah menghantar kod 6 digit melalui SMS.",
+      codeSubtitleEmail:
+        "Jika akaun wujud untuk {{identifier}}, kami telah menghantar kod 6 digit ke e-melnya.",
+      codeSubtitleSms:
+        "Jika akaun wujud untuk {{identifier}}, kami telah menghantar kod 6 digit melalui SMS.",
       verify: "Sahkan",
       resetTitle: "Cipta Kata Laluan Baharu",
       resetSubtitle: "Kod disahkan. Pilih kata laluan baharu untuk akaun anda.",
@@ -851,11 +917,13 @@ const translations = {
       passwordMismatch: "Kata laluan tidak sepadan.",
       failedTitle: "Gagal Menetapkan Semula",
       successTitle: "Kata Laluan Ditukar",
-      successMessage: "Kata laluan anda telah ditukar. Sila log masuk dengan kata laluan baharu.",
+      successMessage:
+        "Kata laluan anda telah ditukar. Sila log masuk dengan kata laluan baharu.",
       resentTitle: "Kod Dihantar",
       resentMessage: "Jika akaun wujud, kod baharu sedang dihantar.",
       errorTitle: "Ralat",
-      connectError: "Tidak dapat menyambung ke pelayan. Adakah backend anda berjalan?",
+      connectError:
+        "Tidak dapat menyambung ke pelayan. Adakah backend anda berjalan?",
     },
     signup: {
       title: "Cipta Akaun",
@@ -989,16 +1057,14 @@ export function AppProvider({ children }) {
   const [notifications, setNotifications] = useState([]);
   const [roomData, setRoomData] = useState([]);
   const [bilik, setBilik] = useState(null);
-<<<<<<< HEAD
   const [tutorialVisible, setTutorialVisible] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(null);
-=======
   const [bilikLoading, setBilikLoading] = useState(true);
   const [bilikError, setBilikError] = useState(null);
   const [bilikRequest, setBilikRequest] = useState(0);
->>>>>>> 4f827bb47a8016a6647c08de07f9eed4be0565f3
 
   const alertRef = useRef(null);
+  const sensorDataRef = useRef(null);
   const soundRef = useRef(null);
   const prevUnreadRef = useRef(0);
   const pushTokenRef = useRef(null);
@@ -1149,7 +1215,6 @@ export function AppProvider({ children }) {
     }
   };
 
-<<<<<<< HEAD
   const fetchSensorData = async () => {
     const result = await apiGetSensorReading();
     if (result && typeof result === "object" && !Array.isArray(result)) {
@@ -1235,18 +1300,6 @@ export function AppProvider({ children }) {
       clearInterval(systemHealthRef.current);
     };
   }, [token]);
-=======
-  // Start polling when the user logs in
-  // useEffect(() => {
-  //   if (token) {
-  //     fetchAlerts();
-  //     alertRef.current = setInterval(() => fetchAlerts(), 10000);
-  //   }
-  //   return () => {
-  //     clearInterval(alertRef.current);
-  //   };
-  // }, [token]);
->>>>>>> 4f827bb47a8016a6647c08de07f9eed4be0565f3
 
   const fetchRoomData = async () => {
     const fetchedRoomData = await apiGetRoomData();
@@ -1262,10 +1315,6 @@ export function AppProvider({ children }) {
   };
 
   useEffect(() => {
-<<<<<<< HEAD
-    if (token) fetchRoomData();
-  }, [token]);
-=======
     let mounted = true;
     const fetchData = async () => {
       if (!token) {
@@ -1304,7 +1353,6 @@ export function AppProvider({ children }) {
   }, [token, bilikRequest]);
 
   const refreshBilik = () => setBilikRequest((request) => request + 1);
->>>>>>> 4f827bb47a8016a6647c08de07f9eed4be0565f3
 
   // Profile picture follows the session: loaded on login, dropped on logout.
   useEffect(() => {
@@ -1568,7 +1616,6 @@ export function AppProvider({ children }) {
     authReady,
     roomData,
     bilik,
-<<<<<<< HEAD
     needsUnlock,
     lockedUser,
     biometricSupport,
@@ -1578,10 +1625,8 @@ export function AppProvider({ children }) {
     systemHealth,
     tutorialVisible,
     avatarUrl,
-=======
     bilikLoading,
     bilikError,
->>>>>>> 4f827bb47a8016a6647c08de07f9eed4be0565f3
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

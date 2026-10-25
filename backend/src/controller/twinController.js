@@ -1,4 +1,5 @@
 const supabase = require("../config/supabase");
+const Bilik = require("../models/Bilik");
 const SensorReading = require("../models/SensorReading");
 const twinSensorStream = require("../services/twinSensorStream");
 
@@ -6,22 +7,18 @@ const twinSensorStream = require("../services/twinSensorStream");
 // bilik/space grouping are returned; no household names or user data.
 exports.getLayout = async (req, res) => {
   try {
-    const [bilikRes, roomsRes] = await Promise.all([
-      supabase.from("bilik").select("bilik_id, bilik_number").order("bilik_id"),
+    const [bilik, roomsRes] = await Promise.all([
+      Bilik.getLayoutBiliks(),
       supabase
         .from("rooms")
         .select("room_id, name, space_type, bilik_id")
         .order("room_id")
     ]);
 
-    if (bilikRes.error) throw bilikRes.error;
     if (roomsRes.error) throw roomsRes.error;
 
     res.json({
-      bilik: bilikRes.data.map((b) => ({
-        bilikId: b.bilik_id,
-        bilikNumber: b.bilik_number
-      })),
+      bilik,
       rooms: roomsRes.data.map((r) => ({
         roomId: r.room_id,
         name: r.name,

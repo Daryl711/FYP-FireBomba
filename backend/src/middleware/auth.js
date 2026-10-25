@@ -1,6 +1,6 @@
 const supabase = require("../config/supabase");
 const UserProfile = require("../models/UserProfile");
-const Room = require("../models/Room");
+const Bilik = require("../models/Bilik");
 
 module.exports = async (req, res, next) => {
     const authHeader = req.headers["authorization"];
@@ -38,7 +38,7 @@ module.exports = async (req, res, next) => {
 
         // A user owns a bilik; "their room" is the ?roomId the app asked for
         // when it belongs to that bilik, otherwise the bilik's first room.
-        const bilikRoomIds = await Room.getRoomIdsByBilik(profile.bilik_id);
+        const bilikRoomIds = await Bilik.getRoomIdsByBilik(profile.bilik_id);
         const requestedRoomId = Number(req.query.roomId);
 
         req.user = {

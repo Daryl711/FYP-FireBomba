@@ -17,10 +17,6 @@ import { getRoomsByBilik } from "../services/api";
 const NO_ROOMS = [];
 
 export default function RoomsScreen({ navigation }) {
-<<<<<<< HEAD
-  const { roomData: rawRoomData, t } = useApp();
-  const roomData = Array.isArray(rawRoomData) ? rawRoomData : NO_ROOMS;
-=======
   const { bilik, bilikLoading, bilikError, refreshBilik, t } = useApp();
   const [roomData, setRoomData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +54,6 @@ export default function RoomsScreen({ navigation }) {
       mounted = false;
     };
   }, [bilik?.bilikId, bilikLoading, bilikError, reloadKey]);
->>>>>>> 4f827bb47a8016a6647c08de07f9eed4be0565f3
   // const safeCount = rooms.filter((r) => r.status === 'safe').length;
   // const warnCount = rooms.filter((r) => r.status === 'warning').length;
 
