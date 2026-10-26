@@ -33,6 +33,7 @@ import SystemSettingsScreen from "../screens/SystemSettingsScreen";
 import UnlockScreen from "../screens/UnlockScreen";
 
 import { useApp } from "../context/AppContext";
+import { navigationRef } from "./navigationRef";
 import { COLORS } from "../../constants/theme";
 
 const Tab = createMaterialTopTabNavigator();
@@ -260,7 +261,7 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {token ? (
           <RootStack.Screen name="Main" component={MainTabs} />
