@@ -1,20 +1,29 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     View,
     Text,
     Modal,
     TouchableOpacity,
     StyleSheet,
-    Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
+import { getRoomsByBilik } from "../services/api";
+import { navigateInMain } from "../navigation/navigationRef";
 
-const { width } = Dimensions.get("window");
+// Where each step takes the user, as params for navigating inside "Main".
+// `room` is the first room of the user's bilik, when one has loaded.
+const HOME = { screen: "Home", params: { screen: "HomeMain" } };
+const ROOMS = { screen: "Rooms", params: { screen: "RoomsList" } };
+const roomDetail = (room) =>
+  room
+    ? { screen: "Rooms", params: { screen: "ListRoomDetail", params: { room } } }
+    : ROOMS;
 
 // Each step maps a section of the app to the category it belongs to.
 // `key` resolves against translations at tutorial.steps.<key> (title + desc).
+// `target` returns the screen to show behind the card for that step.
 const STEPS = [
   {
     key: "welcome",
@@ -22,6 +31,7 @@ const STEPS = [
     iconBg: COLORS.primaryLight,
     iconColor: COLORS.primary,
     category: null,
+    target: () => HOME,
   },
   {
     key: "home",
@@ -29,6 +39,7 @@ const STEPS = [
     iconBg: COLORS.primaryLight,
     iconColor: COLORS.primary,
     category: "monitoring",
+    target: () => HOME,
   },
   {
     key: "systemStatus",
@@ -36,6 +47,7 @@ const STEPS = [
     iconBg: COLORS.greenLight,
     iconColor: COLORS.green,
     category: "monitoring",
+    target: () => HOME,
   },
   {
     key: "recentAlerts",
@@ -43,6 +55,15 @@ const STEPS = [
     iconBg: COLORS.amberLight,
     iconColor: COLORS.amber,
     category: "monitoring",
+    target: () => HOME,
+  },
+  {
+    key: "callBomba",
+    icon: "call",
+    iconBg: COLORS.primaryLight,
+    iconColor: COLORS.primaryDark,
+    category: "emergency",
+    target: () => HOME,
   },
   {
     key: "rooms",
@@ -50,6 +71,7 @@ const STEPS = [
     iconBg: COLORS.blueLight,
     iconColor: COLORS.blue,
     category: "monitoring",
+    target: () => ROOMS,
   },
   {
     key: "roomDetail",
@@ -57,6 +79,7 @@ const STEPS = [
     iconBg: COLORS.blueLight,
     iconColor: COLORS.blue,
     category: "monitoring",
+    target: roomDetail,
   },
   {
     key: "waterPump",
@@ -64,6 +87,7 @@ const STEPS = [
     iconBg: COLORS.primaryLight,
     iconColor: COLORS.primary,
     category: "control",
+    target: roomDetail,
   },
   {
     key: "alerts",
@@ -71,6 +95,7 @@ const STEPS = [
     iconBg: COLORS.amberLight,
     iconColor: COLORS.amber,
     category: "alerts",
+    target: () => ({ screen: "Notifications" }),
   },
   {
     key: "profile",
@@ -78,6 +103,7 @@ const STEPS = [
     iconBg: "#F3F0FF",
     iconColor: COLORS.purple,
     category: "account",
+    target: () => ({ screen: "Profile", params: { screen: "ProfileMain" } }),
   },
   {
     key: "security",
@@ -85,15 +111,40 @@ const STEPS = [
     iconBg: "#F3F0FF",
     iconColor: COLORS.purple,
     category: "account",
+    target: () => ({ screen: "Profile", params: { screen: "Security" } }),
   },
 ];
 
 export default function TutorialOverlay({ visible, onClose }) {
-  const { t } = useApp();
+  const { t, bilik } = useApp();
   const [step, setStep] = useState(0);
+  const [sampleRoom, setSampleRoom] = useState(null);
 
   const current = STEPS[step];
   const isLast = step === STEPS.length - 1;
+
+  // Load one room so the room detail and water pump steps can open a real
+  // room. Without one, those steps fall back to the Rooms list.
+  useEffect(() => {
+    if (!visible || !bilik?.bilikId) return;
+    let mounted = true;
+    getRoomsByBilik(bilik.bilikId)
+      .then((rooms) => {
+        if (mounted && Array.isArray(rooms) && rooms.length > 0) {
+          setSampleRoom(rooms[0]);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [visible, bilik?.bilikId]);
+
+  // Show the screen this step is about behind the card.
+  useEffect(() => {
+    if (!visible) return;
+    return navigateInMain(current.target(sampleRoom));
+  }, [visible, step, sampleRoom]);
 
   const handleNext = () => {
     if (isLast) {
@@ -107,8 +158,10 @@ export default function TutorialOverlay({ visible, onClose }) {
     if (step > 0) setStep((s) => s - 1);
   };
 
+  // Finishing or skipping lands the user back on Home.
   const handleClose = () => {
     setStep(0);
+    navigateInMain(HOME);
     onClose();
   };
 
@@ -205,7 +258,7 @@ export default function TutorialOverlay({ visible, onClose }) {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.72)",
+    backgroundColor: "rgba(0,0,0,0.35)",
     justifyContent: "flex-end",
   },
   card: {

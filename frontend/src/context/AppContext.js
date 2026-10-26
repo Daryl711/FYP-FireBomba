@@ -515,6 +515,7 @@ const translations = {
         control: "Control",
         alerts: "Alerts",
         account: "Account",
+        emergency: "Emergency",
       },
       steps: {
         welcome: {
@@ -532,6 +533,10 @@ const translations = {
         recentAlerts: {
           title: "Recent Alerts",
           desc: "Also on Home: the latest warnings from all your rooms appear here. Tap 'View all' to jump to the full Alerts list.",
+        },
+        callBomba: {
+          title: "Call Bomba — 999",
+          desc: "The red 999 button on Home calls Bomba (fire and rescue). You'll be asked to confirm first, then your phone app opens to dial 999. Use it only in a genuine emergency.",
         },
         rooms: {
           title: "Rooms tab",
@@ -974,6 +979,7 @@ const translations = {
         control: "Kawalan",
         alerts: "Amaran",
         account: "Akaun",
+        emergency: "Kecemasan",
       },
       steps: {
         welcome: {
@@ -991,6 +997,10 @@ const translations = {
         recentAlerts: {
           title: "Amaran Terkini",
           desc: "Juga di Laman Utama: amaran terkini dari semua bilik anda muncul di sini. Ketik 'Lihat semua' untuk pergi ke senarai Amaran penuh.",
+        },
+        callBomba: {
+          title: "Hubungi Bomba — 999",
+          desc: "Butang merah 999 di Laman Utama menghubungi Bomba (kebakaran dan penyelamatan). Anda akan diminta mengesahkan dahulu, kemudian aplikasi telefon dibuka untuk mendail 999. Gunakan hanya semasa kecemasan sebenar.",
         },
         rooms: {
           title: "Tab Bilik",
