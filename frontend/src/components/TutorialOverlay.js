@@ -21,6 +21,13 @@ const roomDetail = (room) =>
     ? { screen: "Rooms", params: { screen: "ListRoomDetail", params: { room } } }
     : ROOMS;
 
+// Short labels for the language switch; the full names are read out by
+// screen readers.
+const LANGUAGES = [
+  { code: "en", label: "EN", nameKey: "profile.english" },
+  { code: "ms", label: "BM", nameKey: "profile.bahasaMalaysia" },
+];
+
 // Each step maps a section of the app to the category it belongs to.
 // `key` resolves against translations at tutorial.steps.<key> (title + desc).
 // `target` returns the screen to show behind the card for that step.
@@ -116,7 +123,7 @@ const STEPS = [
 ];
 
 export default function TutorialOverlay({ visible, onClose }) {
-  const { t, bilik } = useApp();
+  const { t, bilik, language, setLanguage } = useApp();
   const [step, setStep] = useState(0);
   const [sampleRoom, setSampleRoom] = useState(null);
 
@@ -179,14 +186,40 @@ export default function TutorialOverlay({ visible, onClose }) {
     >
       <View style={styles.backdrop}>
         <View style={styles.card}>
-          {/* Skip button top-right */}
-          <TouchableOpacity
-            style={styles.skipBtn}
-            onPress={handleClose}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Text style={styles.skipText}>{t("tutorial.skip")}</Text>
-          </TouchableOpacity>
+          {/* Language switch (changes the whole app) + Skip */}
+          <View style={styles.topRow}>
+            <View style={styles.languageSwitch}>
+              {LANGUAGES.map(({ code, label, nameKey }) => {
+                const active = language === code;
+                return (
+                  <TouchableOpacity
+                    key={code}
+                    style={[styles.languageOption, active && styles.languageOptionActive]}
+                    onPress={() => setLanguage(code)}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel={t(nameKey)}
+                    accessibilityState={{ selected: active }}
+                  >
+                    <Text
+                      style={[
+                        styles.languageOptionText,
+                        active && styles.languageOptionTextActive,
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <TouchableOpacity
+              onPress={handleClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.skipText}>{t("tutorial.skip")}</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Icon */}
           <View style={[styles.iconWrap, { backgroundColor: current.iconBg }]}>
@@ -266,15 +299,38 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: RADIUS.xl,
     borderTopRightRadius: RADIUS.xl,
     paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.xl,
+    paddingTop: SPACING.lg,
     paddingBottom: SPACING.xxl,
     ...SHADOW.medium,
   },
-  skipBtn: {
-    position: "absolute",
-    top: SPACING.lg,
-    right: SPACING.xl,
-    zIndex: 2,
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: SPACING.md,
+  },
+  languageSwitch: {
+    flexDirection: "row",
+    backgroundColor: COLORS.bg,
+    borderRadius: RADIUS.full,
+    padding: 3,
+    gap: 4,
+  },
+  languageOption: {
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 6,
+  },
+  languageOptionActive: {
+    backgroundColor: COLORS.primary,
+  },
+  languageOptionText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: COLORS.text2,
+  },
+  languageOptionTextActive: {
+    color: COLORS.white,
   },
   skipText: {
     fontSize: 13,
