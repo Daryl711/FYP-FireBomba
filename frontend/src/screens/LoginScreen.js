@@ -20,7 +20,7 @@ import { useApp } from "../context/AppContext";
 import { loginUser } from "../services/api";
 
 export default function LoginScreen({ navigation }) {
-  const { login, t } = useApp();
+  const { login, t, language, setLanguage } = useApp();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -97,6 +97,34 @@ export default function LoginScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* Language switch */}
+          <View style={styles.languageSwitch}>
+            {[
+              { code: "en", label: "EN" },
+              { code: "ms", label: "BM" },
+            ].map(({ code, label }) => (
+              <TouchableOpacity
+                key={code}
+                style={[
+                  styles.languageOption,
+                  language === code && styles.languageOptionActive,
+                ]}
+                onPress={() => setLanguage(code)}
+                activeOpacity={0.8}
+                disabled={isLoading}
+              >
+                <Text
+                  style={[
+                    styles.languageOptionText,
+                    language === code && styles.languageOptionTextActive,
+                  ]}
+                >
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           {/* Logo */}
           <View style={styles.logoWrap}>
             <View style={styles.logoCircle}>
@@ -243,6 +271,32 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.xxxl,
     paddingBottom: SPACING.xxl,
     gap: SPACING.lg,
+  },
+  languageSwitch: {
+    alignSelf: "flex-end",
+    flexDirection: "row",
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.full,
+    padding: 3,
+    gap: 4,
+    marginTop: -SPACING.xl,
+    ...SHADOW.small,
+  },
+  languageOption: {
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 6,
+  },
+  languageOptionActive: {
+    backgroundColor: COLORS.primary,
+  },
+  languageOptionText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.text2,
+  },
+  languageOptionTextActive: {
+    color: COLORS.white,
   },
   logoWrap: {
     marginBottom: SPACING.sm,

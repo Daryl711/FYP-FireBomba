@@ -13,6 +13,9 @@ const SESSION_USER_KEY = "session_user";
 // Deliberately NOT cleared on logout - it's a device preference, not session
 // state, so turning biometrics off survives signing out and back in.
 const BIOMETRIC_ENABLED_KEY = "biometric_enabled";
+// Same idea: the app language stays on this phone across logouts.
+const LANGUAGE_KEY = "app_language";
+const SUPPORTED_LANGUAGES = ["en", "ms"];
 
 // ─── Token storage helpers ────────────────────────────────────────────────────
 
@@ -138,6 +141,23 @@ export const setBiometricPreference = async (enabled) => {
     );
   } catch {
     // Preference is best-effort; a write failure just means the default stands.
+  }
+};
+
+export const getLanguagePreference = async () => {
+  try {
+    const stored = await SecureStore.getItemAsync(LANGUAGE_KEY);
+    return SUPPORTED_LANGUAGES.includes(stored) ? stored : "en";
+  } catch {
+    return "en";
+  }
+};
+
+export const setLanguagePreference = async (language) => {
+  try {
+    await SecureStore.setItemAsync(LANGUAGE_KEY, language);
+  } catch {
+    // Best-effort; a failed write just means English comes back next launch.
   }
 };
 

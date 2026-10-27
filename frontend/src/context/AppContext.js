@@ -28,6 +28,8 @@ import {
   setOnSessionExpired,
   getBiometricPreference,
   setBiometricPreference,
+  getLanguagePreference,
+  setLanguagePreference,
   getAvatar as apiGetAvatar,
   uploadAvatar as apiUploadAvatar,
   updateStoredUser,
@@ -1053,7 +1055,7 @@ export function AppProvider({ children }) {
     type: null,
   });
   const [biometricEnabled, setBiometricEnabledState] = useState(true);
-  const [language, setLanguage] = useState("en");
+  const [language, setLanguageState] = useState("en");
   const [notifications, setNotifications] = useState([]);
   const [roomData, setRoomData] = useState([]);
   const [bilik, setBilik] = useState(null);
@@ -1171,6 +1173,14 @@ export function AppProvider({ children }) {
       alarmSoundRef.current = id;
       setAlarmSound(id);
     });
+    getLanguagePreference().then(setLanguageState);
+  }, []);
+
+  // Switches the app language and remembers it on this phone, so the login
+  // screen opens in the same language next launch.
+  const setLanguage = useCallback((next) => {
+    setLanguageState(next);
+    setLanguagePreference(next);
   }, []);
 
   // (Re)load the in-app alarm whenever the chosen tone changes.
