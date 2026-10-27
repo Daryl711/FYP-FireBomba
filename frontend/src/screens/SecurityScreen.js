@@ -1,5 +1,6 @@
 import TutorialTarget, { TutorialScrollView } from "../components/TutorialTarget";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useCallback } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { LogBox } from "react-native";
 import {
   View,
@@ -18,7 +19,7 @@ import { useApp } from "../context/AppContext";
 import { updateCameraStatus, getCameraStatus } from "../services/api";
 
 // ── Animated room row ─────────────────────────────────────────────────────────
-function RoomCameraRow({ room, enabled, onToggle, t }) {
+function RoomCameraRow({ room, enabled, disabled, onToggle, t }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
@@ -37,7 +38,7 @@ function RoomCameraRow({ room, enabled, onToggle, t }) {
     }).start();
   };
 
-  const handleToggle = async (value) => {
+  const handleToggle = (value) => {
     if (!value) {
       // Warn user before disabling
       Alert.alert(t("security.disableTitle"), t("security.disableConfirm"), [
@@ -59,7 +60,6 @@ function RoomCameraRow({ room, enabled, onToggle, t }) {
       ]);
     }
 
-    await updateCameraStatus(value);
   };
 
   return (
@@ -110,6 +110,7 @@ function RoomCameraRow({ room, enabled, onToggle, t }) {
         {/* Toggle */}
         <Switch
           value={enabled}
+          disabled={disabled}
           onValueChange={handleToggle}
           trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
           thumbColor={enabled ? COLORS.primary : COLORS.white}
@@ -126,49 +127,49 @@ function RoomCameraRow({ room, enabled, onToggle, t }) {
 const NO_ROOMS = [];
 
 export default function SecurityScreen({ navigation }) {
-  const { roomData: rawRoomData, t, biometricSupport, biometricEnabled, updateBiometricEnabled } =
+  const { roomData: rawRoomData, t, biometricSupport, biometricEnabled, updateBiometricEnabled, refreshSystemHealth } =
     useApp();
   const roomData = Array.isArray(rawRoomData) ? rawRoomData : NO_ROOMS;
 
 
   const [cameraStates, setCameraStates] = useState({});
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [savingRoom, setSavingRoom] = useState(null);
+  const savingRef = useRef(false);
+  const enabledCount = Object.values(cameraStates).filter(Boolean).length;
 
-  const enabledCount = Object.values(cameraStates || {}).filter(Boolean).length;
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    setIsLoading(true);
+    setLoadError(null);
+    Promise.all(roomData.map(async (room) => {
+      const result = await getCameraStatus(room.roomId);
+      if (!result || result.error) throw new Error(result?.error || "Could not load camera settings.");
+      return [room.roomId, result.cameraStatus === true];
+    }))
+      .then((entries) => { if (active) setCameraStates(Object.fromEntries(entries)); })
+      .catch((error) => { if (active) setLoadError(error.message); })
+      .finally(() => { if (active) setIsLoading(false); });
+    return () => { active = false; };
+  }, [roomData, reloadKey]));
 
-  useEffect(() => {
-    const loadCameraStatuses = async () => {
-      try {
-        setIsLoading(true);
-
-        // Call your Express backend API endpoint
-        const response = await getCameraStatus();
-
-        if (response && !response.error) {
-          const normalized = {
-            [response.roomId]: Boolean(response.cameraStatus),
-          };
-
-          setCameraStates(normalized);
-        } else {
-          const fallbackStates = Object.fromEntries(
-            roomData.map((r) => [r.id, true]),
-          );
-          setCameraStates(fallbackStates);
-        }
-      } catch (error) {
-        console.error("Failed to fetch camera status:", error);
-        setCameraStates(Object.fromEntries(roomData.map((r) => [r.id, true])));
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadCameraStatuses();
-  }, [roomData]);
-
-  const handleToggle = (roomId, value) => {
-    setCameraStates((prev) => ({ ...prev, [roomId]: value }));
+  const handleToggle = async (roomId, value) => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSavingRoom(roomId);
+    try {
+      const result = await updateCameraStatus(value, roomId);
+      if (!result || result.error) throw new Error(result?.error || t("security.cameraSaveError"));
+      setCameraStates((prev) => ({ ...prev, [roomId]: value }));
+      refreshSystemHealth?.();
+    } catch (error) {
+      Alert.alert(t("security.cameraSaveError"), error.message);
+    } finally {
+      savingRef.current = false;
+      setSavingRoom(null);
+    }
   };
 
   const handleEnableAll = () => {
@@ -273,7 +274,14 @@ export default function SecurityScreen({ navigation }) {
               {enabledCount}/{roomData.length} {t("security.active")}
             </Text>
           </TutorialTarget>
-          {roomData.length === 0 ? (
+          {loadError ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>{loadError}</Text>
+              <TouchableOpacity onPress={() => setReloadKey((key) => key + 1)}>
+                <Text>{t("home.retry")}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : roomData.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="home-outline" size={32} color={COLORS.text3} />
               <Text style={styles.emptyText}>{t("security.noRooms")}</Text>
@@ -284,6 +292,7 @@ export default function SecurityScreen({ navigation }) {
                 <RoomCameraRow
                   room={room}
                   enabled={!!cameraStates[room.roomId]}
+                  disabled={savingRoom !== null}
                   onToggle={handleToggle}
                   t={t}
                 />

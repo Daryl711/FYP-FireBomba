@@ -7,7 +7,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useFocusEffect } from "@react-navigation/native";
 import { Platform } from "react-native";
 import { Audio } from "expo-av";
 import * as SecureStore from "expo-secure-store";
@@ -18,6 +17,7 @@ import {
   deleteAlert as apiDeleteAlert,
   hideAllAlerts as apiHideAllAlerts,
   getBilikData as apiGetBilikData,
+  getRoomsByBilik,
   logoutUser,
   saveSession,
   getRefreshToken,
@@ -329,6 +329,7 @@ const translations = {
 
       active: "active camera(s)",
       cameraDetection: "Allow camera detection",
+      cameraSaveError: "Could not save camera setting",
       disableTitle: "Disable camera detection feature",
       disableConfirm:
         "Are you sure you want to disable camera detection feature? You can always turn it back on anytime.",
@@ -1076,7 +1077,6 @@ export function AppProvider({ children }) {
   const [bilikRequest, setBilikRequest] = useState(0);
 
   const alertRef = useRef(null);
-  const sensorDataRef = useRef(null);
   const soundRef = useRef(null);
   const prevUnreadRef = useRef(0);
   const pushTokenRef = useRef(null);
@@ -1162,7 +1162,6 @@ export function AppProvider({ children }) {
   useEffect(() => {
     setOnSessionExpired(() => {
       clearInterval(alertRef.current);
-      clearInterval(sensorDataRef.current);
       prevUnreadRef.current = 0;
       setUser(null);
       setToken(null);
@@ -1224,16 +1223,6 @@ export function AppProvider({ children }) {
       }
       prevUnreadRef.current = newUnreadCount;
       setNotifications(visibleNotifications);
-    }
-  };
-
-  const fetchSensorData = async () => {
-    const result = await apiGetSensorReading();
-    if (result && typeof result === "object" && !Array.isArray(result)) {
-      setSensorReading({
-        ...result,
-        flame: result.flame_detected ?? false,
-      });
     }
   };
 
@@ -1301,35 +1290,21 @@ export function AppProvider({ children }) {
       fetchAlerts();
       fetchSystemHealth();
       alertRef.current = setInterval(() => fetchAlerts(), 10000);
-      sensorDataRef.current = setInterval(() => fetchSensorData(), 5000);
       systemHealthRef.current = setInterval(() => fetchSystemHealth(), 60000);
     } else {
       setSystemHealth(null);
     }
     return () => {
       clearInterval(alertRef.current);
-      clearInterval(sensorDataRef.current);
       clearInterval(systemHealthRef.current);
     };
   }, [token]);
-
-  const fetchRoomData = async () => {
-    const fetchedRoomData = await apiGetRoomData();
-    if (fetchedRoomData?.error) {
-      setRoomData(fetchedRoomData);
-      setBilik(null);
-      return;
-    }
-    setRoomData(
-      Array.isArray(fetchedRoomData?.rooms) ? fetchedRoomData.rooms : [],
-    );
-    setBilik(fetchedRoomData?.bilik ?? null);
-  };
 
   useEffect(() => {
     let mounted = true;
     const fetchData = async () => {
       if (!token) {
+        setRoomData([]);
         setBilik(null);
         setBilikError(null);
         setBilikLoading(false);
@@ -1338,20 +1313,27 @@ export function AppProvider({ children }) {
 
       setBilikLoading(true);
       setBilikError(null);
+      setBilik(null);
+      setRoomData([]);
       try {
         const fetchedBilik = await apiGetBilikData();
         if (!mounted) return;
-        if (fetchedBilik?.error) {
-          setRoomData([]);
-          setBilik(null);
-          setBilikError(fetchedBilik.error);
-          return;
+        if (fetchedBilik?.error) throw new Error(fetchedBilik.error);
+        if (fetchedBilik?.bilikId == null) {
+          throw new Error("No Bilik is associated with this account.");
         }
+        const rooms = await getRoomsByBilik(fetchedBilik.bilikId);
+        if (!mounted) return;
+        if (rooms?.error) throw new Error(rooms.error);
+        if (!Array.isArray(rooms)) throw new Error("Invalid rooms response.");
+        setRoomData(rooms);
         setBilik(fetchedBilik);
       } catch (error) {
         if (mounted) {
           setBilik(null);
-          setBilikError(error.message || "Could not load Bilik information.");
+          const message = error.message || "Could not load Bilik information.";
+          setBilikError(message);
+          setRoomData({ error: message });
         }
       } finally {
         if (mounted) setBilikLoading(false);
@@ -1591,11 +1573,9 @@ export function AppProvider({ children }) {
       clearNotification,
       clearAllNotifications,
       refreshAlerts: () => token && fetchAlerts(),
-      // Back to the loading state, then fetch again (Home's Retry button).
+      // Reload the household and its rooms together, including Home's Retry.
       refreshRoomData: () => {
-        if (!token) return;
-        setRoomData(null);
-        fetchRoomData();
+        if (token) refreshBilik();
       },
       tutorialVisible,
       openTutorial,

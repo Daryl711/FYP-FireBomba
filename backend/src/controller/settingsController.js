@@ -10,15 +10,33 @@ const Avatar = require("../models/Avatar");
 const PushToken = require("../models/PushToken");
 const { sendTestAlarm, isAlarmSound } = require("../services/pushService");
 
+// Use the explicitly selected room, rather than auth middleware's fallback.
+const cameraRoomForRequest = async (req, res) => {
+  const roomId = Number(req.query.roomId);
+  if (!Number.isSafeInteger(roomId) || roomId < 1) {
+    res.status(400).json({ error: "A valid roomId is required" });
+    return null;
+  }
+  if (!(await Room.userCanAccessRoom(roomId, req.user.id || req.user.userId))) {
+    res.status(403).json({ error: "Room access denied" });
+    return null;
+  }
+  return roomId;
+};
+
 exports.updateCameraStatus = async (req, res) => {
   try {
-    const { cameraStatus } = req.body;
-    const roomId = req.user.roomId;
+    const { cameraStatus } = req.body || {};
+    if (typeof cameraStatus !== "boolean") {
+      return res.status(400).json({ error: "cameraStatus must be a boolean" });
+    }
+    const roomId = await cameraRoomForRequest(req, res);
+    if (roomId == null) return;
 
     const actualCameraStatus = await Room.getCameraStatus(roomId);
 
     if (cameraStatus === actualCameraStatus) {
-      return res.status(422).json({ message: "Invalid operation!" });
+      return res.status(200).json({ roomId, cameraStatus });
     }
 
     await Room.updateCameraStatus(cameraStatus, roomId);
@@ -36,6 +54,7 @@ exports.updateCameraStatus = async (req, res) => {
 
     return res.status(200).json({
       message: "Update successful.",
+      roomId,
       cameraStatus,
     });
   } catch (error) {
@@ -46,7 +65,8 @@ exports.updateCameraStatus = async (req, res) => {
 
 exports.getCameraStatus = async (req, res) => {
   try {
-    const roomId = req.user.roomId;
+    const roomId = await cameraRoomForRequest(req, res);
+    if (roomId == null) return;
 
     const cameraStatus = await Room.getCameraStatus(roomId);
 

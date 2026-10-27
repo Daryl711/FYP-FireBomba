@@ -1,7 +1,8 @@
 import TutorialTarget, {
   TutorialScrollView,
 } from "../components/TutorialTarget";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { Video } from "expo-av";
 import {
   View,
@@ -137,18 +138,29 @@ export default function RoomDetailScreen({ route, navigation }) {
       }
     };
 
-    const fetchCameraStatus = async () => {
-      try {
-        const data = await getCameraStatus();
-        setCameraActive(data.cameraStatus);
-      } catch (err) {
-        console.error("Failed to fetch camera status:", err);
-      }
-    };
-
-    fetchPumpStatus();
-    fetchCameraStatus();
+    if (room?.roomId) fetchPumpStatus();
   }, [room?.roomId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      setCameraActive(false);
+      if (room?.roomId) {
+        getCameraStatus(room.roomId)
+          .then((data) => {
+            if (active)
+              setCameraActive(!data?.error && data?.cameraStatus === true);
+          })
+          .catch((error) =>
+            console.error("Failed to fetch camera status:", error),
+          );
+      }
+      return () => {
+        active = false;
+        setCameraActive(false);
+      };
+    }, [room?.roomId]),
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -418,31 +430,8 @@ export default function RoomDetailScreen({ route, navigation }) {
         />
       </View>
 
-      <View style={styles.riskCard} accessibilityLiveRegion="polite">
-        <View style={[styles.riskSquare, { backgroundColor: riskColor }]}>
-          <Ionicons
-            name="shield-checkmark-outline"
-            size={22}
-            color={COLORS.white}
-          />
-          <Text style={styles.riskScore}>{riskFresh ? risk.score : "—"}</Text>
-          <Text style={styles.riskScale}>/ 100</Text>
-        </View>
-        <View style={styles.riskDetails}>
-          <Text style={styles.riskTitle}>{t("roomDetail.fireRisk")}</Text>
-          <Text style={[styles.riskSeverity, { color: riskColor }]}>
-            {riskLabel}
-          </Text>
-          <Text style={styles.riskMeta}>
-            {riskFresh
-              ? `${t("roomDetail.lastUpdate")}: ${formatTime(new Date(risk.timestamp))}`
-              : t("roomDetail.riskAwaitingUpdate")}
-          </Text>
-        </View>
-      </View>
-
       <TutorialScrollView showsVerticalScrollIndicator={false}>
-        {cameraActive === 1 && (
+        {cameraActive && (
           <TutorialTarget id="roomDetail" style={styles.cameraBlock}>
             <Video
               source={{
@@ -454,7 +443,6 @@ export default function RoomDetailScreen({ route, navigation }) {
               isLooping={false}
               useNativeControls={false}
               progressUpdateIntervalMillis={500}
-              onLoad={() => console.log("VIDEO LOADED")}
               onError={(e) => console.log("VIDEO ERROR", e)}
             />
             <View style={styles.recBadge}>
@@ -464,6 +452,29 @@ export default function RoomDetailScreen({ route, navigation }) {
             <Text style={styles.camTime}>{formatTime(camTime)}</Text>
           </TutorialTarget>
         )}
+
+        <View style={styles.riskCard} accessibilityLiveRegion="polite">
+          <View style={[styles.riskSquare, { backgroundColor: riskColor }]}>
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={22}
+              color={COLORS.white}
+            />
+            <Text style={styles.riskScore}>{riskFresh ? risk.score : "—"}</Text>
+            <Text style={styles.riskScale}>/ 100</Text>
+          </View>
+          <View style={styles.riskDetails}>
+            <Text style={styles.riskTitle}>{t("roomDetail.fireRisk")}</Text>
+            <Text style={[styles.riskSeverity, { color: riskColor }]}>
+              {riskLabel}
+            </Text>
+            <Text style={styles.riskMeta}>
+              {riskFresh
+                ? `${t("roomDetail.lastUpdate")}: ${formatTime(new Date(risk.timestamp))}`
+                : t("roomDetail.riskAwaitingUpdate")}
+            </Text>
+          </View>
+        </View>
 
         {sensorError !== null && (
           <View
@@ -485,7 +496,7 @@ export default function RoomDetailScreen({ route, navigation }) {
           ]}
         >
           <TutorialTarget
-            id={cameraActive === 1 ? null : "roomDetail"}
+            id={cameraActive ? null : "roomDetail"}
             style={styles.sensorRow}
           >
             <SensorCard

@@ -618,10 +618,10 @@ export async function uploadAvatar(imageBase64) {
   }
 }
 
-export async function updateCameraStatus(cameraStatus) {
+export async function updateCameraStatus(cameraStatus, roomId) {
   try {
     const response = await authFetch(
-      `${API_ROOT}/settings/update-camera-status`,
+      `${API_ROOT}/settings/update-camera-status?roomId=${encodeURIComponent(roomId)}`,
       {
         method: "PUT",
         body: JSON.stringify({ cameraStatus }),
@@ -633,9 +633,9 @@ export async function updateCameraStatus(cameraStatus) {
   }
 }
 
-export async function getCameraStatus() {
+export async function getCameraStatus(roomId) {
   try {
-    const response = await authFetch(`${API_ROOT}/settings/get-camera-status`, {
+    const response = await authFetch(`${API_ROOT}/settings/get-camera-status?roomId=${encodeURIComponent(roomId)}`, {
       method: "GET",
     });
     return await safeParseResponse(response);
