@@ -46,9 +46,24 @@ def create_client(engine):
     return client
 
 
-def publish_risks(client, engine):
+def publish_risks(client, engine, alarm_client=None):
     for room_id, result in engine.evaluate().items():
         result.update(room_id=room_id, timestamp=datetime.now(timezone.utc).isoformat())
+        # Local alarms must keep working while AWS IoT is unreachable. Refresh
+        # the state each cycle so an ESP32 reconnect receives the current state.
+        if alarm_client is not None:
+            alarm_topic = f"firebomba/room/{room_id}/alarm/command"
+            command = {
+                "room_id": room_id,
+                "command": "ON" if result["risk_level"] == "Critical" else "OFF",
+                "risk_level": result["risk_level"],
+                "timestamp": result["timestamp"],
+            }
+            info = alarm_client.publish(alarm_topic, json.dumps(command), qos=1, retain=False)
+            if info.rc != mqtt.MQTT_ERR_SUCCESS:
+                logger.error("Alarm publish failed on %s: %s", alarm_topic, info.rc)
+        if client is None:
+            continue
         topic = f"firebomba/room/{room_id}/risk"
         info = client.publish(topic, json.dumps(result), qos=1, retain=False)
         if info.rc != mqtt.MQTT_ERR_SUCCESS:
@@ -87,7 +102,7 @@ def main():
     client.connect(host, port, keepalive=60)
     stop = Event()
     try:
-        cloud_client.connect(
+        cloud_client.connect_async(
             os.environ["AWS_IOT_ENDPOINT"],
             int(os.getenv("AWS_IOT_PORT", "8883")),
             keepalive=60,
@@ -96,8 +111,12 @@ def main():
         cloud_client.loop_start()
         # MQTT receives continuously; fusion and output happen every five seconds.
         while not stop.wait(INTERVAL_SECONDS):
-            if client.is_connected() and cloud_client.is_connected():
-                publish_risks(cloud_client, engine)
+            if client.is_connected():
+                publish_risks(
+                    cloud_client if cloud_client.is_connected() else None,
+                    engine,
+                    alarm_client=client,
+                )
     except KeyboardInterrupt:
         logger.info("Stopping risk engine")
     finally:

@@ -79,6 +79,7 @@ test("cloud MQTT subscribes to risk and routes risk messages into SSE", () => {
     mqtt: { connect: () => client },
     "../config/mqtt": { protocol: "mqtts", host: "test", port: 8883 },
     "./riskStatusStream": stream,
+    "./criticalRiskAlerts": { handleRiskStatus: async () => {} },
     events: EventEmitter,
   });
   const res = response();

@@ -2,6 +2,7 @@ const mqtt = require("mqtt");
 const mqttConfig = require("../config/mqtt");
 const EventEmitter = require("events");
 const riskStatusStream = require("./riskStatusStream");
+const criticalRiskAlerts = require("./criticalRiskAlerts");
 
 const brokerUrl = `${mqttConfig.protocol}://${mqttConfig.host}:${mqttConfig.port}`;
 
@@ -47,7 +48,7 @@ client.on("reconnect", () => {
   console.log("========== MQTT RECONNECTING ==========");
 });
 
-client.on("message", (topic, message) => {
+client.on("message", (topic, message, packet = {}) => {
   const riskMatch = /^firebomba\/room\/(\d+)\/risk$/.exec(topic);
   const isSensorData = /^firebomba\/room\/\d+\/sensor-data$/.test(topic);
   if (
@@ -62,7 +63,11 @@ client.on("message", (topic, message) => {
     const data = JSON.parse(message.toString());
 
     if (riskMatch) {
-      riskStatusStream.publishRiskStatus(riskMatch[1], data);
+      // Ignore retained alarms and validate freshness/ordering before notifying.
+      if (packet.retain) return;
+      if (riskStatusStream.publishRiskStatus(riskMatch[1], data)) {
+        void criticalRiskAlerts.handleRiskStatus(riskMatch[1], data);
+      }
     } else if (isSensorData) {
       mqttEvents.emit("sensor-data", { topic, data });
     } else {

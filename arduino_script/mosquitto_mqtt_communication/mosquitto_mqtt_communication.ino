@@ -3,6 +3,7 @@
 #include <PubSubClient.h>
 #include <esp_log.h>
 #include <ArduinoJson.h>
+#include <string.h>
 
 // Setup for Received and Transmit PIN
 #define RXD2 44
@@ -36,6 +37,7 @@ void connectMosquittoMQTT(){
     if(client.connect("ESP32S3Client", mqtt_user, mqtt_pass)){
       Serial.println("MQTT CONNECTED!");
       client.subscribe("firebomba/room/1/pump/command");
+      client.subscribe("firebomba/room/1/alarm/command", 1);
 
     }else{
       Serial.print("\nFAILED, rc= ");
@@ -82,7 +84,7 @@ void connectWifi(){
   }
 }
 
-// Function for water pump manual control
+// Receive remote pump commands and risk-engine alarm commands.
 void manualControlMessage(char* topic, byte* payload, unsigned int length) {
   String msg = "";
 
@@ -105,6 +107,21 @@ void manualControlMessage(char* topic, byte* payload, unsigned int length) {
     Serial.println(error.c_str());
     return;
   }
+
+  // The LED and buzzer are wired to the Arduino Uno. Forward risk alarm
+  // commands over the existing serial link, separately from pump commands.
+  if (strcmp(topic, "firebomba/room/1/alarm/command") == 0) {
+    const char* alarmCommand = doc["command"] | "";
+    if (strcmp(alarmCommand, "ON") == 0) {
+      Serial2.println("Risk:CRITICAL");
+    } else if (strcmp(alarmCommand, "OFF") == 0) {
+      Serial2.println("Risk:CLEAR");
+    } else {
+      Serial.println("Invalid alarm command!");
+    }
+    return;
+  }
+  if (strcmp(topic, "firebomba/room/1/pump/command") != 0) return;
 
   // Get command from JSON
   int command = doc["command"];

@@ -26,6 +26,7 @@ float R0_MQ2 = 10;
 float R0_MQ7 = 10;
 
 bool fireAlarmActive = false;
+bool riskAlarmActive = false; // Independent of sensor thresholds and pump control.
 bool waterPumpActive = false;
 bool fireAlertSent = false; // prevent alert notification send spam
 bool alertNotificationTrigger = false;
@@ -208,7 +209,7 @@ void activeFireAlarm()
   static bool restartGap = false;
   static unsigned long gapTimer = 0;
 
-  if(!fireAlarmActive)
+  if(!fireAlarmActive && !riskAlarmActive)
   {
     digitalWrite(LED, LOW);
     noTone(BUZZER);
@@ -282,13 +283,22 @@ String getValue(String data, String key) {
   return data.substring(start, end);
 }
 
-// Function for manual active the water pump through Serial Messages for subscribed topic
+// Receive pump control and risk alarm state from the ESP32's MQTT callback.
 void manualControlWaterPump()
 {
   if(Serial.available())
   {
     String command = Serial.readStringUntil('\n');
     command.trim();
+
+    if(command == "Risk:CRITICAL") {
+      riskAlarmActive = true;
+      return;
+    }
+    if(command == "Risk:CLEAR") {
+      riskAlarmActive = false;
+      return;
+    }
     
     String manualActive = getValue(command, "Pump:");
 

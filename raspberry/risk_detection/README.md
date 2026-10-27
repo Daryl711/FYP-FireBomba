@@ -52,7 +52,8 @@ connection. SSE includes `score` scaled to 0–100 (one decimal place), `severit
 the original `risk_score`, `room_id`, and `timestamp`.
 
 The room details screen keeps a coloured score square visible directly below
-the header: green for Normal, orange for Warning, and red for Critical. It uses
+the video feed, within the scrolling content: green for Normal, orange for Warning,
+and red for Critical. It uses
 the engine's severity, including the flame override. Missing, disconnected SSE or
 30-second-old results appear grey with an unavailable/waiting state.
 
@@ -76,6 +77,50 @@ until the fifth connected prediction, even if camera updates stop. It does not
 substitute zero for missing flame/anomaly readings. Retained input messages are
 ignored because their age is unknown.
 Consumers should use the output timestamp to identify an interrupted output stream.
+
+## Critical alarms
+
+Every ready room also publishes an alarm command to the **local broker** on
+`firebomba/room/<room_id>/alarm/command`, independently of AWS IoT connectivity:
+
+```json
+{
+  "room_id": "1",
+  "command": "ON",
+  "risk_level": "Critical",
+  "timestamp": "2026-10-27T12:00:00+00:00"
+}
+```
+
+`Critical` sends `ON`; a fresh `Warning` or `Normal` sends `OFF`. Commands use
+QoS 1 without retention and repeat every five seconds so reconnected devices
+receive the latest evaluated state. Missing or stale inputs send no command,
+so a lost input does not clear a previously active risk alarm.
+
+The ESP32 sketch subscribes to room `1`'s alarm topic and forwards
+`Risk:CRITICAL` or `Risk:CLEAR` to the Arduino Uno over Serial2. The Uno drives
+its existing LED (pin 13) and buzzer (pin 12) when either its sensor alarm or the
+risk alarm is active. Clearing the risk alarm leaves any sensor alarm active.
+Risk commands do not control the water pump. For another room, change the
+ESP32's room topics and device-to-room configuration together.
+
+Flash **both** updated sketches:
+
+- `arduino_script/mosquitto_mqtt_communication/mosquitto_mqtt_communication.ino`
+- `arduino_script/fire_detection_and_early_warning/fire_detection_and_early_warning.ino`
+
+On the backend, valid, fresh, nonretained cloud risk messages at `Critical`
+create a `Critical Fire Risk` alert through `AlertNotification.createAlert`.
+This preserves the existing all-user unread notifications, push notifications,
+and in-app alarm behavior. Repeated critical updates and QoS duplicates generate
+one alert per room per critical episode; a lower-risk result re-arms the next
+episode. Creation failures retry on the next critical update. Episode tracking
+is in memory and resets when the backend restarts. The existing raw-flame
+alerts continue to operate independently.
+
+Restart the Pi risk service and backend after updating them. No additional AWS
+alarm topic permission is required: the alarm command stays on the local broker;
+the cloud continues using the existing `/risk` topic.
 
 Example output with the inputs above:
 
@@ -140,5 +185,5 @@ python -B -m unittest risk_detection.test_engine risk_detection.test_service yol
 Run the backend MQTT/SSE tests from the repository root:
 
 ```powershell
-node --test backend/test/riskStatusStream.test.js
+node --test backend/test/riskStatusStream.test.js backend/test/criticalRiskAlerts.test.js backend/test/fireAlarmBroadcast.test.js
 ```
