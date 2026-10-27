@@ -1,4 +1,6 @@
-import TutorialTarget, { TutorialScrollView } from "../components/TutorialTarget";
+import TutorialTarget, {
+  TutorialScrollView,
+} from "../components/TutorialTarget";
 import React, { useState, useEffect, useRef } from "react";
 import { Video } from "expo-av";
 import {
@@ -28,7 +30,7 @@ const THRESHOLDS = {
   humidity: 100,
 };
 
-const PI_IP = process.env.EXPO_PUBLIC_RASPBERRY_PI_URL;
+const PUBLIC_API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 function SensorCard({ icon, label, value, unit, fillPct, fillColor }) {
   return (
@@ -185,7 +187,8 @@ export default function RoomDetailScreen({ route, navigation }) {
           }
         },
         (update) => {
-          if (!mounted || String(update.room_id) !== String(room?.roomId)) return;
+          if (!mounted || String(update.room_id) !== String(room?.roomId))
+            return;
           setRisk(update);
           setRiskStreamError(false);
         },
@@ -356,10 +359,15 @@ export default function RoomDetailScreen({ route, navigation }) {
   const smokePct = Math.min((sensors.smoke / THRESHOLDS.smoke) * 100, 100);
   const coPct = Math.min((sensors.co / THRESHOLDS.co) * 100, 100);
   const humidityPct = Math.min(sensors.humidity ?? 0, 100);
-  const riskFresh = risk && String(risk.room_id) === String(room?.roomId) &&
-    !riskStreamError && camTime.getTime() - Date.parse(risk.timestamp) <= 30000;
+  const riskFresh =
+    risk &&
+    String(risk.room_id) === String(room?.roomId) &&
+    !riskStreamError &&
+    camTime.getTime() - Date.parse(risk.timestamp) <= 30000;
   const riskColor = riskFresh
-    ? { Critical: COLORS.primary, Warning: "#C2410C", Normal: "#047857" }[risk.severity]
+    ? { Critical: COLORS.primary, Warning: "#C2410C", Normal: "#047857" }[
+        risk.severity
+      ]
     : COLORS.text2;
   const riskLabel = riskFresh
     ? t(`roomDetail.risk${risk.severity}`)
@@ -412,13 +420,19 @@ export default function RoomDetailScreen({ route, navigation }) {
 
       <View style={styles.riskCard} accessibilityLiveRegion="polite">
         <View style={[styles.riskSquare, { backgroundColor: riskColor }]}>
-          <Ionicons name="shield-checkmark-outline" size={22} color={COLORS.white} />
+          <Ionicons
+            name="shield-checkmark-outline"
+            size={22}
+            color={COLORS.white}
+          />
           <Text style={styles.riskScore}>{riskFresh ? risk.score : "—"}</Text>
           <Text style={styles.riskScale}>/ 100</Text>
         </View>
         <View style={styles.riskDetails}>
           <Text style={styles.riskTitle}>{t("roomDetail.fireRisk")}</Text>
-          <Text style={[styles.riskSeverity, { color: riskColor }]}>{riskLabel}</Text>
+          <Text style={[styles.riskSeverity, { color: riskColor }]}>
+            {riskLabel}
+          </Text>
           <Text style={styles.riskMeta}>
             {riskFresh
               ? `${t("roomDetail.lastUpdate")}: ${formatTime(new Date(risk.timestamp))}`
@@ -432,7 +446,7 @@ export default function RoomDetailScreen({ route, navigation }) {
           <TutorialTarget id="roomDetail" style={styles.cameraBlock}>
             <Video
               source={{
-                uri: `http://${PI_IP}/hls/mystream.m3u8`,
+                uri: `${PUBLIC_API_URL}/live/room1/index.m3u8`,
               }}
               style={styles.rtcView}
               resizeMode="cover"
@@ -470,7 +484,10 @@ export default function RoomDetailScreen({ route, navigation }) {
             !cameraActive ? { marginTop: SPACING.lg } : null,
           ]}
         >
-          <TutorialTarget id={cameraActive === 1 ? null : "roomDetail"} style={styles.sensorRow}>
+          <TutorialTarget
+            id={cameraActive === 1 ? null : "roomDetail"}
+            style={styles.sensorRow}
+          >
             <SensorCard
               icon="thermometer-outline"
               label={t("roomDetail.temperature")}

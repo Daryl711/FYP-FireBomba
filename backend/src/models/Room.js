@@ -6,6 +6,28 @@ exports.getRoomIdsByBilik = Bilik.getRoomIdsByBilik;
 exports.getRoomData = Bilik.getRoomData;
 exports.getRoomsByBilik = Bilik.getRoomsByBilik;
 
+// A room belongs to a bilik; access requires a user profile in that same bilik.
+exports.userCanAccessRoom = async (roomId, userId) => {
+  if (roomId == null || !userId) return false;
+
+  const { data: room, error: roomError } = await supabase
+    .from("rooms")
+    .select("bilik_id")
+    .eq("room_id", roomId)
+    .maybeSingle();
+  if (roomError) throw roomError;
+  if (room?.bilik_id == null) return false;
+
+  const { data: user, error: userError } = await supabase
+    .from("users")
+    .select("user_id")
+    .eq("user_id", userId)
+    .eq("bilik_id", room.bilik_id)
+    .maybeSingle();
+  if (userError) throw userError;
+  return user != null;
+};
+
 exports.getRoomName = async (roomId) => {
   const { data, error } = await supabase
     .from("rooms")
