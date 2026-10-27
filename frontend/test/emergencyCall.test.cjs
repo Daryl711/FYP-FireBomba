@@ -100,6 +100,7 @@ test("home reserves a separate emergency row during normal, loading, and error s
   const Home = loadComponent("../src/screens/HomeScreen.js", {
     "../context/AppContext": { useApp: () => context },
     "@react-navigation/native": { useNavigation: () => ({}) },
+    "../components/TutorialTarget": { __esModule: true, default: "TutorialTarget", TutorialScrollView: "ScrollView" },
     "../components/EmergencyCallButton": { __esModule: true, default: "EmergencyCallButton" },
   });
   for (const state of [
@@ -111,8 +112,13 @@ test("home reserves a separate emergency row during normal, loading, and error s
     let renderer;
     act(() => { renderer = create(React.createElement(Home)); });
     const emergency = renderer.root.findByType("EmergencyCallButton");
-    assert.equal(emergency.parent.type, "SafeAreaView", "emergency control must be outside scrollable content");
-    assert.equal(emergency.parent.props.style.flex, 1);
+    let ancestor = emergency.parent;
+    while (ancestor && ancestor.type !== "SafeAreaView") {
+      assert.notEqual(ancestor.type, "ScrollView", "emergency control must be outside scrollable content");
+      ancestor = ancestor.parent;
+    }
+    assert.ok(ancestor, "emergency control must remain in the safe area");
+    assert.equal(ancestor.props.style.flex, 1);
     if (state.bilik) {
       assert.equal(renderer.root.findByType("ScrollView").props.style.flex, 1);
     }

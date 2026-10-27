@@ -1,287 +1,155 @@
-import React, { useEffect, useState } from "react";
-import {
-    View,
-    Text,
-    Modal,
-    TouchableOpacity,
-    StyleSheet,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
+import React, { useEffect, useRef, useState } from "react";
+import { View, Text, Modal, TouchableOpacity, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
+import Svg, { Path } from "react-native-svg";
+import { COLORS, RADIUS, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
 import { getRoomsByBilik } from "../services/api";
 import { navigateInMain } from "../navigation/navigationRef";
+import { useTutorialTargets } from "./TutorialTarget";
+import { getTutorialLayout } from "./tutorialLayout";
 
-// Where each step takes the user, as params for navigating inside "Main".
-// `room` is the first room of the user's bilik, when one has loaded.
 const HOME = { screen: "Home", params: { screen: "HomeMain" } };
 const ROOMS = { screen: "Rooms", params: { screen: "RoomsList" } };
-const roomDetail = (room) =>
-  room
-    ? { screen: "Rooms", params: { screen: "ListRoomDetail", params: { room } } }
-    : ROOMS;
-
-// Short labels for the language switch; the full names are read out by
-// screen readers.
+const roomDetail = (room) => ({ screen: "Rooms", params: { screen: "ListRoomDetail", params: { room } } });
+const STEPS = [
+  { key: "welcome", anchor: "tab-Home", target: () => HOME },
+  { key: "home", anchor: "home", target: () => HOME },
+  { key: "systemStatus", anchor: "systemStatus", target: () => HOME },
+  { key: "recentAlerts", anchor: "recentAlerts", target: () => HOME },
+  { key: "callBomba", anchor: "callBomba", target: () => HOME },
+  { key: "rooms", anchor: "tab-Rooms", target: () => ROOMS },
+  { key: "roomDetail", anchor: "roomDetail", target: roomDetail, needsRoom: true },
+  { key: "waterPump", anchor: "waterPump", target: roomDetail, needsRoom: true },
+  { key: "alerts", anchor: "tab-Notifications", target: () => ({ screen: "Notifications" }) },
+  { key: "profile", anchor: "tab-Profile", target: () => ({ screen: "Profile", params: { screen: "ProfileMain" } }) },
+  { key: "security", anchor: "security", target: () => ({ screen: "Profile", params: { screen: "Security" } }) },
+];
 const LANGUAGES = [
   { code: "en", label: "EN", nameKey: "profile.english" },
   { code: "ms", label: "BM", nameKey: "profile.bahasaMalaysia" },
 ];
 
-// Each step maps a section of the app to the category it belongs to.
-// `key` resolves against translations at tutorial.steps.<key> (title + desc).
-// `target` returns the screen to show behind the card for that step.
-const STEPS = [
-  {
-    key: "welcome",
-    icon: "flame",
-    iconBg: COLORS.primaryLight,
-    iconColor: COLORS.primary,
-    category: null,
-    target: () => HOME,
-  },
-  {
-    key: "home",
-    icon: "home",
-    iconBg: COLORS.primaryLight,
-    iconColor: COLORS.primary,
-    category: "monitoring",
-    target: () => HOME,
-  },
-  {
-    key: "systemStatus",
-    icon: "pulse",
-    iconBg: COLORS.greenLight,
-    iconColor: COLORS.green,
-    category: "monitoring",
-    target: () => HOME,
-  },
-  {
-    key: "recentAlerts",
-    icon: "notifications",
-    iconBg: COLORS.amberLight,
-    iconColor: COLORS.amber,
-    category: "monitoring",
-    target: () => HOME,
-  },
-  {
-    key: "callBomba",
-    icon: "call",
-    iconBg: COLORS.primaryLight,
-    iconColor: COLORS.primaryDark,
-    category: "emergency",
-    target: () => HOME,
-  },
-  {
-    key: "rooms",
-    icon: "grid",
-    iconBg: COLORS.blueLight,
-    iconColor: COLORS.blue,
-    category: "monitoring",
-    target: () => ROOMS,
-  },
-  {
-    key: "roomDetail",
-    icon: "videocam",
-    iconBg: COLORS.blueLight,
-    iconColor: COLORS.blue,
-    category: "monitoring",
-    target: roomDetail,
-  },
-  {
-    key: "waterPump",
-    icon: "water",
-    iconBg: COLORS.primaryLight,
-    iconColor: COLORS.primary,
-    category: "control",
-    target: roomDetail,
-  },
-  {
-    key: "alerts",
-    icon: "notifications-circle",
-    iconBg: COLORS.amberLight,
-    iconColor: COLORS.amber,
-    category: "alerts",
-    target: () => ({ screen: "Notifications" }),
-  },
-  {
-    key: "profile",
-    icon: "person",
-    iconBg: "#F3F0FF",
-    iconColor: COLORS.purple,
-    category: "account",
-    target: () => ({ screen: "Profile", params: { screen: "ProfileMain" } }),
-  },
-  {
-    key: "security",
-    icon: "shield-checkmark",
-    iconBg: "#F3F0FF",
-    iconColor: COLORS.purple,
-    category: "account",
-    target: () => ({ screen: "Profile", params: { screen: "Security" } }),
-  },
-];
-
 export default function TutorialOverlay({ visible, onClose }) {
   const { t, bilik, language, setLanguage } = useApp();
-  const [step, setStep] = useState(0);
+  const targets = useTutorialTargets();
+  const window = useWindowDimensions();
+  const root = useRef(null);
+  const [stepKey, setStepKey] = useState("welcome");
   const [sampleRoom, setSampleRoom] = useState(null);
+  const [frame, setFrame] = useState(null);
+  const [bubbleHeight, setBubbleHeight] = useState(190);
+  const [viewport, setViewport] = useState({ width: window.width, height: window.height });
+  const steps = STEPS.filter((item) => !item.needsRoom || sampleRoom);
+  const step = Math.max(0, steps.findIndex((item) => item.key === stepKey));
+  const current = steps[step];
+  const isLast = step === steps.length - 1;
 
-  const current = STEPS[step];
-  const isLast = step === STEPS.length - 1;
-
-  // Load one room so the room detail and water pump steps can open a real
-  // room. Without one, those steps fall back to the Rooms list.
   useEffect(() => {
-    if (!visible || !bilik?.bilikId) return;
+    if (!visible) {
+      setStepKey("welcome");
+      return;
+    }
+    setSampleRoom(null);
+    if (!bilik?.bilikId) return;
     let mounted = true;
     getRoomsByBilik(bilik.bilikId)
       .then((rooms) => {
-        if (mounted && Array.isArray(rooms) && rooms.length > 0) {
-          setSampleRoom(rooms[0]);
-        }
+        if (mounted && Array.isArray(rooms)) setSampleRoom(rooms[0] || null);
       })
       .catch(() => {});
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [visible, bilik?.bilikId]);
 
-  // Show the screen this step is about behind the card.
   useEffect(() => {
     if (!visible) return;
     return navigateInMain(current.target(sampleRoom));
-  }, [visible, step, sampleRoom]);
+  }, [visible, current.key, sampleRoom]);
 
-  const handleNext = () => {
-    if (isLast) {
-      handleClose();
-    } else {
-      setStep((s) => s + 1);
-    }
-  };
+  // Measure after navigation and continue during transitions, async content,
+  // rotation, and language changes. Modal coordinates are relative to its root.
+  useEffect(() => {
+    setFrame(null);
+    if (!visible) return;
+    let active = true;
+    const measure = () => {
+      const entry = targets?.get(current.anchor);
+      if (!entry?.ref.current || !root.current) return;
+      root.current.measureInWindow((rootX, rootY) => {
+        entry.ref.current?.measureInWindow((x, y, width, height) => {
+          if (!active || !width || !height) return;
+          const commit = () => {
+            if (!active) return;
+            const next = { x: x - rootX, y: y - rootY, width, height };
+            setFrame((prev) => prev && Object.keys(next).every((key) => Math.abs(next[key] - prev[key]) < 1) ? prev : next);
+          };
+          if (entry.scroll?.ref.current) {
+            entry.scroll.ref.current.measureInWindow((sx, sy, sw, sh) => {
+              if (!active) return;
+              // Reveal the entire feature when possible, with room for its bubble.
+              if (y < sy + 8 || y + height > sy + sh - 8) {
+                const delta = y < sy + 8 ? y - sy - 12 : y + height - sy - sh + 12;
+                entry.scroll.ref.current?.scrollTo({ y: Math.max(0, entry.scroll.offset + delta), animated: false });
+              }
+              commit();
+            });
+          } else commit();
+        });
+      });
+    };
+    const timer = setInterval(measure, 180);
+    measure();
+    return () => { active = false; clearInterval(timer); };
+  }, [visible, current.key, targets, viewport.width, viewport.height, language]);
 
-  const handleBack = () => {
-    if (step > 0) setStep((s) => s - 1);
-  };
-
-  // Finishing or skipping lands the user back on Home.
-  const handleClose = () => {
-    setStep(0);
+  const close = () => {
+    setStepKey("welcome");
     navigateInMain(HOME);
     onClose();
   };
-
-  const categoryLabel = current.category
-    ? t(`tutorial.categories.${current.category}`)
-    : null;
+  const layout = getTutorialLayout(viewport, frame, bubbleHeight);
+  const { highlight: h, bubble: b, below, arrowX } = layout;
+  const hole = h ? `M${h.x},${h.y} h${h.width} v${h.height} h-${h.width} Z` : "";
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={handleClose}
-      statusBarTranslucent
-    >
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
-          {/* Language switch (changes the whole app) + Skip */}
-          <View style={styles.topRow}>
-            <View style={styles.languageSwitch}>
-              {LANGUAGES.map(({ code, label, nameKey }) => {
-                const active = language === code;
-                return (
-                  <TouchableOpacity
-                    key={code}
-                    style={[styles.languageOption, active && styles.languageOptionActive]}
-                    onPress={() => setLanguage(code)}
-                    activeOpacity={0.8}
-                    accessibilityRole="button"
-                    accessibilityLabel={t(nameKey)}
-                    accessibilityState={{ selected: active }}
-                  >
-                    <Text
-                      style={[
-                        styles.languageOptionText,
-                        active && styles.languageOptionTextActive,
-                      ]}
-                    >
-                      {label}
-                    </Text>
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent
+      navigationBarTranslucent onRequestClose={close}>
+      <View ref={root} collapsable={false} style={styles.overlay}
+        onLayout={({ nativeEvent: { layout } }) => setViewport({ width: layout.width, height: layout.height })}>
+        <Svg width={viewport.width} height={viewport.height} style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Path d={`M0,0 H${viewport.width} V${viewport.height} H0 Z ${hole}`}
+            fill="rgba(0,0,0,0.28)" fillRule="evenodd" />
+        </Svg>
+        {h && <View pointerEvents="none" style={[styles.highlight, { left: h.x, top: h.y, width: h.width, height: h.height }]} />}
+        <View style={[styles.bubble, { left: b.x, top: b.y, width: b.width, maxHeight: b.maxHeight }]}
+          onLayout={({ nativeEvent: { layout } }) => setBubbleHeight(layout.height)} accessibilityViewIsModal>
+          {h && <View pointerEvents="none" style={[styles.arrow, { left: arrowX, [below ? "top" : "bottom"]: -6 }]} />}
+          <ScrollView bounces={false} showsVerticalScrollIndicator={false} contentContainerStyle={styles.bubbleContent}>
+            <View style={styles.row}>
+              <Text style={styles.counter}>{step + 1}/{steps.length}</Text>
+              <View style={styles.languages}>
+                {LANGUAGES.map(({ code, label, nameKey }) => (
+                  <TouchableOpacity key={code} onPress={() => setLanguage(code)}
+                    style={[styles.language, language === code && styles.languageActive]}
+                    accessibilityRole="button" accessibilityLabel={t(nameKey)} accessibilityState={{ selected: language === code }}>
+                    <Text style={[styles.languageText, language === code && styles.languageTextActive]}>{label}</Text>
                   </TouchableOpacity>
-                );
-              })}
-            </View>
-            <TouchableOpacity
-              onPress={handleClose}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Text style={styles.skipText}>{t("tutorial.skip")}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Icon */}
-          <View style={[styles.iconWrap, { backgroundColor: current.iconBg }]}>
-            <Ionicons name={current.icon} size={30} color={current.iconColor} />
-          </View>
-
-          {/* Category pill (which category this section belongs to) */}
-          {categoryLabel && (
-            <View style={styles.categoryPill}>
-              <Text style={styles.categoryText}>{categoryLabel}</Text>
-            </View>
-          )}
-
-          {/* Title + description */}
-          <Text style={styles.title}>{t(`tutorial.steps.${current.key}.title`)}</Text>
-          <Text style={styles.desc}>{t(`tutorial.steps.${current.key}.desc`)}</Text>
-
-          {/* Progress dots */}
-          <View style={styles.dots}>
-            {STEPS.map((_, i) => (
-              <View
-                key={i}
-                style={[styles.dot, i === step && styles.dotActive]}
-              />
-            ))}
-          </View>
-
-          {/* Controls */}
-          <View style={styles.controls}>
-            {step > 0 ? (
-              <TouchableOpacity
-                style={styles.backBtn}
-                onPress={handleBack}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.backText}>{t("tutorial.back")}</Text>
+                ))}
+              </View>
+              <TouchableOpacity onPress={close} style={styles.skip} accessibilityRole="button">
+                <Text style={styles.secondaryText}>{t("tutorial.skip")}</Text>
               </TouchableOpacity>
-            ) : (
-              <View style={styles.backSpacer} />
-            )}
-
-            <TouchableOpacity
-              style={styles.nextBtn}
-              onPress={handleNext}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.nextText}>
-                {isLast ? t("tutorial.done") : t("tutorial.next")}
-              </Text>
-              {!isLast && (
-                <Ionicons name="arrow-forward" size={16} color={COLORS.white} />
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {/* Step counter */}
-          <Text style={styles.counter}>
-            {t("tutorial.stepCounter", {
-              current: step + 1,
-              total: STEPS.length,
-            })}
-          </Text>
+            </View>
+            <Text style={styles.title} accessibilityRole="header" accessibilityLiveRegion="polite">{t(`tutorial.steps.${current.key}.title`)}</Text>
+            <Text style={styles.desc}>{t(`tutorial.steps.${current.key}.desc`)}</Text>
+            <View style={styles.controls}>
+              {step > 0 && <TouchableOpacity onPress={() => setStepKey(steps[step - 1].key)} style={styles.back} accessibilityRole="button">
+                <Text style={styles.secondaryText}>{t("tutorial.back")}</Text>
+              </TouchableOpacity>}
+              <TouchableOpacity onPress={() => isLast ? close() : setStepKey(steps[step + 1].key)} style={styles.next} accessibilityRole="button">
+                <Text style={styles.nextText}>{t(isLast ? "tutorial.done" : "tutorial.next")}</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -289,146 +157,24 @@ export default function TutorialOverlay({ visible, onClose }) {
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
-    justifyContent: "flex-end",
-  },
-  card: {
-    backgroundColor: COLORS.white,
-    borderTopLeftRadius: RADIUS.xl,
-    borderTopRightRadius: RADIUS.xl,
-    paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.lg,
-    paddingBottom: SPACING.xxl,
-    ...SHADOW.medium,
-  },
-  topRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: SPACING.md,
-  },
-  languageSwitch: {
-    flexDirection: "row",
-    backgroundColor: COLORS.bg,
-    borderRadius: RADIUS.full,
-    padding: 3,
-    gap: 4,
-  },
-  languageOption: {
-    borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-  },
-  languageOptionActive: {
-    backgroundColor: COLORS.primary,
-  },
-  languageOptionText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: COLORS.text2,
-  },
-  languageOptionTextActive: {
-    color: COLORS.white,
-  },
-  skipText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: COLORS.text3,
-  },
-  iconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: RADIUS.lg,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: SPACING.md,
-  },
-  categoryPill: {
-    alignSelf: "flex-start",
-    backgroundColor: COLORS.bg,
-    borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 4,
-    marginBottom: SPACING.sm,
-  },
-  categoryText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: COLORS.text2,
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-  },
-  title: {
-    fontSize: 19,
-    fontWeight: "700",
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
-  },
-  desc: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: COLORS.text2,
-    marginBottom: SPACING.lg,
-  },
-  dots: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 6,
-    marginBottom: SPACING.lg,
-  },
-  dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: COLORS.border,
-  },
-  dotActive: {
-    width: 20,
-    backgroundColor: COLORS.primary,
-  },
-  controls: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING.md,
-  },
-  backSpacer: {
-    flex: 1,
-  },
-  backBtn: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  backText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.text2,
-  },
-  nextBtn: {
-    flex: 2,
-    flexDirection: "row",
-    paddingVertical: 13,
-    borderRadius: RADIUS.md,
-    backgroundColor: COLORS.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: SPACING.sm,
-  },
-  nextText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: COLORS.white,
-  },
-  counter: {
-    textAlign: "center",
-    fontSize: 12,
-    color: COLORS.text3,
-    marginTop: SPACING.md,
-  },
+  overlay: { flex: 1 },
+  highlight: { position: "absolute", borderWidth: 2, borderColor: COLORS.primary, borderRadius: 10 },
+  bubble: { position: "absolute", backgroundColor: COLORS.white, borderRadius: RADIUS.lg, ...SHADOW.medium },
+  bubbleContent: { padding: 14 },
+  arrow: { position: "absolute", width: 12, height: 12, backgroundColor: COLORS.white, transform: [{ rotate: "45deg" }] },
+  row: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
+  counter: { flex: 1, fontSize: 12, color: COLORS.text3 },
+  languages: { flexDirection: "row", borderRadius: RADIUS.full, backgroundColor: COLORS.bg },
+  language: { paddingHorizontal: 9, minHeight: 32, justifyContent: "center", borderRadius: RADIUS.full },
+  languageActive: { backgroundColor: COLORS.primary },
+  languageText: { fontSize: 11, fontWeight: "700", color: COLORS.text2 },
+  languageTextActive: { color: COLORS.white },
+  skip: { paddingHorizontal: 4, minHeight: 32, justifyContent: "center" },
+  title: { fontSize: 16, fontWeight: "700", color: COLORS.text, marginBottom: 5 },
+  desc: { fontSize: 13, lineHeight: 19, color: COLORS.text2 },
+  controls: { flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 12, marginTop: 12 },
+  back: { minHeight: 40, paddingHorizontal: 12, justifyContent: "center" },
+  secondaryText: { fontSize: 12, fontWeight: "600", color: COLORS.text2 },
+  next: { minHeight: 40, paddingHorizontal: 18, justifyContent: "center", borderRadius: RADIUS.md, backgroundColor: COLORS.primary },
+  nextText: { fontSize: 13, fontWeight: "700", color: COLORS.white },
 });

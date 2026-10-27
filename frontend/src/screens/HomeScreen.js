@@ -2,7 +2,6 @@ import React from "react";
 import {
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -12,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
 import { useNavigation } from "@react-navigation/native";
+import TutorialTarget, { TutorialScrollView } from "../components/TutorialTarget";
 import EmergencyCallButton from "../components/EmergencyCallButton";
 
 export default function HomeScreen() {
@@ -44,7 +44,9 @@ export default function HomeScreen() {
             <Text style={styles.retryText}>{t("home.retry")}</Text>
           </TouchableOpacity>
         </View>
-        <EmergencyCallButton t={t} />
+        <TutorialTarget id="callBomba" style={{ alignSelf: "flex-end" }}>
+          <EmergencyCallButton t={t} />
+        </TutorialTarget>
       </SafeAreaView>
     );
   }
@@ -57,7 +59,9 @@ export default function HomeScreen() {
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>{t("home.loading")}</Text>
         </View>
-        <EmergencyCallButton t={t} />
+        <TutorialTarget id="callBomba" style={{ alignSelf: "flex-end" }}>
+          <EmergencyCallButton t={t} />
+        </TutorialTarget>
       </SafeAreaView>
     );
   }
@@ -89,9 +93,9 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <TutorialScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View style={styles.header}>
+        <TutorialTarget id="home" style={styles.header}>
           <View style={styles.headerTop}>
             <View style={styles.headerTextWrap}>
               <Text style={styles.greet}>{t("home.welcomeBack")}</Text>
@@ -140,10 +144,10 @@ export default function HomeScreen() {
               <Text style={styles.statCardVal}>2</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </TutorialTarget>
 
         {/* System Status */}
-        <View style={styles.statusCard}>
+        <TutorialTarget id="systemStatus" style={styles.statusCard}>
           <View style={styles.statusCardTop}>
             <Text style={styles.sectionTitle}>{t("home.systemStatus")}</Text>
             <View
@@ -185,7 +189,7 @@ export default function HomeScreen() {
               <Text style={styles.statusLbl}>{t("home.fireEvents")}</Text>
             </View>
           </View>
-        </View>
+        </TutorialTarget>
 
         {realtimeError ? (
           <View style={styles.errorCard}>
@@ -196,7 +200,7 @@ export default function HomeScreen() {
         ) : null}
 
         {/* Recent Alerts */}
-        <View style={styles.section}>
+        <TutorialTarget id="recentAlerts" style={styles.section}>
           <View style={styles.sectionRow}>
             <Text style={styles.sectionTitle}>{t("home.recentAlerts")}</Text>
             <TouchableOpacity onPress={() => navigateTo("Notifications")}>
@@ -224,7 +228,7 @@ export default function HomeScreen() {
           {recentAlerts.length === 0 ? (
             <Text style={styles.emptyText}>{t("home.noAlerts")}</Text>
           ) : null}
-        </View>
+        </TutorialTarget>
 
         {/* Bilik and its rooms */}
         <View style={styles.section}>
@@ -261,8 +265,10 @@ export default function HomeScreen() {
         </View>
 
         <View style={{ height: SPACING.xxl }} />
-      </ScrollView>
-      <EmergencyCallButton t={t} />
+      </TutorialScrollView>
+      <TutorialTarget id="callBomba" style={{ alignSelf: "flex-end" }}>
+        <EmergencyCallButton t={t} />
+      </TutorialTarget>
     </SafeAreaView>
   );
 }

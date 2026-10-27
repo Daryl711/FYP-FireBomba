@@ -1,9 +1,9 @@
+import TutorialTarget, { TutorialScrollView } from "../components/TutorialTarget";
 import React, { useState, useEffect, useRef } from "react";
 import { Video } from "expo-av";
 import {
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
   StyleSheet,
   Animated,
@@ -427,9 +427,9 @@ export default function RoomDetailScreen({ route, navigation }) {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <TutorialScrollView showsVerticalScrollIndicator={false}>
         {cameraActive === 1 && (
-          <View style={styles.cameraBlock}>
+          <TutorialTarget id="roomDetail" style={styles.cameraBlock}>
             <Video
               source={{
                 uri: `http://${PI_IP}/hls/mystream.m3u8`,
@@ -448,7 +448,7 @@ export default function RoomDetailScreen({ route, navigation }) {
               <Text style={styles.recText}>REC</Text>
             </View>
             <Text style={styles.camTime}>{formatTime(camTime)}</Text>
-          </View>
+          </TutorialTarget>
         )}
 
         {sensorError !== null && (
@@ -470,7 +470,7 @@ export default function RoomDetailScreen({ route, navigation }) {
             !cameraActive ? { marginTop: SPACING.lg } : null,
           ]}
         >
-          <View style={styles.sensorRow}>
+          <TutorialTarget id={cameraActive === 1 ? null : "roomDetail"} style={styles.sensorRow}>
             <SensorCard
               icon="thermometer-outline"
               label={t("roomDetail.temperature")}
@@ -489,7 +489,7 @@ export default function RoomDetailScreen({ route, navigation }) {
               fillPct={smokePct}
               fillColor={COLORS.blue}
             />
-          </View>
+          </TutorialTarget>
 
           <View style={styles.sensorRow}>
             <SensorCard
@@ -593,18 +593,20 @@ export default function RoomDetailScreen({ route, navigation }) {
             </View>
           </View>
 
-          <TouchableOpacity
-            style={[styles.pumpBtn, pumpActive && styles.pumpBtnActive]}
-            onPress={handlePumpToggle}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="power" size={18} color={COLORS.white} />
-            <Text style={styles.pumpBtnText}>
-              {pumpActive
-                ? t("roomDetail.deactivatePump")
-                : t("roomDetail.activatePump")}
-            </Text>
-          </TouchableOpacity>
+          <TutorialTarget id="waterPump">
+            <TouchableOpacity
+              style={[styles.pumpBtn, pumpActive && styles.pumpBtnActive]}
+              onPress={handlePumpToggle}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="power" size={18} color={COLORS.white} />
+              <Text style={styles.pumpBtnText}>
+                {pumpActive
+                  ? t("roomDetail.deactivatePump")
+                  : t("roomDetail.activatePump")}
+              </Text>
+            </TouchableOpacity>
+          </TutorialTarget>
 
           <View style={styles.pumpMeta}>
             <View>
@@ -633,7 +635,7 @@ export default function RoomDetailScreen({ route, navigation }) {
         </Animated.View>
 
         <View style={{ height: SPACING.xxl }} />
-      </ScrollView>
+      </TutorialScrollView>
     </SafeAreaView>
   );
 }

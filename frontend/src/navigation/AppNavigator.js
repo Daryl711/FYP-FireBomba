@@ -1,3 +1,4 @@
+import TutorialTarget from "../components/TutorialTarget";
 // src/navigation/AppNavigator.js
 import React from "react";
 import {
@@ -165,27 +166,28 @@ function SwipeTabBar({ state, descriptors, navigation }) {
         };
 
         return (
-          <Pressable
-            key={route.key}
-            onPress={onPress}
-            style={tabBar.item}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: focused }}
-          >
-            <View style={{ position: "relative" }}>
-              <Ionicons
-                name={focused ? activeIcon : inactiveIcon}
-                size={22}
-                color={color}
-              />
-              {route.name === "Notifications" && (
-                <TabBadge count={unreadCount} />
-              )}
-            </View>
-            <Text style={[tabBar.label, { color }]}>
-              {descriptors[route.key].options.tabBarLabel}
-            </Text>
-          </Pressable>
+          <TutorialTarget key={route.key} id={`tab-${route.name}`} style={{ flex: 1 }}>
+            <Pressable
+              onPress={onPress}
+              style={tabBar.item}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: focused }}
+            >
+              <View style={{ position: "relative" }}>
+                <Ionicons
+                  name={focused ? activeIcon : inactiveIcon}
+                  size={22}
+                  color={color}
+                />
+                {route.name === "Notifications" && (
+                  <TabBadge count={unreadCount} />
+                )}
+              </View>
+              <Text style={[tabBar.label, { color }]}>
+                {descriptors[route.key].options.tabBarLabel}
+              </Text>
+            </Pressable>
+          </TutorialTarget>
         );
       })}
     </View>

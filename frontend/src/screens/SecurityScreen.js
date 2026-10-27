@@ -1,9 +1,9 @@
+import TutorialTarget, { TutorialScrollView } from "../components/TutorialTarget";
 import React, { useState, useRef, useEffect } from "react";
 import { LogBox } from "react-native";
 import {
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
   StyleSheet,
   Switch,
@@ -220,7 +220,7 @@ export default function SecurityScreen({ navigation }) {
           <Text style={styles.loadingText}>{t("common.loading")}</Text>
         </View>
       ) : (
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <TutorialScrollView showsVerticalScrollIndicator={false}>
         {/* Biometric login */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -265,14 +265,14 @@ export default function SecurityScreen({ navigation }) {
 
         {/* Camera Detection Section */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+          <TutorialTarget id="security" style={styles.sectionHeader}>
             <Text style={styles.sectionLabel}>
               {t("security.cameraDetection")}
             </Text>
             <Text style={styles.sectionCount}>
               {enabledCount}/{roomData.length} {t("security.active")}
             </Text>
-          </View>
+          </TutorialTarget>
           {roomData.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="home-outline" size={32} color={COLORS.text3} />
@@ -324,7 +324,7 @@ export default function SecurityScreen({ navigation }) {
         </View>
 
         <View style={{ height: SPACING.xxl }} />
-      </ScrollView>
+      </TutorialScrollView>
       )}
     </SafeAreaView>
   );
