@@ -29,7 +29,7 @@ TOPIC = f"firebomba/room/{BILIK_ID}/yolo"
 INTERVAL = 5.0
 MIN_CONFIDENCE = 0.60  # Initial experimental threshold
 YOLO_CONFIDENCE = 0.25
-MODEL_DIR = Path(__file__).resolve().parent
+MODEL_DIR = Path(__file__).resolve().parent / "onnx"
 
 
 class ONNXDetector:
@@ -265,8 +265,7 @@ def main():
         MODEL_DIR / "yolo_detector.onnx"
     )
     classifier = MobileNetClassifier(
-        checkpoint=MODEL_DIR / "best_model.pth",
-        device="cpu"
+        model_path=MODEL_DIR / "best_model.onnx"
     )
 
     client = mqtt.Client(

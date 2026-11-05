@@ -1,71 +1,50 @@
-"""Classify an image/ROI using the trained MobileNetV3-Small checkpoint."""
+"""Classify an image/ROI using the exported MobileNet ONNX model."""
 
 from __future__ import annotations
 
-import argparse
 import json
 from pathlib import Path
 
-import torch
+import numpy as np
+import onnxruntime as ort
 from PIL import Image, ImageOps
-from torch import nn
-from torchvision import models, transforms
 
 
-DEFAULT_CHECKPOINT = Path(__file__).resolve().parent / "best_model.pth"
+DEFAULT_MODEL = Path(__file__).resolve().parent / "onnx" / "best_model.onnx"
 
 
 class MobileNetClassifier:
     """Load once, then call predict() for each image or detector ROI crop."""
 
-    def __init__(
-        self, checkpoint: str | Path = DEFAULT_CHECKPOINT, device: str = "auto"
-    ) -> None:
-        if device not in ("auto", "cpu", "cuda"):
-            raise ValueError("device must be auto, cpu, or cuda")
-        if device == "auto":
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-        if device == "cuda" and not torch.cuda.is_available():
-            raise RuntimeError("CUDA is unavailable. Use --device cpu.")
-        self.device = torch.device(device)
-
-        
-
-        saved = torch.load(checkpoint, map_location="cpu", weights_only=False)
-        if not isinstance(saved, dict):
-            raise ValueError("Expected a dictionary checkpoint from train.py.")
-        if saved.get("architecture") not in (None, "mobilenet_v3_small"):
-            raise ValueError(f"Unsupported architecture: {saved['architecture']!r}")
-        self.class_names = saved.get("class_names")
+    def __init__(self, model_path: str | Path = DEFAULT_MODEL) -> None:
+        model_path = Path(model_path)
+        with model_path.with_suffix(".json").open(encoding="utf-8") as file:
+            metadata = json.load(file)
+        self.class_names = metadata["class_names"]
         if (
             not isinstance(self.class_names, list)
             or not self.class_names
             or not all(isinstance(name, str) and name for name in self.class_names)
             or len(set(self.class_names)) != len(self.class_names)
         ):
-            raise ValueError("Checkpoint must contain unique, nonempty class_names.")
-        self.image_size = int(saved.get("image_size", 256))
-        if self.image_size <= 0:
-            raise ValueError("Checkpoint image_size must be positive.")
-        state = saved.get("model_state_dict", saved.get("state_dict"))
-        if not isinstance(state, dict):
-            raise ValueError("Checkpoint is missing model_state_dict/state_dict.")
+            raise ValueError("Model metadata must contain unique, nonempty class_names.")
+        shape = metadata["input_shape"]
+        if (len(shape) != 4 or shape[:2] != [1, 3]
+                or not all(isinstance(size, int) and size > 0 for size in shape[2:])):
+            raise ValueError("Expected input_shape [1, 3, height, width].")
+        self.input_height, self.input_width = shape[2:]
+        self.mean = np.asarray(metadata["mean"], dtype=np.float32).reshape(3, 1, 1)
+        self.std = np.asarray(metadata["std"], dtype=np.float32).reshape(3, 1, 1)
+        if not np.all(np.isfinite(self.mean)) or not np.all(np.isfinite(self.std)) or np.any(self.std <= 0):
+            raise ValueError("Normalization mean/std must be finite with positive std.")
 
-        self.model = models.mobilenet_v3_small(weights=None)
-        self.model.classifier[-1] = nn.Linear(
-            self.model.classifier[-1].in_features, len(self.class_names)
+        self.session = ort.InferenceSession(
+            str(model_path), providers=["CPUExecutionProvider"]
         )
-        self.model.load_state_dict(state, strict=True)
-        self.model.to(self.device).eval()
-        self.transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-        ])
+        self.input_name = self.session.get_inputs()[0].name
+        self.output_name = self.session.get_outputs()[0].name
 
-    @torch.inference_mode()
     def predict(self, image: str | Path | Image.Image) -> dict[str, str | float]:
-        print("[1] Starting prediction", flush=True)
-
         if isinstance(image, (str, Path)):
             with Image.open(image) as source:
                 rgb = ImageOps.exif_transpose(source).convert("RGB")
@@ -74,39 +53,25 @@ class MobileNetClassifier:
         else:
             raise TypeError("image must be a file path or PIL.Image.Image")
 
-        print("[2] Image converted to RGB", flush=True)
-
         width, height = rgb.size
         side = max(width, height)
         square = Image.new("RGB", (side, side), (114, 114, 114))
         square.paste(rgb, ((side - width) // 2, (side - height) // 2))
-
         resized = square.resize(
-            (self.image_size, self.image_size),
-            Image.Resampling.BICUBIC
+            (self.input_width, self.input_height), Image.Resampling.BICUBIC
         )
-
-        print("[3] Image resized", flush=True)
-
-        tensor = self.transform(resized)
-        print("[4] Transform completed", flush=True)
-
-        tensor = tensor.unsqueeze(0).to(self.device)
-        print("[5] Tensor ready", flush=True)
-
-        probabilities = self.model(tensor)
-        print("[6] Model inference completed", flush=True)
-
-        probabilities = probabilities.float().softmax(dim=1)[0]
-        print("[7] Softmax completed", flush=True)
-
-        confidence, index = probabilities.max(dim=0)
-        print("[8] Prediction completed", flush=True)
-
+        pixels = np.asarray(resized, dtype=np.float32).transpose(2, 0, 1) / 255.0
+        tensor = np.ascontiguousarray(((pixels - self.mean) / self.std)[None])
+        # The exported graph already includes softmax; applying it again would
+        # change confidence values and break the camera's detection threshold.
+        probabilities = self.session.run(
+            [self.output_name], {self.input_name: tensor}
+        )[0]
+        if (probabilities.shape != (1, len(self.class_names))
+                or not np.all(np.isfinite(probabilities))):
+            raise ValueError("Unexpected classifier probability output.")
+        index = int(np.argmax(probabilities[0]))
         return {
-            "class": self.class_names[index.item()],
-            "confidence": confidence.item(),
+            "class": self.class_names[index],
+            "confidence": float(probabilities[0, index]),
         }
-
-
-

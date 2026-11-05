@@ -1,9 +1,9 @@
 # Risk detection engine
 
-Run this service on the Raspberry Pi alongside the existing MQTT bridge and
-camera service. All three publishers and the risk engine must use the same
-local MQTT broker and room ID for inputs. Risk output goes directly to AWS IoT
-Core over TLS using a separate MQTT client. `+` is a subscription wildcard; publishers use
+Risk detection runs inside the existing Raspberry Pi MQTT bridge (`mqtt/mqtt.py`),
+alongside the separate camera service. It reuses the bridge's local MQTT client
+for inputs and alarms, and its AWS IoT client for risk output over TLS.
+All input publishers must use the same local broker and room ID. `+` is a subscription wildcard; publishers use
 an actual room ID such as `1`.
 
 | Pipeline | Topic | Required JSON field |
@@ -118,7 +118,7 @@ episode. Creation failures retry on the next critical update. Episode tracking
 is in memory and resets when the backend restarts. The existing raw-flame
 alerts continue to operate independently.
 
-Restart the Pi risk service and backend after updating them. No additional AWS
+Restart the Pi MQTT bridge and backend after updating them. No additional AWS
 alarm topic permission is required: the alarm command stays on the local broker;
 the cloud continues using the existing `/risk` topic.
 
@@ -141,7 +141,7 @@ From the repository root:
 ```powershell
 cd raspberry
 python -m pip install -r risk_detection/requirements.txt
-python -m risk_detection.service
+python -m mqtt.mqtt
 ```
 
 Configuration is loaded from `raspberry/.env`:
@@ -149,12 +149,8 @@ Configuration is loaded from `raspberry/.env`:
 ```dotenv
 LOCAL_MQTT_BROKER=127.0.0.1
 LOCAL_MQTT_PORT=1883
-# Optional broker authentication (also used by the camera)
-MQTT_USERNAME=
-MQTT_PASSWORD=
 RISK_MAX_INPUT_AGE_SECONDS=30
-RISK_MQTT_CLIENT_ID=FireBomba-RiskEngine
-AWS_IOT_RISK_CLIENT_ID=firebomba-risk-engine
+AWS_IOT_CLIENT_ID=firebomba-pump-bridge
 AWS_IOT_ENDPOINT=your-iot-endpoint
 AWS_IOT_PORT=8883
 AWS_IOT_ROOT_CA_PATH=certs/AmazonRootCA1.pem
@@ -164,15 +160,17 @@ AWS_IOT_PRIVATE_KEY_PATH=certs/device-private.pem.key
 ROOM_ID=1
 ```
 
-`MQTT_HOST` and `MQTT_PORT` are supported as fallback broker settings. The anomaly
-publisher runs within the existing `python -m mqtt.mqtt` bridge, which still needs
-its database, model dependencies and AWS IoT configuration. Flash the updated
+The bridge needs its existing database, model dependencies and AWS IoT
+configuration. Start only `python -m mqtt.mqtt`. Stop and disable any old standalone
+`risk_detection.service` process or service: risk detection is already part of the
+bridge. The old entry point prints migration instructions and exits without
+creating clients. Running two bridges with the same MQTT client IDs causes them
+to repeatedly disconnect each other. Flash the updated
 ESP32 sketch to enable the separate flame topic. Its configured room `1` must match
 the database mapping and camera room.
 
-The risk engine uses the existing Raspberry Pi AWS IoT certificate configuration;
-relative certificate paths resolve from `raspberry`. Its client ID must be distinct
-from the pump bridge. Configure the device's AWS IoT policy to allow this client
+The risk engine shares the bridge's AWS IoT certificate configuration and client
+ID. Configure the device's AWS IoT policy to allow the bridge client
 to connect and publish to `firebomba/room/*/risk`; allow the backend client to
 subscribe to `firebomba/room/+/risk` and receive `firebomba/room/*/risk`.
 

@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 import csv
-from threading import Thread
+from threading import Event, Thread
 
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
@@ -17,6 +17,8 @@ from mqtt.database import (
 )
 from sync.sync import AGGREGATE_RETRY_INTERVAL_SECONDS, sync_aggregates
 from anomaly_detection.inference import FireAnomalyDetector
+from risk_detection.engine import INPUT_TOPIC, RiskEngine
+from risk_detection.service import handle_message, run_risk_detection, subscribe_inputs
 
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
@@ -38,6 +40,7 @@ SENSOR_DATA_TOPIC = re.compile(r"^firebomba/room/[^/]+/sensor-data$")
 
 local_client = mqtt.Client(client_id="FireBomba-RaspberryPi-Local")
 cloud_client = mqtt.Client(client_id=CLOUD_CLIENT_ID)
+risk_engine = RiskEngine(float(os.getenv("RISK_MAX_INPUT_AGE_SECONDS", "30")))
 room_detectors = {}
 ANOMALY_MODEL_PATH = (
 	Path(__file__).resolve().parents[1]
@@ -54,6 +57,7 @@ def on_local_connect(client, userdata, flags, rc):
 		client.subscribe("firebomba/room/+/pump/status", qos=1)
 		print("Subscribed to: firebomba/room/+/sensor-data")
 		print("Subscribed to: firebomba/room/+/pump/status")
+		subscribe_inputs(client)
 	else:
 		print(f"Local MQTT connection failed: {rc}")
 
@@ -87,6 +91,10 @@ def on_cloud_message(client, userdata, message):
 
 
 def on_local_message(client, userdata, message):
+	if INPUT_TOPIC.fullmatch(message.topic):
+		handle_message(risk_engine, message)
+		return
+
 	if PUMP_STATUS_TOPIC.fullmatch(message.topic):
 		result = cloud_client.publish(
 			message.topic,
@@ -227,10 +235,19 @@ def main():
 	connect_clients()
 
 	local_client.loop_start()
+	risk_stop = Event()
+	risk_thread = Thread(
+		target=run_risk_detection,
+		args=(local_client, cloud_client, risk_engine, risk_stop),
+		daemon=True,
+	)
+	risk_thread.start()
 	try:
 		print("Waiting for AWS IoT pump commands...")
 		cloud_client.loop_forever()
 	finally:
+		risk_stop.set()
+		risk_thread.join()
 		local_client.loop_stop()
 		local_client.disconnect()
 		cloud_client.disconnect()
