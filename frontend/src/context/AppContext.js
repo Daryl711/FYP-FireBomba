@@ -35,6 +35,8 @@ import {
   unregisterPushToken as apiUnregisterPushToken,
   sendTestAlarm as apiSendTestAlarm,
   getSystemHealth as apiGetSystemHealth,
+  getFireSafetyProgress as apiGetFireSafetyProgress,
+  recordFireSafetyQuizPass as apiRecordFireSafetyQuizPass,
 } from "../services/api";
 import { getBiometricSupport, promptBiometrics } from "../services/biometrics";
 import {
@@ -49,6 +51,620 @@ import {
 } from "../services/alarmSounds";
 
 const AppContext = createContext(null);
+
+// Fire-safety learning content is kept here so every screen uses the same
+// English/Bahasa Malaysia wording selected by the user.
+const FIRE_SAFETY_CONTENT = {
+  en: {
+    title: "Fire Safety Modules",
+    subtitle: "Practical fire safety for your longhouse community",
+    learningHeading: "LEARNING MODULES",
+    practiceHeading: "PUT IT INTO PRACTICE",
+    moduleLabel: "MODULE",
+    modules: [
+      {
+        id: "basics",
+        icon: "flame-outline",
+        title: "Fire basics",
+        summary: "Recognise fire growth and common fire classes.",
+        bullets: [
+          "Ignition is the safest time to act.",
+          "Growth means the fire is spreading; only tackle a small fire if safe.",
+          "A fully developed fire is not for residents to fight. Evacuate.",
+          "Smoke and heat remain dangerous during decay.",
+        ],
+        detailTitle: "Fire classes",
+        details: [
+          "Class A — wood, bamboo, cloth, paper and thatch.",
+          "Class B — petrol, kerosene and cooking oil.",
+          "Class C — LPG and other flammable gases.",
+          "Class E — wiring, sockets, appliances and generators.",
+        ],
+        takeaway:
+          "Padam dan lari: extinguish only when it is safe; otherwise leave immediately.",
+      },
+      {
+        id: "extinguishers",
+        icon: "water-outline",
+        title: "Extinguisher guide",
+        summary: "Choose suitable equipment and use PASS safely.",
+        bullets: [
+          "Raise the alarm before attempting to fight a fire.",
+          "Keep a clear exit behind you.",
+          "Aim at the base of the fire and sweep side to side.",
+          "Leave immediately if the fire grows or you feel unsure.",
+        ],
+        detailTitle: "Tap an extinguisher type",
+        details: [
+          "Dry powder — suitable for Classes A, B, C and E; a useful general-purpose choice.",
+          "CO₂ — suitable for electrical fires and some liquid fires; leaves no residue. Avoid confined spaces.",
+          "Foam — suitable for liquid fires and some solid materials.",
+          "Water or water mist — suitable for Class A. Never use plain water on oil or electrical fires.",
+        ],
+        takeaway:
+          "PASS: Pull the pin, Aim at the base, Squeeze the handle, Sweep side to side.",
+      },
+      {
+        id: "cycle",
+        icon: "people-outline",
+        title: "Incident management",
+        summary: "Prepare, respond and recover together.",
+        bullets: [
+          "Prevention: keep exits clear and maintain safe wiring and fuel storage.",
+          "Preparedness: practise drills, alarms, evacuation and headcounts.",
+          "Response: evacuate, gather upwind and call Bomba at 999.",
+          "Relief: wait for clearance, provide first aid and organise support.",
+        ],
+        detailTitle: "When calling 999",
+        details: [
+          "Give the longhouse name and nearest road, river or landmark.",
+          "Say what is burning and where it is located.",
+          "Share the number of people involved or still unaccounted for.",
+          "Do not re-enter until Bomba declares the area safe.",
+        ],
+        takeaway:
+          "Agree on an alarm signal, assembly point and helpers for children, older people and anyone needing assistance.",
+      },
+    ],
+    checklistTitle: "Longhouse safety checklist",
+    checklistSubtitle:
+      "Mark each item that is ready. Your progress is saved on this device.",
+    checklist: [
+      "Smoke alarms installed and working",
+      "Extinguishers present, in date and easy to reach",
+      "Exits and ruai clear of obstructions",
+      "Wiring and sockets in good condition",
+      "Gas cylinders upright; hoses checked",
+      "Fuel stored away from living areas",
+      "Everyone knows the community alarm signal",
+      "Assembly point agreed and known",
+      "Helpers assigned for alarm, Bomba call and evacuation support",
+      "Emergency numbers displayed",
+    ],
+    quizTitle: "Fire safety quiz",
+    quizSubtitle: "10 questions",
+    startQuiz: "Start quiz",
+    submitQuiz: "Check answers",
+    tryAgain: "Try again",
+    retrySync: "Sync badge",
+    nextQuestion: "Next question",
+    question: "Question {{current}} of {{total}}",
+    score: "You scored {{score}}/10",
+    passed: "Passed! Safety quiz badge earned.",
+    failed: "Not passed yet. Review the modules and try again.",
+    badge: "Fire Safety Certified",
+    syncPending:
+      "Saved on this device. We will sync your badge when you are online.",
+    correct: "Correct",
+    incorrect: "Review this answer",
+    finish: "Finish",
+    checklistScore: "{{done}}/10 ready",
+    checklistComplete: "All checklist items are ready!",
+    questions: [
+      [
+        "When is the best time to extinguish a fire?",
+        [
+          "During ignition, while it is small and safe",
+          "When it is fully developed",
+          "After smoke fills the building",
+        ],
+        0,
+      ],
+      [
+        "What should you do if a fire becomes large?",
+        ["Keep fighting it", "Evacuate immediately", "Go back for belongings"],
+        1,
+      ],
+      [
+        "Which class includes burning wood and bamboo?",
+        ["Class A", "Class B", "Class C"],
+        0,
+      ],
+      [
+        "Which class covers LPG gas fires?",
+        ["Class A", "Class C", "Class E"],
+        1,
+      ],
+      [
+        "Which extinguisher is suitable for an electrical fire?",
+        ["CO₂", "Plain water", "Cooking oil"],
+        0,
+      ],
+      [
+        "What does the P in PASS mean?",
+        ["Push the alarm", "Pull the pin", "Point at the smoke"],
+        1,
+      ],
+      [
+        "Where should you aim an extinguisher?",
+        ["At the base of the fire", "At the ceiling", "At the smoke"],
+        0,
+      ],
+      [
+        "What should be behind you when using an extinguisher?",
+        ["A clear exit", "A locked room", "Other people"],
+        0,
+      ],
+      [
+        "Can plain water be used on an oil fire?",
+        ["Yes, always", "No", "Only indoors"],
+        1,
+      ],
+      [
+        "Where should people gather after evacuating?",
+        [
+          "At the agreed assembly point, upwind",
+          "Beside the fire",
+          "Inside the house",
+        ],
+        0,
+      ],
+      [
+        "What number do you call for Bomba in an emergency?",
+        ["999", "111", "123"],
+        0,
+      ],
+      [
+        "What location information helps Bomba find a longhouse?",
+        [
+          "Longhouse name and nearest landmark",
+          "Only your first name",
+          "The weather",
+        ],
+        0,
+      ],
+      [
+        "Should you return for belongings during evacuation?",
+        ["Yes, if they are nearby", "No", "Only after dark"],
+        1,
+      ],
+      [
+        "What should you do before fighting even a small fire?",
+        ["Raise the alarm", "Close every exit", "Hide the extinguisher"],
+        0,
+      ],
+      ["Which fuel is a Class B fire?", ["Petrol", "Wood", "LPG"], 0],
+      [
+        "Which fuel is a Class E fire?",
+        ["Electrical wiring", "Cloth", "Kerosene"],
+        0,
+      ],
+      [
+        "Which extinguisher is a general-purpose option for A, B, C and E?",
+        ["Dry powder", "Plain water", "Foam only"],
+        0,
+      ],
+      [
+        "What does the A in PASS mean?",
+        ["Aim at the base", "Alert a neighbour", "Avoid the exit"],
+        0,
+      ],
+      [
+        "What does the first S in PASS mean?",
+        ["Squeeze the handle", "Stand in smoke", "Stop the alarm"],
+        0,
+      ],
+      [
+        "What does the final S in PASS mean?",
+        ["Sweep side to side", "Step closer", "Spray the ceiling"],
+        0,
+      ],
+      [
+        "What should residents do if unsure whether it is safe to fight a fire?",
+        ["Leave immediately", "Wait and watch", "Try every extinguisher"],
+        0,
+      ],
+      [
+        "What helps prevent fires in shared walkways?",
+        [
+          "Keeping exits and ruai clear",
+          "Storing fuel there",
+          "Blocking doors",
+        ],
+        0,
+      ],
+      [
+        "How should LPG cylinders be stored?",
+        [
+          "Upright with hoses checked",
+          "On their side beside a flame",
+          "In an escape route",
+        ],
+        0,
+      ],
+      [
+        "What is useful to practise in a community fire drill?",
+        [
+          "Alarm, evacuation and headcount",
+          "Cooking together",
+          "Moving furniture",
+        ],
+        0,
+      ],
+      [
+        "What should a community agree on before an emergency?",
+        [
+          "Alarm signal and assembly point",
+          "A place to store rubbish",
+          "A way to block exits",
+        ],
+        0,
+      ],
+      [
+        "Who may need evacuation assistance?",
+        [
+          "Children, older people and people needing support",
+          "Only visitors",
+          "Nobody",
+        ],
+        0,
+      ],
+      [
+        "When may residents return after a fire?",
+        [
+          "After Bomba says the area is safe",
+          "As soon as flames are out",
+          "Whenever they choose",
+        ],
+        0,
+      ],
+      [
+        "What is a first step for a minor burn?",
+        [
+          "Cool it under running water and seek medical help",
+          "Apply cooking oil",
+          "Rub it hard",
+        ],
+        0,
+      ],
+      [
+        "What does 'decay' mean for a fire?",
+        [
+          "Fuel is running out, but heat and smoke remain dangerous",
+          "The area is safe",
+          "The fire cannot restart",
+        ],
+        0,
+      ],
+      [
+        "What should you report after an incident?",
+        [
+          "The cause and changes needed, with Tuai Rumah/Bomba",
+          "Nothing to anyone",
+          "Only the damage to belongings",
+        ],
+        0,
+      ],
+    ],
+  },
+  ms: {
+    title: "Modul Keselamatan Kebakaran",
+    subtitle:
+      "Panduan praktikal keselamatan kebakaran untuk komuniti rumah panjang",
+    learningHeading: "MODUL PEMBELAJARAN",
+    practiceHeading: "AMALAN KESELAMATAN",
+    moduleLabel: "MODUL",
+    modules: [
+      {
+        id: "basics",
+        icon: "flame-outline",
+        title: "Asas kebakaran",
+        summary: "Kenali perkembangan kebakaran dan kelas api biasa.",
+        bullets: [
+          "Peringkat pencucuhan ialah masa paling selamat untuk bertindak.",
+          "Peringkat pertumbuhan bermakna api merebak; padamkan hanya jika kecil dan selamat.",
+          "Jangan cuba memadam kebakaran besar. Keluar segera.",
+          "Asap dan haba masih berbahaya semasa api mereput.",
+        ],
+        detailTitle: "Kelas kebakaran",
+        details: [
+          "Kelas A — kayu, buluh, kain, kertas dan atap rumbia.",
+          "Kelas B — petrol, minyak tanah dan minyak masak.",
+          "Kelas C — LPG dan gas mudah terbakar lain.",
+          "Kelas E — pendawaian, soket, peralatan dan generator.",
+        ],
+        takeaway:
+          "Padam dan lari: padamkan hanya jika selamat; jika tidak, keluar segera.",
+      },
+      {
+        id: "extinguishers",
+        icon: "water-outline",
+        title: "Panduan pemadam api",
+        summary: "Pilih alat yang sesuai dan gunakan PASS dengan selamat.",
+        bullets: [
+          "Bunyikan penggera sebelum cuba memadam api.",
+          "Pastikan laluan keluar berada di belakang anda.",
+          "Halakan ke pangkal api dan sembur dari sisi ke sisi.",
+          "Keluar segera jika api membesar atau anda berasa ragu.",
+        ],
+        detailTitle: "Tekan jenis pemadam api",
+        details: [
+          "Serbuk kering — sesuai untuk Kelas A, B, C dan E; pilihan serbaguna.",
+          "CO₂ — sesuai untuk kebakaran elektrik dan sesetengah cecair; tidak meninggalkan sisa. Elakkan ruang tertutup.",
+          "Buih — sesuai untuk kebakaran cecair dan sesetengah bahan pepejal.",
+          "Air atau kabus air — sesuai untuk Kelas A. Jangan guna air biasa pada minyak atau kebakaran elektrik.",
+        ],
+        takeaway:
+          "PASS: Pull (tarik pin), Aim (halakan ke pangkal api), Squeeze (tekan pemegang), Sweep (hayun sisi ke sisi).",
+      },
+      {
+        id: "cycle",
+        icon: "people-outline",
+        title: "Pengurusan insiden",
+        summary: "Bersedia, bertindak dan pulih bersama-sama.",
+        bullets: [
+          "Pencegahan: pastikan laluan keluar lapang dan pendawaian serta simpanan bahan api selamat.",
+          "Persediaan: berlatih menggunakan penggera, pemindahan dan kiraan penghuni.",
+          "Tindak balas: keluar, berkumpul di kawasan lapang melawan arah angin dan hubungi Bomba 999.",
+          "Pemulihan: tunggu pengesahan selamat, beri bantuan awal dan urus sokongan.",
+        ],
+        detailTitle: "Semasa menelefon 999",
+        details: [
+          "Berikan nama rumah panjang dan jalan, sungai atau mercu tanda terdekat.",
+          "Nyatakan apa yang terbakar dan lokasinya.",
+          "Maklumkan jumlah orang terlibat atau belum ditemui.",
+          "Jangan masuk semula sehingga Bomba mengesahkan kawasan selamat.",
+        ],
+        takeaway:
+          "Sepakati isyarat penggera, tempat berkumpul dan pembantu untuk kanak-kanak, warga emas serta mereka yang memerlukan bantuan.",
+      },
+    ],
+    checklistTitle: "Senarai semak keselamatan rumah panjang",
+    checklistSubtitle:
+      "Tandakan perkara yang sudah tersedia. Kemajuan disimpan pada peranti ini.",
+    checklist: [
+      "Penggera asap dipasang dan berfungsi",
+      "Pemadam api tersedia, belum luput dan mudah dicapai",
+      "Pintu keluar dan ruai bebas daripada halangan",
+      "Pendawaian dan soket dalam keadaan baik",
+      "Silinder gas tegak; hos diperiksa",
+      "Bahan api disimpan jauh dari ruang kediaman",
+      "Semua keluarga tahu isyarat penggera komuniti",
+      "Tempat berkumpul dipersetujui dan diketahui",
+      "Pembantu ditugaskan untuk penggera, panggilan Bomba dan bantuan pemindahan",
+      "Nombor kecemasan dipaparkan",
+    ],
+    quizTitle: "Kuiz keselamatan kebakaran",
+    quizSubtitle: "10 soalan",
+    startQuiz: "Mula kuiz",
+    submitQuiz: "Semak jawapan",
+    tryAgain: "Cuba lagi",
+    retrySync: "Segerakkan lencana",
+    nextQuestion: "Soalan seterusnya",
+    question: "Soalan {{current}} daripada {{total}}",
+    score: "Markah anda {{score}}/10",
+    passed: "Lulus! Lencana kuiz keselamatan diperoleh.",
+    failed: "Belum lulus. Ulang kaji modul dan cuba lagi.",
+    badge: "Bertauliah Keselamatan Kebakaran",
+    syncPending:
+      "Disimpan pada peranti ini. Lencana akan disegerakkan apabila dalam talian.",
+    correct: "Betul",
+    incorrect: "Semak jawapan ini",
+    finish: "Selesai",
+    checklistScore: "{{done}}/10 tersedia",
+    checklistComplete: "Semua perkara senarai semak sudah tersedia!",
+    questions: [
+      [
+        "Bilakah masa terbaik untuk memadam api?",
+        [
+          "Semasa pencucuhan, ketika api kecil dan keadaan selamat",
+          "Apabila api marak sepenuhnya",
+          "Selepas asap memenuhi bangunan",
+        ],
+        0,
+      ],
+      [
+        "Apakah tindakan jika api menjadi besar?",
+        [
+          "Terus cuba memadam",
+          "Keluar segera",
+          "Masuk semula mengambil barang",
+        ],
+        1,
+      ],
+      [
+        "Apakah kelas kebakaran kayu dan buluh?",
+        ["Kelas A", "Kelas B", "Kelas C"],
+        0,
+      ],
+      ["Apakah kelas kebakaran gas LPG?", ["Kelas A", "Kelas C", "Kelas E"], 1],
+      [
+        "Pemadam apakah sesuai untuk kebakaran elektrik?",
+        ["CO₂", "Air biasa", "Minyak masak"],
+        0,
+      ],
+      [
+        "Apakah maksud P dalam PASS?",
+        ["Tekan penggera", "Tarik pin", "Halakan ke asap"],
+        1,
+      ],
+      [
+        "Ke manakah pemadam api patut dihalakan?",
+        ["Ke pangkal api", "Ke siling", "Ke asap"],
+        0,
+      ],
+      [
+        "Apakah yang perlu berada di belakang anda semasa menggunakan pemadam?",
+        ["Laluan keluar yang lapang", "Bilik berkunci", "Orang lain"],
+        0,
+      ],
+      [
+        "Bolehkah air biasa digunakan pada kebakaran minyak?",
+        ["Ya, sentiasa", "Tidak", "Hanya di dalam bangunan"],
+        1,
+      ],
+      [
+        "Di manakah orang ramai perlu berkumpul selepas keluar?",
+        [
+          "Di tempat berkumpul yang dipersetujui, melawan arah angin",
+          "Di sebelah api",
+          "Di dalam rumah",
+        ],
+        0,
+      ],
+      [
+        "Nombor apakah untuk menghubungi Bomba semasa kecemasan?",
+        ["999", "111", "123"],
+        0,
+      ],
+      [
+        "Maklumat lokasi apakah membantu Bomba mencari rumah panjang?",
+        [
+          "Nama rumah panjang dan mercu tanda terdekat",
+          "Nama pertama sahaja",
+          "Keadaan cuaca",
+        ],
+        0,
+      ],
+      [
+        "Perlukah anda kembali mengambil barang semasa pemindahan?",
+        ["Ya, jika berdekatan", "Tidak", "Hanya selepas gelap"],
+        1,
+      ],
+      [
+        "Apakah yang perlu dibuat sebelum memadam api kecil?",
+        [
+          "Bunyikan penggera",
+          "Tutup semua jalan keluar",
+          "Sembunyikan pemadam",
+        ],
+        0,
+      ],
+      ["Bahan api manakah kebakaran Kelas B?", ["Petrol", "Kayu", "LPG"], 0],
+      [
+        "Apakah contoh kebakaran Kelas E?",
+        ["Pendawaian elektrik", "Kain", "Minyak tanah"],
+        0,
+      ],
+      [
+        "Pemadam apakah pilihan serbaguna untuk A, B, C dan E?",
+        ["Serbuk kering", "Air biasa", "Buih sahaja"],
+        0,
+      ],
+      [
+        "Apakah maksud A dalam PASS?",
+        ["Halakan ke pangkal api", "Maklumkan jiran", "Jauhi laluan keluar"],
+        0,
+      ],
+      [
+        "Apakah maksud S pertama dalam PASS?",
+        ["Tekan pemegang", "Berdiri dalam asap", "Hentikan penggera"],
+        0,
+      ],
+      [
+        "Apakah maksud S terakhir dalam PASS?",
+        ["Hayun dari sisi ke sisi", "Melangkah lebih dekat", "Sembur siling"],
+        0,
+      ],
+      [
+        "Apakah yang perlu dilakukan jika anda tidak pasti selamat untuk memadam api?",
+        ["Keluar segera", "Tunggu dan lihat", "Cuba semua pemadam"],
+        0,
+      ],
+      [
+        "Apakah langkah mencegah kebakaran di laluan bersama?",
+        [
+          "Pastikan pintu keluar dan ruai lapang",
+          "Simpan bahan api di situ",
+          "Halang pintu",
+        ],
+        0,
+      ],
+      [
+        "Bagaimanakah silinder LPG patut disimpan?",
+        [
+          "Dalam keadaan tegak dan hos diperiksa",
+          "Mengiring berhampiran api",
+          "Di laluan keluar",
+        ],
+        0,
+      ],
+      [
+        "Apakah yang sesuai dilatih dalam latihan kebakaran komuniti?",
+        [
+          "Penggera, pemindahan dan kiraan penghuni",
+          "Memasak bersama",
+          "Memindahkan perabot",
+        ],
+        0,
+      ],
+      [
+        "Apakah yang patut dipersetujui komuniti sebelum kecemasan?",
+        [
+          "Isyarat penggera dan tempat berkumpul",
+          "Tempat buang sampah",
+          "Cara menghalang laluan keluar",
+        ],
+        0,
+      ],
+      [
+        "Siapakah yang mungkin memerlukan bantuan pemindahan?",
+        [
+          "Kanak-kanak, warga emas dan mereka yang perlukan bantuan",
+          "Pelawat sahaja",
+          "Tiada sesiapa",
+        ],
+        0,
+      ],
+      [
+        "Bilakah penghuni boleh kembali selepas kebakaran?",
+        [
+          "Selepas Bomba mengesahkan kawasan selamat",
+          "Sebaik sahaja api padam",
+          "Bila-bila masa",
+        ],
+        0,
+      ],
+      [
+        "Apakah langkah awal untuk melecur ringan?",
+        [
+          "Sejukkan dengan air mengalir dan dapatkan rawatan",
+          "Sapu minyak masak",
+          "Gosok kuat",
+        ],
+        0,
+      ],
+      [
+        "Apakah maksud peringkat reput bagi kebakaran?",
+        [
+          "Bahan api berkurangan tetapi haba dan asap masih berbahaya",
+          "Kawasan sudah selamat",
+          "Api tidak boleh menyala semula",
+        ],
+        0,
+      ],
+      [
+        "Apakah yang patut dilaporkan selepas insiden?",
+        [
+          "Punca dan perubahan yang perlu kepada Tuai Rumah/Bomba",
+          "Jangan maklumkan sesiapa",
+          "Kerosakan barang sahaja",
+        ],
+        0,
+      ],
+    ],
+  },
+};
 
 const translations = {
   en: {
@@ -1055,6 +1671,10 @@ const interpolate = (template, params = {}) =>
 
 export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [fireSafetyProgress, setFireSafetyProgress] = useState({
+    checklist: [],
+    quizPassed: false,
+  });
   const [token, setToken] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   // A stored session exists and is still inside its 30/7-day window, but the
@@ -1067,6 +1687,107 @@ export function AppProvider({ children }) {
   });
   const [biometricEnabled, setBiometricEnabledState] = useState(true);
   const [language, setLanguage] = useState("en");
+
+  useEffect(() => {
+    let active = true;
+    const progressKey = user?.id ? `firebomba_safety_${user.id}` : null;
+    setFireSafetyProgress({ checklist: [], quizPassed: false });
+    if (!progressKey || !token)
+      return () => {
+        active = false;
+      };
+
+    const loadProgress = async () => {
+      let local = { checklist: [], quizPassed: false, quizScore: null };
+      try {
+        const raw = await SecureStore.getItemAsync(progressKey);
+        if (raw) {
+          const saved = JSON.parse(raw);
+          local = {
+            checklist: Array.isArray(saved.checklist) ? saved.checklist : [],
+            quizPassed: saved.quizPassed === true,
+            quizScore: Number.isInteger(saved.quizScore)
+              ? saved.quizScore
+              : null,
+          };
+        }
+      } catch {}
+      if (!active) return;
+
+      const remote = await apiGetFireSafetyProgress();
+      if (!active) return;
+      if (remote?.error) {
+        setFireSafetyProgress(local);
+        return;
+      }
+
+      let quizPassed = remote.quizPassed === true;
+      // Migrate a locally earned badge from the previous app version to the
+      // account record the first time this user opens the updated app.
+      if (!quizPassed && local.quizPassed) {
+        const migrated = await apiRecordFireSafetyQuizPass(
+          local.quizScore || 8,
+        );
+        if (!active) return;
+        if (!migrated?.error && migrated.quizPassed) quizPassed = true;
+        else quizPassed = true; // Keep the local badge visible while offline.
+      }
+      const progress = {
+        checklist: local.checklist,
+        quizPassed,
+        quizScore: remote.bestQuizScore || local.quizScore || null,
+      };
+      setFireSafetyProgress(progress);
+      SecureStore.setItemAsync(progressKey, JSON.stringify(progress)).catch(
+        () => {},
+      );
+    };
+
+    loadProgress().catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [user?.id, token]);
+
+  const saveFireSafetyProgress = async (nextProgress, quizScore = null) => {
+    const progress = {
+      checklist: Array.isArray(nextProgress.checklist)
+        ? nextProgress.checklist
+        : [],
+      quizPassed: nextProgress.quizPassed === true,
+      quizScore: Number.isInteger(quizScore)
+        ? quizScore
+        : fireSafetyProgress.quizScore || null,
+    };
+    setFireSafetyProgress(progress);
+    if (user?.id) {
+      const progressKey = `firebomba_safety_${user.id}`;
+      try {
+        await SecureStore.setItemAsync(progressKey, JSON.stringify(progress));
+      } catch {}
+      if (
+        progress.quizPassed &&
+        Number.isInteger(quizScore) &&
+        quizScore >= 8
+      ) {
+        const saved = await apiRecordFireSafetyQuizPass(quizScore);
+        if (!saved?.error && saved.quizPassed) {
+          const syncedProgress = {
+            ...progress,
+            quizScore: saved.bestQuizScore || quizScore,
+          };
+          setFireSafetyProgress(syncedProgress);
+          SecureStore.setItemAsync(
+            progressKey,
+            JSON.stringify(syncedProgress),
+          ).catch(() => {});
+          return { ok: true };
+        }
+        return { ok: false, pendingSync: true };
+      }
+    }
+    return { ok: true };
+  };
   const [notifications, setNotifications] = useState([]);
   const [roomData, setRoomData] = useState([]);
   const [bilik, setBilik] = useState(null);
@@ -1558,6 +2279,10 @@ export function AppProvider({ children }) {
       updateBiometricEnabled,
       language,
       setLanguage,
+      fireSafetyContent:
+        FIRE_SAFETY_CONTENT[language] || FIRE_SAFETY_CONTENT.en,
+      fireSafetyProgress,
+      saveFireSafetyProgress,
       t,
       login,
       logout,
@@ -1602,6 +2327,7 @@ export function AppProvider({ children }) {
     };
   }, [
     language,
+    fireSafetyProgress,
     notifications,
     user,
     token,

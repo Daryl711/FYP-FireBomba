@@ -84,6 +84,8 @@ export default function ProfileScreen({ navigation }) {
     setLanguage,
     t,
     openTutorial,
+    fireSafetyProgress,
+    fireSafetyContent,
     avatarUrl,
     updateAvatar,
   } = useApp();
@@ -192,6 +194,12 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
           <Text style={styles.profileName}>{displayName}</Text>
           <Text style={styles.profileEmail}>{displayEmail}</Text>
+          {fireSafetyProgress?.quizPassed ? (
+            <View style={styles.safetyBadge}>
+              <Ionicons name="ribbon" size={14} color={COLORS.amber} />
+              <Text style={styles.safetyBadgeText}>{fireSafetyContent.badge}</Text>
+            </View>
+          ) : null}
 
           <View style={styles.quickStats}>
             <View style={styles.quickStat}>
@@ -329,6 +337,22 @@ export default function ProfileScreen({ navigation }) {
               <Ionicons name="chevron-forward" size={18} color={COLORS.text3} />
             </TouchableOpacity>
             <View style={styles.divider} />
+            <TouchableOpacity
+              style={styles.prefRow}
+              onPress={() => navigation.navigate("FireSafetyModules")}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.prefIcon, { backgroundColor: COLORS.primaryLight }]}>
+                <Ionicons name="flame-outline" size={20} color={COLORS.primary} />
+              </View>
+              <View style={styles.prefText}>
+                <Text style={styles.prefName}>{fireSafetyContent.title}</Text>
+                <Text style={styles.prefDesc}>{fireSafetyContent.subtitle}</Text>
+              </View>
+              {fireSafetyProgress?.quizPassed ? <Ionicons name="ribbon" size={19} color={COLORS.amber} /> : null}
+              <Ionicons name="chevron-forward" size={18} color={COLORS.text3} />
+            </TouchableOpacity>
+            <View style={styles.divider} />
             <View style={styles.prefRow}>
               <View
                 style={[
@@ -417,6 +441,17 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.8)",
     marginTop: 3,
   },
+  safetyBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 7,
+    backgroundColor: "rgba(255,255,255,0.16)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADIUS.full,
+  },
+  safetyBadgeText: { color: COLORS.white, fontSize: 11, fontWeight: "700" },
 
   quickStats: {
     flexDirection: "row",

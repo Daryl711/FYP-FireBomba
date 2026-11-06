@@ -767,3 +767,26 @@ export async function getSystemHealth() {
     return { error: "Network error. Cannot connect to server." };
   }
 }
+
+// Fire Safety quiz achievement is stored against the authenticated account,
+// so it follows the user when they sign in on another device.
+export async function getFireSafetyProgress() {
+  try {
+    const response = await authFetch(`${API_ROOT}/profile/fire-safety/progress`);
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}
+
+export async function recordFireSafetyQuizPass(score) {
+  try {
+    const response = await authFetch(`${API_ROOT}/profile/fire-safety/quiz-pass`, {
+      method: "POST",
+      body: JSON.stringify({ score }),
+    });
+    return await safeParseResponse(response);
+  } catch (error) {
+    return { error: "Network error. Cannot connect to server." };
+  }
+}

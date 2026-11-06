@@ -31,6 +31,10 @@ import SecurityScreen from "../screens/SecurityScreen";
 import PersonalInfoScreen from "../screens/PersonalInfoScreen";
 import NotificationSettingsScreen from "../screens/NotificationSettingsScreen";
 import SystemSettingsScreen from "../screens/SystemSettingsScreen";
+import FireSafetyModulesScreen from "../screens/FireSafetyModulesScreen";
+import FireSafetyModuleDetailScreen from "../screens/FireSafetyModuleDetailScreen";
+import FireSafetyChecklistScreen from "../screens/FireSafetyChecklistScreen";
+import FireSafetyQuizScreen from "../screens/FireSafetyQuizScreen";
 import UnlockScreen from "../screens/UnlockScreen";
 
 import { useApp } from "../context/AppContext";
@@ -113,6 +117,10 @@ function ProfileStack() {
         component={NotificationSettingsScreen}
       />
       <ProfileStackNav.Screen name="SystemSettings" component={SystemSettingsScreen} />
+      <ProfileStackNav.Screen name="FireSafetyModules" component={FireSafetyModulesScreen} />
+      <ProfileStackNav.Screen name="FireSafetyModuleDetail" component={FireSafetyModuleDetailScreen} />
+      <ProfileStackNav.Screen name="FireSafetyChecklist" component={FireSafetyChecklistScreen} />
+      <ProfileStackNav.Screen name="FireSafetyQuiz" component={FireSafetyQuizScreen} />
     </ProfileStackNav.Navigator>
   );
 }

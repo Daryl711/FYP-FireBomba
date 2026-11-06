@@ -1,9 +1,43 @@
 const UserProfile = require("../models/UserProfile");
 const OtpCode = require("../models/OtpCode");
 const { sendOtpSms } = require("../services/smsService");
+const FireSafetyProgress = require("../models/FireSafetyProgress");
 
 const VERIFY_PHONE_PURPOSE = "verify_phone";
 const MAX_NAME_LENGTH = 100;
+
+exports.getFireSafetyProgress = async (req, res) => {
+  try {
+    const progress = await FireSafetyProgress.getByUserId(req.user.userId);
+    return res.status(200).json({
+      quizPassed: progress.quiz_passed === true,
+      passedAt: progress.passed_at,
+      bestQuizScore: progress.best_quiz_score,
+    });
+  } catch (error) {
+    console.error("Failed to load fire-safety progress:", error);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.recordFireSafetyQuizPass = async (req, res) => {
+  const score = Number(req.body?.score);
+  if (!Number.isInteger(score) || score < 8 || score > 10) {
+    return res.status(400).json({ error: "A passing quiz score from 8 to 10 is required" });
+  }
+
+  try {
+    const progress = await FireSafetyProgress.recordQuizPass(req.user.userId, score);
+    return res.status(200).json({
+      quizPassed: progress.quiz_passed === true,
+      passedAt: progress.passed_at,
+      bestQuizScore: progress.best_quiz_score,
+    });
+  } catch (error) {
+    console.error("Failed to save fire-safety quiz pass:", error);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
 
 // The Personal Information screen's view of the public.users row.
 const toProfileResponse = (profile) => ({

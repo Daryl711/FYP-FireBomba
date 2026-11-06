@@ -6,6 +6,16 @@ const rateLimit = require('../middleware/rateLimit');
 
 profileRouter.get('/', authMiddleware, profileController.getProfile);
 profileRouter.patch('/', authMiddleware, profileController.updateProfile);
+profileRouter.get(
+  '/fire-safety/progress',
+  authMiddleware,
+  profileController.getFireSafetyProgress
+);
+profileRouter.post(
+  '/fire-safety/quiz-pass',
+  authMiddleware,
+  profileController.recordFireSafetyQuizPass
+);
 
 // SMS code to prove the phone on file belongs to the user
 profileRouter.post(
