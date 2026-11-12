@@ -3,8 +3,28 @@ const Bilik = require("../models/Bilik");
 const SensorReading = require("../models/SensorReading");
 const twinSensorStream = require("../services/twinSensorStream");
 
-// Read-only floor layout for the digital twin. Only ids, names and the
-// bilik/space grouping are returned; no household names or user data.
+// A non-personal label derived from the space type. The stored room names
+// contain residents' names (e.g. "Ali Bedroom"); this endpoint is public, so
+// we must not leak them. The keyword ("Bedroom"/"Kitchen") is kept because the
+// digital-twin layout matches on it to place rooms.
+const genericRoomName = (spaceType) => {
+  switch (spaceType) {
+    case "DAPUR":
+      return "Kitchen";
+    case "BILIK_ROOM":
+      return "Bedroom";
+    case "RUAI":
+      return "Living Room";
+    case "TANJU":
+      return "Tanju";
+    default:
+      return "Room";
+  }
+};
+
+// Read-only floor layout for the digital twin. Only ids and the bilik/space
+// grouping are returned, with generic room labels; no household names or user
+// data are exposed.
 exports.getLayout = async (req, res) => {
   try {
     const [bilik, roomsRes] = await Promise.all([
@@ -21,7 +41,7 @@ exports.getLayout = async (req, res) => {
       bilik,
       rooms: roomsRes.data.map((r) => ({
         roomId: r.room_id,
-        name: r.name,
+        name: genericRoomName(r.space_type),
         spaceType: r.space_type,
         bilikId: r.bilik_id
       }))
