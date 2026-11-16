@@ -9,6 +9,7 @@ const UserSession = require("../models/UserSession");
 const OtpCode = require("../models/OtpCode");
 const { sendOtpSms } = require("../services/smsService");
 const { sendOtpEmail } = require("../services/emailService");
+const { notifyAdminsOfNewUser } = require("../services/newUserAdminAlert");
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev_jwt_secret_change_me";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "15m";
@@ -195,6 +196,12 @@ exports.signup = async (req, res) => {
 
     // Supabase Auth hashes the password itself.
     const userId = await User.addUser(fullName, email, password, phone);
+
+    // Let the admins know so they can assign the new user to a bilik and room.
+    // Not awaited: a slow or failed email must not hold up or fail the signup.
+    notifyAdminsOfNewUser({ fullName, email, phone }).catch((error) =>
+      console.error("New-user admin email failed:", error.message),
+    );
 
     return res.status(201).json({
       message: "Account created successfully!",
