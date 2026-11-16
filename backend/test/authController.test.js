@@ -16,7 +16,7 @@ const NO_PHONE = { user_id: "u2", full_name: "Bob", email: "bob@mail.com", phone
 
 // Loads the real auth controller with every model and service faked. `log`
 // records what the controller asked each fake to do.
-function auth({ otpLogin = false, users = [ALICE, NO_PHONE], passwords = { "alice@mail.com": "right-pass" }, otp = {}, sessions = {}, delivered = true, refreshed, authStamp = "stamp-1", updateError = null, addUserError = null, noProfile = false } = {}) {
+function auth({ otpLogin = false, users = [ALICE, NO_PHONE], passwords = { "alice@mail.com": "right-pass" }, otp = {}, sessions = {}, delivered = true, refreshed, authStamp = "stamp-1", updateError = null, addUserError = null, noProfile = false, adminAlertError = null } = {}) {
   const log = [];
   const byId = (id) => users.find((u) => u.user_id === id) ?? null;
   const byPhone = (phone) => users.find((u) => u.phone === phone) ?? null;
@@ -72,6 +72,7 @@ function auth({ otpLogin = false, users = [ALICE, NO_PHONE], passwords = { "alic
     },
     "../services/smsService": { sendOtpSms: async (to, code, purpose) => { log.push(["sms", to, code, purpose]); return { delivered }; } },
     "../services/emailService": { sendOtpEmail: async (to, code, purpose) => { log.push(["email", to, code, purpose]); return { delivered }; } },
+    "../services/newUserAdminAlert": { notifyAdminsOfNewUser: async (user) => { log.push(["adminAlerted", user]); if (adminAlertError) throw adminAlertError; } },
   }, { env: { OTP_LOGIN_ENABLED: otpLogin ? "true" : "false", OTP_CHALLENGE_SECRET: OTP_SECRET } });
   const call = async (name, body) => { const res = response(); await api[name]({ body }, res); return res; };
   const did = (kind) => log.filter((entry) => entry[0] === kind);
@@ -113,6 +114,27 @@ test("sign up saves a tidy email and phone, and a blank phone as none", async ()
   ({ call, did } = auth());
   await call("signup", { fullName: "New", email: "new@mail.com", password: "secret12", phone: "  " });
   assert.equal(did("addUser")[0][4], null);
+});
+
+test("sign up emails the admins about the new user, and still succeeds if that email fails", async () => {
+  let { call, did } = auth();
+  let res = await call("signup", { fullName: "New", email: "New@Mail.com", password: "secret12", phone: "011-2345 6789" });
+  assert.equal(res.code, 201);
+  assert.deepEqual(plain(did("adminAlerted")), [["adminAlerted", { fullName: "New", email: "new@mail.com", phone: "+601123456789" }]]);
+
+  ({ call, did } = auth({ adminAlertError: new Error("smtp down") }));
+  res = await call("signup", { fullName: "New", email: "new@mail.com", password: "secret12" });
+  assert.equal(res.code, 201);
+  assert.equal(did("adminAlerted").length, 1);
+});
+
+test("a rejected sign up does not email the admins", async () => {
+  const { call, did } = auth();
+  await call("signup", { fullName: "New", email: "alice@mail.com", password: "secret12" });
+  assert.equal(did("adminAlerted").length, 0);
+  const failed = auth({ addUserError: new Error("network") });
+  await failed.call("signup", { fullName: "N", email: "n@mail.com", password: "secret12" });
+  assert.equal(failed.did("adminAlerted").length, 0);
 });
 
 test("sign up turns Supabase account errors into clear messages", async () => {
