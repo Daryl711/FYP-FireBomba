@@ -1,5 +1,6 @@
 import * as SecureStore from "expo-secure-store";
 import EventSource from "react-native-sse";
+import { subscribeToNetwork } from "./network";
 
 const RAW_API_URL = (process.env.EXPO_PUBLIC_API_URL || "").trim();
 const API_BASE = RAW_API_URL.replace(/\/+$/, "");
@@ -143,6 +144,31 @@ export const setBiometricPreference = async (enabled) => {
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
+// React Native's fetch has no timeout of its own: on a weak or captive
+// connection a request can hang indefinitely, freezing spinners and buttons.
+// Abort after REQUEST_TIMEOUT_MS so callers fall through to their error path.
+const REQUEST_TIMEOUT_MS = 10000;
+const UPLOAD_TIMEOUT_MS = 30000;
+
+export async function fetchWithTimeout(
+  url,
+  options = {},
+  timeoutMs = REQUEST_TIMEOUT_MS,
+) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error("Request timed out. Check your internet connection.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function safeParseResponse(response) {
   const contentType = response.headers.get("content-type") || "";
   const bodyText = await response.text();
@@ -184,7 +210,7 @@ export async function refreshSession() {
   let response;
   let data;
   try {
-    response = await fetch(`${API_ROOT}/refresh`, {
+    response = await fetchWithTimeout(`${API_ROOT}/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
@@ -234,18 +260,22 @@ async function tryRefreshToken() {
 }
 
 // Fetch wrapper that auto-refreshes the access token on 401
-async function authFetch(url, options = {}) {
+async function authFetch(url, { timeoutMs, ...options } = {}) {
   let token = await getAccessToken();
 
   const makeRequest = (t) =>
-    fetch(url, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...(options.headers || {}),
-        Authorization: `Bearer ${t}`,
+    fetchWithTimeout(
+      url,
+      {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.headers || {}),
+          Authorization: `Bearer ${t}`,
+        },
       },
-    });
+      timeoutMs,
+    );
 
   let response = await makeRequest(token);
 
@@ -264,7 +294,7 @@ async function authFetch(url, options = {}) {
 // email is required by the backend; phone is optional and omitted when blank.
 export async function registerUser(fullName, email, password, phone) {
   try {
-    const response = await fetch(`${API_ROOT}/signup`, {
+    const response = await fetchWithTimeout(`${API_ROOT}/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fullName, email, password, phone: phone || null }),
@@ -280,7 +310,7 @@ export async function registerUser(fullName, email, password, phone) {
 // ticked, 7 when not.
 export async function loginUser(identifier, password, rememberMe = false) {
   try {
-    const response = await fetch(`${API_ROOT}/login`, {
+    const response = await fetchWithTimeout(`${API_ROOT}/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ identifier, password, rememberMe }),
@@ -294,7 +324,7 @@ export async function loginUser(identifier, password, rememberMe = false) {
 
 export async function logoutUser(refreshToken) {
   try {
-    await fetch(`${API_ROOT}/logout`, {
+    await fetchWithTimeout(`${API_ROOT}/logout`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
@@ -320,43 +350,48 @@ export async function getSensorReading(roomId) {
   }
 }
 
-export async function subscribeToSensorReadings(roomId, onReading, onError, onRisk) {
+// Opens an authenticated SSE stream. While the phone is offline the stream is
+// closed instead of retrying every few seconds (which only produced a burst
+// of errors and re-renders); it reopens with a fresh token once the
+// connection is back. Returns an unsubscribe function.
+async function openAuthStream(path, listeners, onError, failMessage) {
   const token = await getAccessToken();
   if (!token) {
-    throw new Error("Sign in to receive live sensor readings.");
+    throw new Error("Sign in to receive live sensor data.");
   }
 
-  let eventSource;
+  let eventSource = null;
   let closed = false;
+  let online = true;
+
+  const disconnect = () => {
+    eventSource?.close();
+    eventSource = null;
+  };
 
   const connect = (accessToken) => {
-    if (closed) return;
+    if (closed || !online) return;
+    disconnect();
 
-    eventSource = new EventSource(
-      `${API_ROOT}/room-detail/sensor-readings/stream?roomId=${encodeURIComponent(roomId)}`,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        pollingInterval: 5000,
-      },
-    );
+    eventSource = new EventSource(`${API_ROOT}${path}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      pollingInterval: 5000,
+    });
 
-    eventSource.addEventListener("sensor-reading", (event) => {
-      try {
-        onReading(JSON.parse(event.data));
-      } catch (error) {
-        onError(error);
-      }
+    Object.entries(listeners).forEach(([type, handler]) => {
+      eventSource.addEventListener(type, (event) => {
+        try {
+          handler(JSON.parse(event.data));
+        } catch (error) {
+          onError(error);
+        }
+      });
     });
-    eventSource.addEventListener("risk-status", (event) => {
-      try {
-        onRisk?.(JSON.parse(event.data));
-      } catch (error) {
-        onError(error);
-      }
-    });
+
     eventSource.addEventListener("error", async (event) => {
+      if (closed || !online) return;
       if (event.xhrStatus === 401 || event.xhrStatus === 403) {
-        eventSource.close();
+        disconnect();
         const refreshedToken = await tryRefreshToken();
         if (refreshedToken && !closed) {
           connect(refreshedToken);
@@ -364,67 +399,48 @@ export async function subscribeToSensorReadings(roomId, onReading, onError, onRi
         }
       }
 
-      onError(new Error(event.message || "Sensor stream connection failed."));
+      onError(new Error(event.message || failMessage));
     });
   };
+
+  const unsubscribeNetwork = subscribeToNetwork(async (isOnline) => {
+    online = isOnline;
+    if (!isOnline) {
+      disconnect();
+      onError(new Error("You're offline. Live data will resume when you reconnect."));
+      return;
+    }
+    const latestToken = await getAccessToken();
+    if (latestToken) connect(latestToken);
+  });
 
   connect(token);
   return () => {
     closed = true;
-    eventSource?.close();
+    unsubscribeNetwork();
+    disconnect();
   };
 }
 
-export async function subscribeToSensorAggregates(
-  roomId,
-  onAggregate,
-  onError,
-) {
-  const token = await getAccessToken();
-  if (!token) {
-    throw new Error("Sign in to receive live sensor aggregates.");
-  }
+export function subscribeToSensorReadings(roomId, onReading, onError, onRisk) {
+  return openAuthStream(
+    `/room-detail/sensor-readings/stream?roomId=${encodeURIComponent(roomId)}`,
+    {
+      "sensor-reading": onReading,
+      "risk-status": (data) => onRisk?.(data),
+    },
+    onError,
+    "Sensor stream connection failed.",
+  );
+}
 
-  let eventSource;
-  let closed = false;
-
-  const connect = (accessToken) => {
-    if (closed) return;
-
-    eventSource = new EventSource(
-      `${API_ROOT}/room-detail/sensor-aggregates/stream?roomId=${encodeURIComponent(roomId)}`,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        pollingInterval: 5000,
-      },
-    );
-
-    eventSource.addEventListener("sensor-aggregate", (event) => {
-      try {
-        onAggregate(JSON.parse(event.data));
-      } catch (error) {
-        onError(error);
-      }
-    });
-    eventSource.addEventListener("error", async (event) => {
-      if (event.xhrStatus === 401 || event.xhrStatus === 403) {
-        eventSource.close();
-        const refreshedToken = await tryRefreshToken();
-        if (refreshedToken && !closed) {
-          connect(refreshedToken);
-          return;
-        }
-      }
-
-      onError(new Error(event.message || "Sensor aggregate stream failed."));
-    });
-  };
-
-  connect(token);
-  return () => {
-    closed = true;
-    eventSource?.close();
-  };
+export function subscribeToSensorAggregates(roomId, onAggregate, onError) {
+  return openAuthStream(
+    `/room-detail/sensor-aggregates/stream?roomId=${encodeURIComponent(roomId)}`,
+    { "sensor-aggregate": onAggregate },
+    onError,
+    "Sensor aggregate stream failed.",
+  );
 }
 
 export async function getSensorAggregates(roomId, limit = 10) {
@@ -611,6 +627,7 @@ export async function uploadAvatar(imageBase64) {
     const response = await authFetch(`${API_ROOT}/settings/avatar`, {
       method: "PUT",
       body: JSON.stringify({ imageBase64 }),
+      timeoutMs: UPLOAD_TIMEOUT_MS,
     });
     return await safeParseResponse(response);
   } catch (error) {
@@ -647,7 +664,7 @@ export async function getCameraStatus(roomId) {
 // Step 2 of login when the server replies with otpRequired.
 export async function verifyLoginOtp(challengeToken, code) {
   try {
-    const response = await fetch(`${API_ROOT}/login/verify-otp`, {
+    const response = await fetchWithTimeout(`${API_ROOT}/login/verify-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ challengeToken, code }),
@@ -662,7 +679,7 @@ export async function verifyLoginOtp(challengeToken, code) {
 // the server default (email).
 export async function resendLoginOtp(challengeToken, channel) {
   try {
-    const response = await fetch(`${API_ROOT}/login/resend-otp`, {
+    const response = await fetchWithTimeout(`${API_ROOT}/login/resend-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ challengeToken, channel }),
@@ -677,7 +694,7 @@ export async function resendLoginOtp(challengeToken, channel) {
 // account exists; an email gets the code by email, a phone number by SMS.
 export async function forgotPassword(identifier) {
   try {
-    const response = await fetch(`${API_ROOT}/forgot-password`, {
+    const response = await fetchWithTimeout(`${API_ROOT}/forgot-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ identifier }),
@@ -691,7 +708,7 @@ export async function forgotPassword(identifier) {
 // Step 2: checks the code and, when right, returns a short-lived resetToken.
 export async function verifyResetOtp(identifier, code) {
   try {
-    const response = await fetch(`${API_ROOT}/forgot-password/verify-otp`, {
+    const response = await fetchWithTimeout(`${API_ROOT}/forgot-password/verify-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ identifier, code }),
@@ -705,7 +722,7 @@ export async function verifyResetOtp(identifier, code) {
 // Step 3: the resetToken from step 2 plus the new password.
 export async function resetPassword(resetToken, newPassword) {
   try {
-    const response = await fetch(`${API_ROOT}/reset-password`, {
+    const response = await fetchWithTimeout(`${API_ROOT}/reset-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ resetToken, newPassword }),

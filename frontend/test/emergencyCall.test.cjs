@@ -22,12 +22,13 @@ function loadComponent(relativePath, overrides = {}) {
       if (name in overrides) return overrides[name];
       if (name === "react") return React;
       if (name === "react-native") return {
-        ...Object.fromEntries(["View", "Text", "ScrollView", "TouchableOpacity", "ActivityIndicator", "Modal"].map((name) => [name, name])),
+        ...Object.fromEntries(["View", "Text", "ScrollView", "TouchableOpacity", "ActivityIndicator", "Modal", "RefreshControl"].map((name) => [name, name])),
         StyleSheet: { create: (styles) => styles },
       };
       if (name.includes("theme")) return { COLORS: {}, SPACING: {}, RADIUS: {}, SHADOW: {} };
       if (name.includes("safe-area")) return { SafeAreaView: "SafeAreaView" };
       if (name.includes("vector-icons")) return { Ionicons: "Ionicons" };
+      if (name.endsWith("usePullToRefresh")) return { __esModule: true, default: () => ({ refreshing: false, onRefresh() {} }) };
       throw new Error(`Unexpected import: ${name}`);
     },
   });

@@ -39,6 +39,7 @@ import {
   recordFireSafetyQuizPass as apiRecordFireSafetyQuizPass,
 } from "../services/api";
 import { getBiometricSupport, promptBiometrics } from "../services/biometrics";
+import { subscribeToNetwork } from "../services/network";
 import {
   registerForPushNotifications,
   addNotificationTapListener,
@@ -679,6 +680,10 @@ const translations = {
       comingSoon: "Coming Soon",
       noData: "No data yet.",
       loading: "Loading...",
+      offlineBanner: "You're offline - showing the last saved data",
+      refreshFailedTitle: "Couldn't refresh",
+      refreshFailedBody:
+        "Please check your internet connection and try again.",
     },
     home: {
       welcomeBack: "Welcome Back,",
@@ -1194,6 +1199,10 @@ const translations = {
       comingSoon: "Akan Datang",
       noData: "Tiada data lagi.",
       loading: "Sedang memuatkan...",
+      offlineBanner: "Anda di luar talian - memaparkan data terakhir",
+      refreshFailedTitle: "Gagal memuat semula",
+      refreshFailedBody:
+        "Sila semak sambungan internet anda dan cuba lagi.",
     },
     home: {
       welcomeBack: "Selamat Kembali,",
@@ -1807,6 +1816,16 @@ export function AppProvider({ children }) {
   // null until the first /system-health answer arrives.
   const [systemHealth, setSystemHealth] = useState(null);
   const systemHealthRef = useRef(null);
+  // NetInfo's view of connectivity. Polling pauses while offline and
+  // everything refreshes once when the connection comes back.
+  const [isOnline, setIsOnline] = useState(true);
+  const isOnlineRef = useRef(true);
+  const wasOfflineRef = useRef(false);
+  // The last household + rooms that loaded successfully. A failed reload
+  // (e.g. offline) keeps showing these instead of blanking the screens.
+  const lastGoodBilikRef = useRef(null);
+  // Callers of refreshBilik waiting for the reload they triggered to finish.
+  const bilikWaitersRef = useRef([]);
   // Read by registerPush, which must send the tone picked most recently.
   const alarmSoundRef = useRef(DEFAULT_ALARM_SOUND);
 
@@ -1882,7 +1901,7 @@ export function AppProvider({ children }) {
   // open). Drop straight back to the login screen when that happens.
   useEffect(() => {
     setOnSessionExpired(() => {
-      clearInterval(alertRef.current);
+      clearTimeout(alertRef.current);
       prevUnreadRef.current = 0;
       setUser(null);
       setToken(null);
@@ -1930,21 +1949,20 @@ export function AppProvider({ children }) {
     };
   }, [alarmSound]);
 
+  // Resolves to { ok } so pull-to-refresh can tell the user when it failed.
   const fetchAlerts = async () => {
     const result = await getAlerts();
-    if (!result.error && Array.isArray(result)) {
-      const visibleNotifications = result.filter((item) => !item.hidden);
-      const newUnreadCount = visibleNotifications.filter(
-        (a) => a.unread,
-      ).length;
-      if (newUnreadCount > prevUnreadRef.current && soundRef.current) {
-        soundRef.current
-          .playFromPositionAsync(0)
-          .catch((e) => console.warn("Alarm play failed:", e));
-      }
-      prevUnreadRef.current = newUnreadCount;
-      setNotifications(visibleNotifications);
+    if (result?.error || !Array.isArray(result)) return { ok: false };
+    const visibleNotifications = result.filter((item) => !item.hidden);
+    const newUnreadCount = visibleNotifications.filter((a) => a.unread).length;
+    if (newUnreadCount > prevUnreadRef.current && soundRef.current) {
+      soundRef.current
+        .playFromPositionAsync(0)
+        .catch((e) => console.warn("Alarm play failed:", e));
     }
+    prevUnreadRef.current = newUnreadCount;
+    setNotifications(visibleNotifications);
+    return { ok: true };
   };
 
   // Hand this device's push token to the backend, so a fire still rings the
@@ -2002,22 +2020,63 @@ export function AppProvider({ children }) {
   // A failed fetch keeps the last good answer rather than blanking the tiles.
   const fetchSystemHealth = async () => {
     const result = await apiGetSystemHealth();
-    if (!result?.error && result?.summary) setSystemHealth(result);
+    if (result?.error || !result?.summary) return { ok: false };
+    setSystemHealth(result);
+    return { ok: true };
   };
 
-  // Start polling when the user logs in
+  // Track connectivity for the whole app.
   useEffect(() => {
-    if (token) {
-      fetchAlerts();
-      fetchSystemHealth();
-      alertRef.current = setInterval(() => fetchAlerts(), 10000);
-      systemHealthRef.current = setInterval(() => fetchSystemHealth(), 60000);
-    } else {
-      setSystemHealth(null);
+    const unsubscribe = subscribeToNetwork((online) => {
+      isOnlineRef.current = online;
+      setIsOnline(online);
+    });
+    return unsubscribe;
+  }, []);
+
+  // Back online after an outage: refresh once straight away instead of
+  // waiting for the next poll.
+  useEffect(() => {
+    if (!isOnline) {
+      wasOfflineRef.current = true;
+      return;
     }
+    if (!wasOfflineRef.current) return;
+    wasOfflineRef.current = false;
+    if (!token) return;
+    fetchAlerts();
+    fetchSystemHealth();
+    refreshBilik();
+  }, [isOnline]);
+
+  // Poll while logged in. Each request finishes (or times out) before the
+  // next one is scheduled, so slow responses can never pile up; offline
+  // ticks are skipped entirely.
+  useEffect(() => {
+    if (!token) {
+      setSystemHealth(null);
+      return;
+    }
+    let cancelled = false;
+    const poll = (task, intervalMs, timerRef) => {
+      const run = async () => {
+        if (isOnlineRef.current) {
+          try {
+            await task();
+          } catch {
+            // Keep polling; the last good data stays on screen.
+          }
+        }
+        if (!cancelled) timerRef.current = setTimeout(run, intervalMs);
+      };
+      run();
+    };
+    poll(fetchAlerts, 10000, alertRef);
+    poll(fetchSystemHealth, 60000, systemHealthRef);
     return () => {
-      clearInterval(alertRef.current);
-      clearInterval(systemHealthRef.current);
+      cancelled = true;
+      clearTimeout(alertRef.current);
+      clearTimeout(systemHealthRef.current);
     };
   }, [token]);
 
@@ -2025,6 +2084,7 @@ export function AppProvider({ children }) {
     let mounted = true;
     const fetchData = async () => {
       if (!token) {
+        lastGoodBilikRef.current = null;
         setRoomData([]);
         setBilik(null);
         setBilikError(null);
@@ -2032,10 +2092,10 @@ export function AppProvider({ children }) {
         return;
       }
 
+      // Keep the current household and rooms on screen while reloading.
       setBilikLoading(true);
       setBilikError(null);
-      setBilik(null);
-      setRoomData([]);
+      let ok = false;
       try {
         const fetchedBilik = await apiGetBilikData();
         if (!mounted) return;
@@ -2047,17 +2107,29 @@ export function AppProvider({ children }) {
         if (!mounted) return;
         if (rooms?.error) throw new Error(rooms.error);
         if (!Array.isArray(rooms)) throw new Error("Invalid rooms response.");
+        lastGoodBilikRef.current = { bilik: fetchedBilik, rooms };
         setRoomData(rooms);
         setBilik(fetchedBilik);
+        ok = true;
       } catch (error) {
         if (mounted) {
-          setBilik(null);
           const message = error.message || "Could not load Bilik information.";
           setBilikError(message);
-          setRoomData({ error: message });
+          // Already loaded once: keep showing that data and just flag the
+          // error. Nothing to fall back on: show the error screen.
+          if (!lastGoodBilikRef.current) {
+            setBilik(null);
+            setRoomData({ error: message });
+          }
         }
       } finally {
-        if (mounted) setBilikLoading(false);
+        if (mounted) {
+          setBilikLoading(false);
+          // A superseded run leaves its waiters for the newer one to answer.
+          const waiters = bilikWaitersRef.current;
+          bilikWaitersRef.current = [];
+          waiters.forEach((resolve) => resolve({ ok }));
+        }
       }
     };
 
@@ -2067,7 +2139,12 @@ export function AppProvider({ children }) {
     };
   }, [token, bilikRequest]);
 
-  const refreshBilik = () => setBilikRequest((request) => request + 1);
+  // Resolves to { ok } once the reload it triggered has finished.
+  const refreshBilik = () =>
+    new Promise((resolve) => {
+      bilikWaitersRef.current.push(resolve);
+      setBilikRequest((request) => request + 1);
+    });
 
   // Profile picture follows the session: loaded on login, dropped on logout.
   useEffect(() => {
@@ -2202,7 +2279,7 @@ export function AppProvider({ children }) {
   };
 
   const logout = async () => {
-    clearInterval(alertRef.current);
+    clearTimeout(alertRef.current);
     prevUnreadRef.current = 0;
     // Must run before logoutUser clears the access token it authenticates with.
     if (pushTokenRef.current) {
@@ -2291,17 +2368,17 @@ export function AppProvider({ children }) {
       bilikLoading,
       bilikError,
       refreshBilik,
+      isOnline,
       notifications,
       unreadCount,
       markAllRead,
       markNotificationRead,
       clearNotification,
       clearAllNotifications,
-      refreshAlerts: () => token && fetchAlerts(),
+      refreshAlerts: () => (token ? fetchAlerts() : Promise.resolve({ ok: false })),
       // Reload the household and its rooms together, including Home's Retry.
-      refreshRoomData: () => {
-        if (token) refreshBilik();
-      },
+      refreshRoomData: () =>
+        token ? refreshBilik() : Promise.resolve({ ok: false }),
       tutorialVisible,
       openTutorial,
       avatarUrl,
@@ -2315,7 +2392,8 @@ export function AppProvider({ children }) {
       closeTutorial,
       realtimeError: null,
       systemHealth,
-      refreshSystemHealth: () => token && fetchSystemHealth(),
+      refreshSystemHealth: () =>
+        token ? fetchSystemHealth() : Promise.resolve({ ok: false }),
       // The Home / Profile tiles; null values render as "-" until loaded.
       systemStatus: {
         allOperational: systemHealth?.summary.allOperational ?? false,
@@ -2345,6 +2423,7 @@ export function AppProvider({ children }) {
     avatarUrl,
     bilikLoading,
     bilikError,
+    isOnline,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

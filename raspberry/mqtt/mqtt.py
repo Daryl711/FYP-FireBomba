@@ -73,6 +73,10 @@ def on_cloud_connect(client, userdata, flags, rc):
 	print(f"Subscribed to: {topic}")
 
 
+def on_cloud_disconnect(client, userdata, *args):
+	print("AWS IoT Core unreachable; local detection and alarms keep running. Retrying...")
+
+
 def on_cloud_message(client, userdata, message):
 	if not PUMP_COMMAND_TOPIC.fullmatch(message.topic):
 		return
@@ -219,6 +223,9 @@ def configure_clients():
 	local_client.on_message = on_local_message
 	cloud_client.on_connect = on_cloud_connect
 	cloud_client.on_message = on_cloud_message
+	cloud_client.on_disconnect = on_cloud_disconnect
+	# Back off between AWS IoT retries while offline instead of hammering DNS.
+	cloud_client.reconnect_delay_set(min_delay=1, max_delay=60)
 
 	cloud_client.tls_set(
 		ca_certs=CLOUD_ROOT_CA,
@@ -232,9 +239,13 @@ def main():
 	configure_clients()
 	Thread(target=run_sensor_aggregation, daemon=True).start()
 	Thread(target=run_aggregate_sync, daemon=True).start()
-	connect_clients()
-
+	# Local first: sensor storage, anomaly/risk detection and the local alarm
+	# must run even when the Pi boots with no internet.
+	local_client.connect(LOCAL_BROKER, LOCAL_PORT, keepalive=60)
 	local_client.loop_start()
+	# Non-blocking: AWS IoT is optional. loop_forever below keeps retrying the
+	# first connection, and on_cloud_connect re-subscribes once it succeeds.
+	cloud_client.connect_async(CLOUD_ENDPOINT, CLOUD_PORT, keepalive=60)
 	risk_stop = Event()
 	risk_thread = Thread(
 		target=run_risk_detection,
@@ -244,18 +255,13 @@ def main():
 	risk_thread.start()
 	try:
 		print("Waiting for AWS IoT pump commands...")
-		cloud_client.loop_forever()
+		cloud_client.loop_forever(retry_first_connection=True)
 	finally:
 		risk_stop.set()
 		risk_thread.join()
 		local_client.loop_stop()
 		local_client.disconnect()
 		cloud_client.disconnect()
-
-
-def connect_clients():
-	local_client.connect(LOCAL_BROKER, LOCAL_PORT, keepalive=60)
-	cloud_client.connect(CLOUD_ENDPOINT, CLOUD_PORT, keepalive=60)
 
 
 def run_sensor_aggregation():

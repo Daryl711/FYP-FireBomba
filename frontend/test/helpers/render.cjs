@@ -11,7 +11,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 // Plain stand-ins for React Native: each component becomes a named element
 // (e.g. "TouchableOpacity") so tests can find it and read its props.
 function reactNative(extra = {}) {
-  const names = ["View", "Text", "TextInput", "TouchableOpacity", "ScrollView", "KeyboardAvoidingView", "ActivityIndicator", "Modal"];
+  const names = ["View", "Text", "TextInput", "TouchableOpacity", "ScrollView", "KeyboardAvoidingView", "ActivityIndicator", "Modal", "RefreshControl"];
   return {
     ...Object.fromEntries(names.map((name) => [name, name])),
     StyleSheet: { create: (styles) => styles },
@@ -40,6 +40,7 @@ function loadScreen(relativePath, overrides = {}, globals = {}) {
       if (name.includes("theme")) return { COLORS: {}, SPACING: {}, RADIUS: {}, SHADOW: {} };
       if (name.includes("safe-area")) return { SafeAreaView: "SafeAreaView" };
       if (name.includes("vector-icons")) return { Ionicons: "Ionicons" };
+      if (name.endsWith("usePullToRefresh")) return { __esModule: true, default: () => ({ refreshing: false, onRefresh() {} }) };
       throw new Error(`Unexpected import: ${name}`);
     },
   }, { filename });

@@ -11,12 +11,14 @@ import {
   StyleSheet,
   Animated,
   Alert,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import SensorReadingsChart from "../components/SensorReadingsChart";
 import { useApp } from "../context/AppContext";
+import usePullToRefresh from "../hooks/usePullToRefresh";
 import {
   subscribeToSensorReadings,
   getPumpStatus,
@@ -127,6 +129,22 @@ export default function RoomDetailScreen({ route, navigation }) {
 
   const spinAnim = useRef(new Animated.Value(0)).current;
   const pumpPulse = useRef(new Animated.Value(1)).current;
+
+  // Pull down to reload pump and camera status (the live sensor stream
+  // reconnects on its own).
+  const { refreshing, onRefresh } = usePullToRefresh(
+    useCallback(async () => {
+      if (!room?.roomId) return { ok: false };
+      const [pump, camera] = await Promise.all([
+        getPumpStatus(room.roomId),
+        getCameraStatus(room.roomId),
+      ]);
+      if (!pump?.error) setPumpActive(Boolean(pump?.waterPumpStatus));
+      if (!camera?.error) setCameraActive(camera?.cameraStatus === true);
+      return { ok: !pump?.error && !camera?.error };
+    }, [room?.roomId]),
+    t,
+  );
 
   useEffect(() => {
     const fetchPumpStatus = async () => {
@@ -430,7 +448,17 @@ export default function RoomDetailScreen({ route, navigation }) {
         />
       </View>
 
-      <TutorialScrollView showsVerticalScrollIndicator={false}>
+      <TutorialScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+          />
+        }
+      >
         {cameraActive && (
           <TutorialTarget id="roomDetail" style={styles.cameraBlock}>
             <Video

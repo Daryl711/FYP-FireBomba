@@ -2,6 +2,19 @@
 
 This document describes the implemented data path from fire sensing through the Raspberry Pi risk engine, cloud services, Supabase, and the mobile application.
 
+## Where each part runs
+
+| Layer | Component | Host |
+|---|---|---|
+| Edge | Arduino Uno, ESP32-S3 (`arduino_script/`) | Microcontrollers in the room |
+| Fog | Everything in `raspberry/`: local Mosquitto broker, MQTT bridge, anomaly detector, risk engine, camera service, local MySQL, sync worker | **Raspberry Pi** |
+| Cloud | Node.js backend (`backend/`) | **AWS EC2 server** |
+| Cloud | MQTT between the Pi and the backend | AWS IoT Core |
+| Cloud | Database and auth | Supabase |
+| Application | Mobile app (`frontend/`) | Expo on a developer laptop for now. It will be built as an Android APK |
+
+No backend or Pi service runs on the developer laptop. The Pi reaches the EC2 backend over HTTPS for sync and through AWS IoT Core for risk results. The app talks only to the EC2 backend.
+
 ## At a glance
 
 ```mermaid

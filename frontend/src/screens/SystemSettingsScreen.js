@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import Constants from "expo-constants";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
+import usePullToRefresh from "../hooks/usePullToRefresh";
 
 // "2 min ago" style, in the app's language.
 const timeAgo = (iso, t) => {
@@ -134,7 +135,10 @@ function RoomCard({ room, thresholds, t }) {
 
 export default function SystemSettingsScreen({ navigation }) {
   const { t, systemHealth, refreshSystemHealth } = useApp();
-  const [refreshing, setRefreshing] = useState(false);
+  const { refreshing, onRefresh: handleRefresh } = usePullToRefresh(
+    refreshSystemHealth,
+    t,
+  );
 
   // Fresh numbers every time the screen opens, not only on the 60 s poll.
   useFocusEffect(
@@ -143,11 +147,6 @@ export default function SystemSettingsScreen({ navigation }) {
     }, []),
   );
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await refreshSystemHealth();
-    setRefreshing(false);
-  };
 
   const header = (
     <View style={styles.header}>

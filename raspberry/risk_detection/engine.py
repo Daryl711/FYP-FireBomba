@@ -14,8 +14,9 @@ INPUT_FIELDS = {
     "flame": "flame_detected",
     "anomaly": "anomaly_score",
 }
-NORMAL_WEIGHTS = {"yolo": 0.3, "flame": 0.4, "anomaly": 0.3}
+NORMAL_WEIGHTS = {"yolo": 0.5, "flame": 0.3, "anomaly": 0.2}
 SENSOR_ONLY_WEIGHTS = {"yolo": 0.0, "flame": 0.6, "anomaly": 0.4}
+CAMERA_ONLY_WEIGHTS = {"yolo": 1.0, "flame": 0.0, "anomaly": 0.0}
 CAMERA_STATUS_THRESHOLD = 5
 
 
@@ -30,20 +31,27 @@ def validate_input(source, value):
     return float(value)
 
 
-def calculate_risk(yolo_confidence, flame_detected, anomaly_score, *, sensor_only=False):
+def calculate_risk(yolo_confidence, flame_detected, anomaly_score, *,
+                   sensor_only=False, camera_only=False):
+    if sensor_only and camera_only:
+        raise ValueError("sensor_only and camera_only are mutually exclusive")
     inputs = {
         "yolo": validate_input("yolo", yolo_confidence),
         "flame": validate_input("flame", flame_detected),
         "anomaly": validate_input("anomaly", anomaly_score),
     }
-    # Decimal preserves the inclusive 0.45 and 0.75 boundaries.
-    weights = SENSOR_ONLY_WEIGHTS if sensor_only else NORMAL_WEIGHTS
+    if sensor_only:
+        weights, mode = SENSOR_ONLY_WEIGHTS, "sensor_only"
+    elif camera_only:
+        weights, mode = CAMERA_ONLY_WEIGHTS, "camera_only"
+    else:
+        weights, mode = NORMAL_WEIGHTS, "normal"
     score = sum(Decimal(str(inputs[source])) * Decimal(str(weight))
                 for source, weight in weights.items())
     score = float(score)
     if score > 0.75:
         level = "Critical"
-    elif score >= 0.45 or inputs["flame"] == 1:
+    elif score >= 0.45 or (inputs["flame"] == 1 and not camera_only):
         level = "Warning"
     else:
         level = "Normal"
@@ -54,12 +62,15 @@ def calculate_risk(yolo_confidence, flame_detected, anomaly_score, *, sensor_onl
         "flame_detected": int(inputs["flame"]),
         "anomaly_score": inputs["anomaly"],
         "weights": dict(weights),
-        "mode": "sensor_only" if sensor_only else "normal",
+        "mode": mode,
     }
 
 
 class RiskEngine:
-    def __init__(self, max_age_seconds=30.0, clock=time.monotonic):
+    def __init__(self, max_age_seconds=30.0, clock=time.monotonic, force_mode=None):
+        if force_mode not in (None, "normal", "sensor_only", "camera_only"):
+            raise ValueError("invalid force_mode")
+        self.force_mode = force_mode
         if not math.isfinite(max_age_seconds) or max_age_seconds <= 0:
             raise ValueError("max_age_seconds must be finite and positive")
         self.max_age_seconds = max_age_seconds
@@ -123,16 +134,50 @@ class RiskEngine:
             now = self.clock()
             for room_id, readings in self.rooms.items():
                 state = self.camera_states.get(room_id, {})
-                sensor_only = state.get("sensor_only", False)
-                required = ("flame", "anomaly") if sensor_only else INPUT_FIELDS
-                if not all(source in readings for source in required):
+
+                def fresh(source):
+                    return (source in readings
+                            and now - readings[source][1] <= self.max_age_seconds)
+
+                sensors_ok = fresh("flame") and fresh("anomaly")
+                camera_ok = fresh("yolo") and not state.get("sensor_only", False)
+
+                if self.force_mode == "sensor_only":
+                    if not sensors_ok:
+                        continue
+                    sensor_only, camera_only = True, False
+                elif self.force_mode == "camera_only":
+                    if not camera_ok:
+                        continue
+                    sensor_only, camera_only = False, True
+                elif self.force_mode == "normal":
+                    if not (sensors_ok and camera_ok):
+                        continue  # no silent fallback during experiments
+                    sensor_only, camera_only = False, False
+                elif sensors_ok:
+                    sensor_only, camera_only = not camera_ok, False
+                elif camera_ok:
+                    sensor_only, camera_only = False, True
+                else:
                     continue
-                if any(now - readings[source][1] > self.max_age_seconds for source in required):
-                    continue
-                results[room_id] = calculate_risk(
+
+                result = calculate_risk(
                     0.0 if sensor_only else readings["yolo"][0],
-                    readings["flame"][0], readings["anomaly"][0],
+                    readings["flame"][0] if sensors_ok else 0.0,
+                    readings["anomaly"][0] if sensors_ok else 0.0,
                     sensor_only=sensor_only,
+                    camera_only=camera_only,
                 )
-                results[room_id]["camera_status"] = state.get("status")
+                result["camera_status"] = state.get("status")
+                result["sensor_only_reason"] = (
+                    "forced" if self.force_mode and sensor_only
+                    else None if not sensor_only
+                    else "camera_disconnected" if state.get("sensor_only", False)
+                    else "camera_no_data"
+                )
+                result["camera_only_reason"] = (
+                    "forced" if self.force_mode and camera_only
+                    else "sensors_no_data" if camera_only else None
+                )
+                results[room_id] = result
         return results

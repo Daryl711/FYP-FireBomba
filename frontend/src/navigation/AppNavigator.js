@@ -15,6 +15,7 @@ import {
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import LoginScreen from "../screens/LoginScreen";
 import SignUpScreen from "../screens/SignUpScreen";
@@ -257,8 +258,24 @@ function MainTabs() {
 // Which screens exist is derived from auth state rather than navigated to, so
 // the app moves on its own when a session is unlocked or expires - including
 // the 30/7-day auto-logout, which can fire while the app is already open.
+// Shown over every screen while NetInfo reports no internet, so stale data
+// and failed actions have an obvious explanation.
+function OfflineBanner() {
+  const { t } = useApp();
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      pointerEvents="none"
+      style={[offlineBanner.container, { top: insets.top + 4 }]}
+    >
+      <Ionicons name="cloud-offline-outline" size={16} color={COLORS.text} />
+      <Text style={offlineBanner.text}>{t("common.offlineBanner")}</Text>
+    </View>
+  );
+}
+
 export default function AppNavigator() {
-  const { authReady, token, needsUnlock } = useApp();
+  const { authReady, token, needsUnlock, isOnline } = useApp();
 
   // Held until the stored session has been read, otherwise the login screen
   // flashes before the unlock screen replaces it.
@@ -271,6 +288,7 @@ export default function AppNavigator() {
   }
 
   return (
+    <>
     <NavigationContainer ref={navigationRef}>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {token ? (
@@ -292,8 +310,31 @@ export default function AppNavigator() {
         )}
       </RootStack.Navigator>
     </NavigationContainer>
+    {!isOnline && <OfflineBanner />}
+    </>
   );
 }
+
+const offlineBanner = StyleSheet.create({
+  container: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: COLORS.amber,
+  },
+  text: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+});
 
 const splash = StyleSheet.create({
   container: {

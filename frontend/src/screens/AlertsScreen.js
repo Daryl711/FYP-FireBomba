@@ -5,11 +5,13 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
+import usePullToRefresh from "../hooks/usePullToRefresh";
 
 export default function AlertsScreen() {
   const {
@@ -19,8 +21,10 @@ export default function AlertsScreen() {
     markNotificationRead,
     clearNotification,
     clearAllNotifications,
+    refreshAlerts,
     t,
   } = useApp();
+  const { refreshing, onRefresh } = usePullToRefresh(refreshAlerts, t);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -63,7 +67,17 @@ export default function AlertsScreen() {
         )}
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+          />
+        }
+      >
         <View style={styles.list}>
           {notifications.map((notif) => {
             return (

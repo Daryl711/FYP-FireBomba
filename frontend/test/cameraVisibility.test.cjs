@@ -18,7 +18,7 @@ function loadScreen(file, api, context) {
       useFocusEffect: (callback) => React.useEffect(() => navigation.focused ? callback() : undefined, [callback, navigation.focused]),
     },
     "react-native": {
-      ...Object.fromEntries(["View", "Text", "TouchableOpacity", "Switch", "ActivityIndicator"].map((key) => [key, key])),
+      ...Object.fromEntries(["View", "Text", "TouchableOpacity", "Switch", "ActivityIndicator", "RefreshControl"].map((key) => [key, key])),
       StyleSheet: { create: (styles) => styles },
       Animated: {
         View: "AnimatedView", Value: class { interpolate() { return 0; } stopAnimation() {} setValue() {} },
@@ -34,6 +34,7 @@ function loadScreen(file, api, context) {
     "../components/SensorReadingsChart": { __esModule: true, default: "SensorReadingsChart" },
     "../context/AppContext": { useApp: () => context },
     "../services/api": api,
+    "../hooks/usePullToRefresh": { __esModule: true, default: () => ({ refreshing: false, onRefresh() {} }) },
   };
   const { code } = babel.transformSync(fs.readFileSync(path.join(__dirname, "../src/screens", file), "utf8"), {
     babelrc: false, configFile: false,

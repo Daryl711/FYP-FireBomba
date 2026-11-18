@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,6 +14,7 @@ import { useApp } from "../context/AppContext";
 import { useNavigation } from "@react-navigation/native";
 import TutorialTarget, { TutorialScrollView } from "../components/TutorialTarget";
 import EmergencyCallButton from "../components/EmergencyCallButton";
+import usePullToRefresh from "../hooks/usePullToRefresh";
 
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -24,8 +26,18 @@ export default function HomeScreen() {
     user,
     realtimeError,
     refreshRoomData,
+    refreshSystemHealth,
     t,
   } = useApp();
+
+  // Pull down (or Retry) reloads the rooms and the status tiles together.
+  const { refreshing, onRefresh } = usePullToRefresh(async () => {
+    const [rooms, health] = await Promise.all([
+      refreshRoomData(),
+      refreshSystemHealth(),
+    ]);
+    return { ok: rooms?.ok === true && health?.ok === true };
+  }, t);
 
   // ── Loading gate ───────────────────────────────────────────────────────────
   // The fetch failed: say so instead of spinning forever.
@@ -38,7 +50,8 @@ export default function HomeScreen() {
           <Text style={styles.errorDetail}>{roomData.error}</Text>
           <TouchableOpacity
             style={styles.retryBtn}
-            onPress={refreshRoomData}
+            onPress={onRefresh}
+            disabled={refreshing}
             activeOpacity={0.7}
           >
             <Text style={styles.retryText}>{t("home.retry")}</Text>
@@ -93,7 +106,18 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <TutorialScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <TutorialScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+          />
+        }
+      >
         {/* Header */}
         <TutorialTarget id="home" style={styles.header}>
           <View style={styles.headerTop}>

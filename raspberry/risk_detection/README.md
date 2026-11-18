@@ -78,6 +78,52 @@ substitute zero for missing flame/anomaly readings. Retained input messages are
 ignored because their age is unknown.
 Consumers should use the output timestamp to identify an interrupted output stream.
 
+## Simulating a critical fire
+
+To test the alarm chain without a real fire, run this **on the Raspberry Pi**, for
+example over SSH. Run it from the `raspberry` directory, because the local broker
+the ESP32 uses is on the Pi. The backend that creates the alert is on EC2 and
+receives the result through AWS IoT. You do not need to run anything on your laptop.
+
+```powershell
+python -m risk_detection.simulate_critical_fire              # 20 s fire, then OFF
+python -m risk_detection.simulate_critical_fire --duration 0 # until Ctrl+C
+python -m risk_detection.simulate_critical_fire --alarm-only # buzzer/LED only
+python -m risk_detection.simulate_critical_fire --no-alarm   # inputs only; bridge drives alarm
+python -m risk_detection.simulate_critical_fire --clear      # force alarm OFF
+python -m risk_detection.simulate_critical_fire --dry-run    # print messages only
+```
+
+Every second it publishes Critical inputs (`yolo_confidence` 0.95, `flame_detected` 1,
+`anomaly_score` 0.95) on `/yolo`, `/flame` and `/anomaly`. It also publishes
+`{"command": "ON"}` on `firebomba/room/<id>/alarm/command`, which makes the ESP32
+send `Risk:CRITICAL` to the Uno so the LED and buzzer sound. If the bridge is
+running, it also scores the inputs as Critical and publishes `/risk` to AWS IoT,
+which creates the backend `Critical Fire Risk` alert. On exit, the script sends
+`OFF` unless you pass `--keep-on`. The script reads its broker settings from
+`raspberry/.env`, and `--broker`, `--port`, `--room`, `--username` and `--password`
+override them. The ESP32 only listens on room `1`.
+
+## Standalone latency measurement
+
+For local experiments, run the independent timing engine and service from the
+`raspberry` directory:
+
+```powershell
+python -m risk_detection.latency_test_service
+```
+
+It reads `LOCAL_MQTT_BROKER`, `LOCAL_MQTT_PORT`, and
+`RISK_MAX_INPUT_AGE_SECONDS` from `raspberry/.env` (with local defaults),
+subscribes to the normal YOLO, flame, and anomaly inputs, and publishes only to
+`firebomba/room/<room_id>/risk/latency-test` on the local broker. Subscribe to
+`firebomba/room/+/risk/latency-test` to inspect its JSON messages. A result is
+published after each required input source has supplied a fresh reading since
+the previous result. The three core durations are measured as `after - before`:
+input collection, score calculation, and risk classification. The payload also
+contains processing and end-to-end average/minimum/maximum summaries per room.
+The test service does not publish to AWS IoT or the production `/risk` topic.
+
 ## Critical alarms
 
 Every ready room also publishes an alarm command to the **local broker** on

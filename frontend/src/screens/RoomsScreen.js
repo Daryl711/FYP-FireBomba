@@ -1,16 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
 import { getRoomsByBilik } from "../services/api";
+import usePullToRefresh from "../hooks/usePullToRefresh";
 
 // roomData is an error object (or null) until a fetch succeeds; screens that
 // .map over it use this stable empty list instead.
@@ -22,6 +24,20 @@ export default function RoomsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Pull down to reload the list; a failure keeps the rooms on screen and
+  // tells the user to check their connection.
+  const { refreshing, onRefresh } = usePullToRefresh(
+    useCallback(async () => {
+      if (!bilik?.bilikId) return refreshBilik();
+      const result = await getRoomsByBilik(bilik.bilikId);
+      if (result?.error || !Array.isArray(result)) return { ok: false };
+      setRoomData(result);
+      setLoadError(null);
+      return { ok: true };
+    }, [bilik?.bilikId]),
+    t,
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -40,8 +56,8 @@ export default function RoomsScreen({ navigation }) {
         if (!Array.isArray(result)) throw new Error("Invalid rooms response.");
         if (mounted) setRoomData(result);
       } catch (error) {
+        // Keep the last loaded rooms on screen; just show the error.
         if (mounted) {
-          setRoomData([]);
           setLoadError(error.message || "Could not load rooms.");
         }
       } finally {
@@ -68,9 +84,19 @@ export default function RoomsScreen({ navigation }) {
         <Text style={styles.subtitle}>{t("rooms.subtitle")}</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+          />
+        }
+      >
         <View style={styles.list}>
-          {loading && <Text>Loading rooms...</Text>}
+          {loading && roomData.length === 0 && <Text>Loading rooms...</Text>}
           {!loading && loadError && (
             <View>
               <Text>{loadError}</Text>

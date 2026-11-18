@@ -1,16 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, SHADOW } from "../../constants/theme";
 import { useApp } from "../context/AppContext";
 import { getRoomsByBilik } from "../services/api";
+import usePullToRefresh from "../hooks/usePullToRefresh";
 
 export default function BilikRoomsScreen({ route, navigation }) {
   const {
@@ -24,6 +26,20 @@ export default function BilikRoomsScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Pull down to reload the list; a failure keeps the rooms on screen and
+  // tells the user to check their connection.
+  const { refreshing, onRefresh } = usePullToRefresh(
+    useCallback(async () => {
+      if (!bilik?.bilikId) return refreshBilik();
+      const result = await getRoomsByBilik(bilik.bilikId);
+      if (result?.error || !Array.isArray(result)) return { ok: false };
+      setRooms(result);
+      setLoadError(null);
+      return { ok: true };
+    }, [bilik?.bilikId]),
+    t,
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -42,8 +58,8 @@ export default function BilikRoomsScreen({ route, navigation }) {
         if (!Array.isArray(result)) throw new Error("Invalid rooms response.");
         if (mounted) setRooms(result);
       } catch (error) {
+        // Keep the last loaded rooms on screen; just show the error.
         if (mounted) {
-          setRooms([]);
           setLoadError(error.message || "Could not load rooms.");
         }
       } finally {
@@ -74,9 +90,19 @@ export default function BilikRoomsScreen({ route, navigation }) {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+          />
+        }
+      >
         <Text style={styles.sectionTitle}>Rooms</Text>
-        {loading && <Text style={styles.emptyText}>Loading rooms...</Text>}
+        {loading && rooms.length === 0 && <Text style={styles.emptyText}>Loading rooms...</Text>}
         {!loading && loadError && (
           <View>
             <Text style={styles.emptyText}>{loadError}</Text>
