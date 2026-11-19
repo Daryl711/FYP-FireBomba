@@ -158,3 +158,39 @@ test("refreshRoomData resolves with whether the reload it started worked", async
   assert.equal(result.ok, true);
   act(() => app.renderer.unmount());
 });
+
+test("alerts that fail twice in a row mark the data stale until the next success", async () => {
+  let fail = false;
+  const app = await renderApp(async () => [], {
+    getAlerts: async () => (fail ? { error: "Request timed out." } : []),
+  });
+  const pollAlerts = async () => {
+    const tick = app.scheduled.filter((timer) => timer.interval === 10000).at(-1);
+    await act(async () => { tick.callback(); });
+  };
+  assert.equal(app.context().dataStale, null);
+  fail = true;
+  await pollAlerts();
+  assert.equal(app.context().dataStale, null, "one dropped request is not enough");
+  await pollAlerts();
+  const stale = app.context().dataStale;
+  assert.ok(stale, "two failures in a row mark the data stale");
+  assert.equal(typeof stale.lastUpdatedAt, "number", "the time of the last good update is shown");
+  fail = false;
+  await pollAlerts();
+  assert.equal(app.context().dataStale, null);
+  act(() => app.renderer.unmount());
+});
+
+test("a failed room reload with older rooms on screen is flagged stale at once", async () => {
+  let calls = 0;
+  const app = await renderApp(async () => ++calls === 2 ? { error: "Request timed out." } : []);
+  assert.equal(app.context().dataStale, null);
+  let pending;
+  await act(async () => { pending = app.context().refreshRoomData(); });
+  await pending;
+  assert.ok(app.context().dataStale);
+  await act(async () => { await app.context().logout(); });
+  assert.equal(app.context().dataStale, null, "logging out clears the banner");
+  act(() => app.renderer.unmount());
+});

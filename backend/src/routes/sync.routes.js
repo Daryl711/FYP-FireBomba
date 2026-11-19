@@ -3,7 +3,10 @@ const syncController = require("../controller/syncController");
 
 const syncRouter = express.Router();
 
-syncRouter.post("/insert-sensor-readings", syncController.insertSensorReading);
+syncRouter.post(
+  "/insert-sensor-readings/bulk",
+  syncController.insertSensorReadingsBulk,
+);
 
 syncRouter.post(
   "/insert-sensor-aggregates",

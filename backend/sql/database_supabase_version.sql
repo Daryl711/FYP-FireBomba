@@ -73,12 +73,44 @@ CREATE TABLE IF NOT EXISTS sensor_readings (
     smoke REAL,
     co REAL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    -- The reading's id on the Pi; makes bulk sync retries idempotent.
+    pi_reading_id INTEGER,
 
     CONSTRAINT sensor_readings_room_fk
         FOREIGN KEY (room_id)
         REFERENCES rooms(room_id)
         ON DELETE CASCADE
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS unique_room_pi_reading
+    ON sensor_readings (room_id, pi_reading_id, timestamp);
+
+
+-- =========================================================
+-- 4b. PI SYNC DEVICES (see migrations/004_sync_devices.sql)
+-- =========================================================
+-- Each Pi authenticates to /api/sync with its own key (only the SHA-256 hash
+-- is stored) and may only write the rooms in sync_device_rooms. Create one
+-- with: cd backend && npm run sync-device -- PI001 1-4
+
+CREATE TABLE IF NOT EXISTS sync_devices (
+    device_id VARCHAR(64) PRIMARY KEY,
+    key_hash CHAR(64) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sync_device_rooms (
+    device_id VARCHAR(64) NOT NULL
+        REFERENCES sync_devices(device_id) ON DELETE CASCADE,
+    room_id INTEGER NOT NULL
+        REFERENCES rooms(room_id) ON DELETE CASCADE,
+    PRIMARY KEY (device_id, room_id)
+);
+
+ALTER TABLE sync_devices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sync_device_rooms ENABLE ROW LEVEL SECURITY;
 
 
 -- =========================================================

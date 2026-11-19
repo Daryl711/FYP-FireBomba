@@ -326,8 +326,22 @@ These were already in the project and use the same sandbox-and-fakes approach.
 | `sensorTimestamp.test.js` | Pi local times resolve to the same instant regardless of server timezone | Pi times are read as Malaysia time. |
 | | explicit timezone offsets are preserved | Times with `+08:00` etc. are kept as given. |
 | | missing or invalid timestamps remain invalid | Bad times are never turned into "now". |
-| `twinSensorStream.test.js` | saved Pi timestamps use Malaysian time before reaching the event streams | Saved readings carry the correct time. |
-| | successful sync publishes saved readings to independent frontend and twin subscribers | The app and the 3D model each receive new readings. |
+| `sensorReadingsBulk.test.js` | bulk sync stores every valid reading in one insert with its Pi id | A batch from the Pi is saved in one go, with Malaysia time converted correctly. |
+| | bulk sync rejects bad readings and unknown rooms but keeps the rest | One bad reading doesn't stop the rest of the batch being saved. |
+| | readings for rooms the device is not authorized for are rejected, not stored or alerted | A Pi can't write (or raise a fire alarm for) a room that isn't registered to it. |
+| | a retried batch counts as synced without re-publishing or re-alerting | Resending a batch creates no duplicates, live updates or alarms. |
+| | bulk sync publishes only the newest reading per room | A backlog doesn't flood the app with old readings. |
+| | a live flame raises one alert per room; backlogged flames raise none | Only a current fire raises an alarm, once per room. |
+| | bulk sync rejects a malformed body and reports database failures as 500 | Bad requests are refused, and a database error tells the Pi to retry. |
+| `syncDeviceAuth.test.js` | a known device with the right key passes and carries its rooms | `PI001` with its key gets through with rooms 1 to 4. |
+| | missing, malformed or wrong credentials all get the same 401 | No headers, a bad device id, a non-Bearer or wrong key, or an unknown device are all refused with the same message. |
+| | malformed headers are refused without a database lookup | Junk requests never reach Supabase. |
+| | a disabled device is refused even with the right key | Revoking a Pi works straight away. |
+| | one device's key does not work for another device | Keys are per device. |
+| | a failed device lookup is a 500 so the Pi retries, not a 401 | A database outage isn't mistaken for a bad key. |
+| | aggregates are stored only for rooms the device is authorized for | Room 4 is stored; room 5 gets 403. |
+| | without an authenticated device no room is accepted | The controller fails closed if the middleware is ever skipped. |
+| `twinSensorStream.test.js` | successful sync publishes saved readings to independent frontend and twin subscribers | The app and the 3D model each receive new readings. |
 | | twin stream loads the database snapshot, receives live updates and cleans up on close | The 3D stream starts with saved data, then live data. |
 | | twin closes and unsubscribes when its initial database query fails | A failed start closes cleanly. |
 | | digital twin consumes named sensor events and ignores stale, invalid and older readings | The 3D model ignores bad or old readings. |
@@ -491,3 +505,4 @@ These don't make any test fail, but they're worth knowing:
 | Screen layout and colours | Visual, not logic | Manual review or screenshots |
 | YOLO model accuracy | Measured with a dataset, not a pass/fail rule | K-fold validation results in `yolo_scripts/runs` |
 | MQTT broker and the Pi hardware | Needs real devices | System testing on the hardware |
+| Pi sync worker (`raspberry/sync/sync.py`) and its MySQL connection pool | Needs the Pi's MySQL and the live backend | System test on the Pi: unplug the network, check the backoff and that the backlog clears with no duplicates in Supabase |

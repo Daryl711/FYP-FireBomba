@@ -82,6 +82,47 @@ Then run by using:
 
 ```npm run start```
 
+#### Supabase migrations
+The live database is Supabase. Schema changes are in `backend/sql/migrations/` and are run by hand in the Supabase SQL editor, in number order:
+
+1. `001_sensor_aggregates_unique_window.sql`
+2. `002_sensor_readings_pi_reading_id.sql`: needed by the bulk sensor sync. Without it, the Pi's readings can't be stored.
+3. `004_sync_devices.sql`: per-Pi keys for the sync endpoints. Without it (and a registered device), every sync request gets 401.
+
+## Raspberry Pi sync worker
+
+`raspberry/sync/sync.py` sends the Pi's buffered sensor readings to the backend. Run it on the Pi from the `raspberry/` folder:
+
+```python -m sync.sync```
+
+- Every 10 s, it sends up to 50 unsynced readings in one request to `/api/sync/insert-sensor-readings/bulk`.
+- If the backend can't be reached, it retries after 10, 20, 40, then at most 60 s.
+- It's safe to resend a batch: the backend skips readings it already stored.
+
+#### Device keys
+Every `/api/sync` request must carry the Pi's id and key (`X-Device-Id` and `Authorization: Bearer <key>`). Each Pi has its own key and may only sync the rooms registered to it; readings for other rooms are rejected, and other aggregates get 403.
+
+Register a Pi (or give it a new key) on the backend machine, which has the Supabase credentials:
+
+```bash
+cd backend
+npm run sync-device -- PI001 1-4     # rooms as a range or list, e.g. 1,2,5
+```
+
+It prints the key once. Put both lines in `raspberry/.env` on the Pi and restart `sync.sync` and `mqtt.mqtt`:
+
+```
+SYNC_DEVICE_ID=PI001
+SYNC_DEVICE_KEY=<printed key>
+```
+
+Running the command again for the same device replaces the old key at once. To revoke a Pi, set `is_active = false` on its `sync_devices` row. A refused key does not lose data: the Pi logs `SYNC AUTH ERROR`, keeps the readings pending, and retries every 5 min.
+
+**Deploying a change to sync:** update in this order, so the Pi never calls an endpoint the backend doesn't have yet:
+1. Run any new Supabase migration.
+2. Deploy the backend to EC2.
+3. Update the `raspberry/` code on the Pi and restart `sync.sync` and `mqtt.mqtt`.
+
 ## MQTT Connection Setup
 
 These brokers run on the **Raspberry Pi**, not on the laptop or EC2.

@@ -681,6 +681,8 @@ const translations = {
       noData: "No data yet.",
       loading: "Loading...",
       offlineBanner: "You're offline - showing the last saved data",
+      staleBanner: "Couldn't update · Last updated {{time}} · Pull down to retry",
+      staleBannerNoTime: "Couldn't update · Pull down to retry",
       refreshFailedTitle: "Couldn't refresh",
       refreshFailedBody:
         "Please check your internet connection and try again.",
@@ -1200,6 +1202,9 @@ const translations = {
       noData: "Tiada data lagi.",
       loading: "Sedang memuatkan...",
       offlineBanner: "Anda di luar talian - memaparkan data terakhir",
+      staleBanner:
+        "Gagal dikemas kini · Kemas kini terakhir {{time}} · Tarik ke bawah untuk cuba lagi",
+      staleBannerNoTime: "Gagal dikemas kini · Tarik ke bawah untuk cuba lagi",
       refreshFailedTitle: "Gagal memuat semula",
       refreshFailedBody:
         "Sila semak sambungan internet anda dan cuba lagi.",
@@ -1826,6 +1831,12 @@ export function AppProvider({ children }) {
   const lastGoodBilikRef = useRef(null);
   // Callers of refreshBilik waiting for the reload they triggered to finish.
   const bilikWaitersRef = useRef([]);
+  // Per data source: failures in a row and when it last loaded. Kept in a
+  // ref so a successful poll every 10 s doesn't re-render the whole app.
+  const syncRef = useRef({});
+  // null while everything is up to date; otherwise { lastUpdatedAt } (ms, or
+  // null if the stale source never loaded) for the "Couldn't update" banner.
+  const [dataStale, setDataStale] = useState(null);
   // Read by registerPush, which must send the tone picked most recently.
   const alarmSoundRef = useRef(DEFAULT_ALARM_SOUND);
 
@@ -1949,10 +1960,44 @@ export function AppProvider({ children }) {
     };
   }, [alarmSound]);
 
+  // Records whether a data source just updated. A source counts as stale once
+  // it has failed `staleAfter` times in a row (2 for polled data, so a single
+  // dropped request doesn't flash the banner). Only touches state when the
+  // stale/not-stale picture actually changes.
+  const recordSync = (key, ok, staleAfter = 2) => {
+    const previous = syncRef.current[key] || { failures: 0, lastOkAt: null };
+    syncRef.current[key] = ok
+      ? { failures: 0, lastOkAt: Date.now(), staleAfter }
+      : { ...previous, failures: previous.failures + 1, staleAfter };
+
+    const stale = Object.values(syncRef.current).filter(
+      (entry) => entry.failures >= entry.staleAfter,
+    );
+    let next = null;
+    if (stale.length > 0) {
+      // Show the oldest point the user's data is guaranteed to be from.
+      const times = stale.map((entry) => entry.lastOkAt);
+      next = {
+        lastUpdatedAt: times.includes(null) ? null : Math.min(...times),
+      };
+    }
+    setDataStale((current) => {
+      if (current === null && next === null) return current;
+      if (current && next && current.lastUpdatedAt === next.lastUpdatedAt) {
+        return current;
+      }
+      return next;
+    });
+  };
+
   // Resolves to { ok } so pull-to-refresh can tell the user when it failed.
   const fetchAlerts = async () => {
     const result = await getAlerts();
-    if (result?.error || !Array.isArray(result)) return { ok: false };
+    if (result?.error || !Array.isArray(result)) {
+      recordSync("alerts", false);
+      return { ok: false };
+    }
+    recordSync("alerts", true);
     const visibleNotifications = result.filter((item) => !item.hidden);
     const newUnreadCount = visibleNotifications.filter((a) => a.unread).length;
     if (newUnreadCount > prevUnreadRef.current && soundRef.current) {
@@ -2020,7 +2065,11 @@ export function AppProvider({ children }) {
   // A failed fetch keeps the last good answer rather than blanking the tiles.
   const fetchSystemHealth = async () => {
     const result = await apiGetSystemHealth();
-    if (result?.error || !result?.summary) return { ok: false };
+    if (result?.error || !result?.summary) {
+      recordSync("systemHealth", false);
+      return { ok: false };
+    }
+    recordSync("systemHealth", true);
     setSystemHealth(result);
     return { ok: true };
   };
@@ -2055,6 +2104,8 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!token) {
       setSystemHealth(null);
+      syncRef.current = {};
+      setDataStale(null);
       return;
     }
     let cancelled = false;
@@ -2125,6 +2176,12 @@ export function AppProvider({ children }) {
       } finally {
         if (mounted) {
           setBilikLoading(false);
+          // Rooms are only reloaded on demand, so one failure is enough to
+          // call them stale - but only when older rooms are still on screen
+          // (with nothing loaded, Home already shows its error screen).
+          if (ok || lastGoodBilikRef.current) {
+            recordSync("rooms", ok, 1);
+          }
           // A superseded run leaves its waiters for the newer one to answer.
           const waiters = bilikWaitersRef.current;
           bilikWaitersRef.current = [];
@@ -2369,6 +2426,7 @@ export function AppProvider({ children }) {
       bilikError,
       refreshBilik,
       isOnline,
+      dataStale,
       notifications,
       unreadCount,
       markAllRead,
@@ -2424,6 +2482,7 @@ export function AppProvider({ children }) {
     bilikLoading,
     bilikError,
     isOnline,
+    dataStale,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

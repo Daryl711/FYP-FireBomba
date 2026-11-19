@@ -103,9 +103,9 @@ AWS IoT Core provides the MQTT link between the Pi and backend. The Pi uses TLS 
 
 The Pi also forwards live raw sensor messages to AWS IoT on a best-effort basis for cloud consumers. That forwarding does not block local MySQL storage. The persistent sensor-history synchronization uses a separate HTTPS path:
 
-1. The Pi periodically reads unsynced local MySQL sensor readings and posts them to the backend `/api/sync/insert-sensor-readings` endpoint. Five-minute aggregates are sent to `/api/sync/insert-sensor-aggregates`; failed aggregate sends are retried.
-2. The Node.js backend validates the payload and calls Supabase through its server-side Supabase client.
-3. Raw readings are inserted into `sensor_readings`. Aggregates are upserted into `sensor_aggregates` using the room and window start as the conflict key. The Pi updates its local sync status when the request succeeds or fails, retaining failed rows for a later retry.
+1. Every 10 s, the Pi reads up to 50 unsynced local MySQL sensor readings and posts them in one request to the backend `/api/sync/insert-sensor-readings/bulk` endpoint. It never waits for 50 to collect: whatever is pending is sent. A full batch means a backlog, so the next batch is sent straight away. While the backend is unreachable or returns 5xx, the Pi backs off exponentially (10, 20, 40, then 60 s at most). Five-minute aggregates are sent to `/api/sync/insert-sensor-aggregates`; failed aggregate sends are retried.
+2. Each sync request carries the Pi's device id and key (`X-Device-Id`, `Authorization: Bearer`). The backend checks the key against the hash in `sync_devices` (unknown, disabled or wrong key → 401) and only accepts data for the rooms registered to that device in `sync_device_rooms`. It then validates the payload and calls Supabase through its server-side Supabase client.
+3. Raw readings are inserted into `sensor_readings`, skipping any already stored (matched on room, Pi `reading_id` and timestamp) so a retried batch creates no duplicates; the backend replies with which readings were synced or rejected. Invalid readings and readings for unknown rooms are rejected individually, without failing the rest of the batch. Only the newest new reading per room is pushed to the live app and digital-twin streams. Aggregates are upserted into `sensor_aggregates` using the room and window start as the conflict key. The Pi updates its local sync status when the request succeeds or fails, retaining failed rows for a later retry.
 4. A recent non-backlogged flame reading can create a `Fire Detected` alert. A valid live Critical risk update can create a `Critical Fire Risk` alert, once per Critical episode in the backend process. Alert records, per-user notification rows, and user read/hidden state are stored in Supabase. Push delivery is initiated by the backend alert service.
 
 Supabase is also the backend's primary cloud data store for rooms, user profiles, sensor history, aggregates, alerts, and notifications. The backend enforces authentication and room access for application routes. The mobile client has a Supabase configuration for authentication, while sensor and room data flows through the backend API and its access checks.
@@ -138,14 +138,48 @@ Supabase is also the backend's primary cloud data store for rooms, user profiles
 | `firebomba/room/<room_id>/anomaly` (local MQTT) | Pi anomaly detector sends score to risk engine |
 | `firebomba/room/<room_id>/risk` (AWS IoT MQTT) | Pi sends calculated live risk to backend |
 | `firebomba/room/<room_id>/alarm/command` (local MQTT) | Pi tells ESP32/Uno to activate or clear the local risk alarm |
-| `/api/sync/insert-sensor-readings` | Pi syncs buffered raw readings to backend and Supabase |
-| `/api/sync/insert-sensor-aggregates` | Pi syncs buffered five-minute aggregates to backend and Supabase |
+| `/api/sync/insert-sensor-readings/bulk` | Pi syncs buffered raw readings (up to 50 per request) to backend and Supabase; device key required, own rooms only |
+| `/api/sync/insert-sensor-aggregates` | Pi syncs buffered five-minute aggregates to backend and Supabase; device key required, own rooms only |
 | `/api/room-detail/sensor-readings/stream?roomId=<id>` | App receives authorized sensor-reading and risk-status SSE events |
+
+## Design decision: securing the Pi sync endpoints
+
+**Problem.** The `/api/sync` endpoints were open: anyone who knew the URL could write sensor readings for any room. A fake reading with a flame raises a real `Fire Detected` alert and pushes it to every user, so this was the most serious gap in the backend.
+
+**Decision: a secret key per Pi, limited to that Pi's rooms.**
+
+- Each Pi has its own id and a random 256-bit key. It sends both on every sync request: `X-Device-Id: PI001` and `Authorization: Bearer <key>`.
+- The backend middleware (`deviceAuth.js`) looks the device up in `sync_devices` and compares a SHA-256 hash of the key in constant time. An unknown device, wrong key or disabled device all get the same `401`.
+- Each device may only write the rooms listed for it in `sync_device_rooms`. Readings for any other room are rejected one by one (never stored or alerted), and aggregates for other rooms get `403`. The current Pi is `PI001`, allowed rooms 1–4.
+- Only the key's hash is stored. The key is shown once by `npm run sync-device -- <id> <rooms>` and kept in the Pi's `raspberry/.env`, never in git.
+- A refused key never loses data. The Pi keeps its readings pending, logs `SYNC AUTH ERROR` and retries every 5 minutes until the key is fixed. A missing key stops only the sync, never local storage or the alarm.
+
+**Why per-device keys and not one shared key.** A Pi sits physically in a room, so its key can be taken from its SD card. With a shared key, one stolen key could fake readings and fire alarms for every room. With per-device keys, a stolen key only reaches that Pi's rooms, and one Pi can be revoked (`is_active = false`) or given a new key without touching the others.
+
+**Alternatives considered.**
+
+| Option | Why it was not chosen |
+|---|---|
+| No authentication | Anyone could fake readings and trigger fire alarms for every user. |
+| One shared key for all Pis | Simpler, but one leaked key exposes every room and can't be revoked per device. |
+| Mutual TLS (client certificates) | Strongest device identity, but needs a certificate authority, a certificate per Pi and the reverse proxy configured to check them. Too heavy for this project's timeline. |
+| HMAC-signed requests | Mainly protects against tampering and replay. HTTPS already stops tampering, and replays are harmless because the backend skips readings it already stored (`pi_reading_id`). |
+| Supabase user login for the Pi | Built for people, not devices: the token expires hourly and the Pi would need refresh-token handling. |
+
+**Limitations.**
+
+- Security relies on HTTPS. Without it, the key could be read on the network.
+- Anyone with physical access to a Pi can read its key, but can only affect that Pi's rooms.
+- Changing a key cuts the Pi off until its `.env` is updated. Data is buffered, not lost.
+- No rate limit on failed attempts. Guessing a 256-bit key is impossible, so this only matters for log noise.
 
 ## Implementation references
 
 - Pi MQTT bridge and local database writes: `raspberry/mqtt/mqtt.py`, `raspberry/mqtt/database.py`
-- Pi-to-cloud retry/sync worker: `raspberry/sync/sync.py`
+- Pi-to-cloud retry/sync worker: `raspberry/sync/sync.py` (batches of 50, one shared `requests.Session`, exponential backoff up to 60 s)
+- Pi MySQL connection pool (2 connections per process): `raspberry/database/conn.py`
+- Duplicate-safe raw reading sync (`pi_reading_id` column and unique index): `backend/sql/migrations/002_sensor_readings_pi_reading_id.sql`
+- Pi sync authentication (per-device keys and allowed rooms): `backend/src/middleware/deviceAuth.js`, `backend/src/models/SyncDevice.js`, `backend/scripts/createSyncDevice.js`, `backend/sql/migrations/004_sync_devices.sql`
 - Risk engine: `raspberry/risk_detection/engine.py`, `raspberry/risk_detection/service.py`
 - Device publisher: `arduino_script/mosquitto_mqtt_communication/mosquitto_mqtt_communication.ino`
 - Backend sync routes and Supabase writes: `backend/src/controller/syncController.js`, `backend/src/models/SensorReading.js`, `backend/src/models/SensorAggregate.js`

@@ -258,24 +258,48 @@ function MainTabs() {
 // Which screens exist is derived from auth state rather than navigated to, so
 // the app moves on its own when a session is unlocked or expires - including
 // the 30/7-day auto-logout, which can fire while the app is already open.
-// Shown over every screen while NetInfo reports no internet, so stale data
-// and failed actions have an obvious explanation.
-function OfflineBanner() {
-  const { t } = useApp();
+const formatTime = (ms) => {
+  const date = new Date(ms);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+// One banner over every screen explaining why data may be out of date:
+// "offline" when NetInfo sees no internet, otherwise "couldn't update" when
+// polling keeps failing on a slow connection. Never both at once.
+function ConnectionBanner() {
+  const { t, isOnline, dataStale, token } = useApp();
   const insets = useSafeAreaInsets();
+
+  let icon;
+  let message;
+  if (!isOnline) {
+    icon = "cloud-offline-outline";
+    message = t("common.offlineBanner");
+  } else if (token && dataStale) {
+    icon = "time-outline";
+    message =
+      dataStale.lastUpdatedAt != null
+        ? t("common.staleBanner", { time: formatTime(dataStale.lastUpdatedAt) })
+        : t("common.staleBannerNoTime");
+  } else {
+    return null;
+  }
+
   return (
     <View
       pointerEvents="none"
+      accessibilityRole="alert"
       style={[offlineBanner.container, { top: insets.top + 4 }]}
     >
-      <Ionicons name="cloud-offline-outline" size={16} color={COLORS.text} />
-      <Text style={offlineBanner.text}>{t("common.offlineBanner")}</Text>
+      <Ionicons name={icon} size={16} color={COLORS.text} />
+      <Text style={offlineBanner.text}>{message}</Text>
     </View>
   );
 }
 
 export default function AppNavigator() {
-  const { authReady, token, needsUnlock, isOnline } = useApp();
+  const { authReady, token, needsUnlock } = useApp();
 
   // Held until the stored session has been read, otherwise the login screen
   // flashes before the unlock screen replaces it.
@@ -310,7 +334,7 @@ export default function AppNavigator() {
         )}
       </RootStack.Navigator>
     </NavigationContainer>
-    {!isOnline && <OfflineBanner />}
+    <ConnectionBanner />
     </>
   );
 }
@@ -330,9 +354,11 @@ const offlineBanner = StyleSheet.create({
     backgroundColor: COLORS.amber,
   },
   text: {
+    flexShrink: 1,
     color: COLORS.text,
     fontSize: 13,
     fontWeight: "600",
+    textAlign: "center",
   },
 });
 

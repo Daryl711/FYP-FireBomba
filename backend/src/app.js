@@ -10,6 +10,7 @@ const settingRoutes = require('./routes/settings.routes');
 const syncRoutes = require('./routes/sync.routes');
 const profileRoutes = require('./routes/profile.routes');
 const twinRoutes = require('./routes/twin.routes');
+const deviceAuth = require('./middleware/deviceAuth');
 
 const app = express();
 // Behind a proxy (Render, nginx, ...) the rate limiter needs the real client IP.
@@ -26,7 +27,8 @@ app.use('/api/room-detail', roomDetailRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/home', homeRoutes);
 app.use('/api/settings', settingRoutes);
-app.use('/api/sync', syncRoutes);
+// Pi only: every sync route needs a device id and key (see deviceAuth).
+app.use('/api/sync', deviceAuth, syncRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/twin', twinRoutes);
 

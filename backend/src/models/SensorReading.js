@@ -1,5 +1,4 @@
 const supabase = require("../config/supabase");
-const { parseSensorTimestamp } = require("../utils/sensorTimestamp");
 
 // exports.getLatestReading = async () => {
 //   const sql = "SELECT * FROM SensorReadings ORDER BY timestamp DESC LIMIT 1";
@@ -22,39 +21,43 @@ const { parseSensorTimestamp } = require("../utils/sensorTimestamp");
 //   };
 // };
 
-exports.insertSensorReading = async (data) => {
-  const row = {
-    room_id: data.roomId,
-    flame_detected: data.flame,
-    temperature: data.temperature,
-    humidity: data.humidity,
-    smoke: data.smoke,
-    co: data.co,
-  };
+// Bulk insert for the Pi sync. Rows already stored (same room, Pi id and
+// timestamp, i.e. a retried batch) are skipped, and only newly inserted rows
+// come back, so callers never re-publish or re-alert on a retry.
+// Needs sql/migrations/002_sensor_readings_pi_reading_id.sql.
+exports.insertSensorReadings = async (rows) => {
+  if (rows.length === 0) return [];
 
-  const readingTimestamp = data.timestamp || data.reading_timestamp;
-  if (readingTimestamp) {
-    const timestamp = parseSensorTimestamp(readingTimestamp);
-    if (Number.isNaN(timestamp.getTime())) {
-      throw new Error("Invalid sensor reading timestamp");
-    }
-    row.timestamp = timestamp.toISOString();
-  }
-
-  const { data: reading, error } = await supabase
+  const { data, error } = await supabase
     .from("sensor_readings")
-    .insert(row)
+    .upsert(rows, {
+      onConflict: "room_id,pi_reading_id,timestamp",
+      ignoreDuplicates: true,
+    })
     .select(
-      "reading_id, room_id, timestamp, flame_detected, temperature, humidity, smoke, co",
-    )
-    .single();
+      "reading_id, pi_reading_id, room_id, timestamp, flame_detected, temperature, humidity, smoke, co",
+    );
 
   if (error) {
-    console.error("Error inserting sensor reading:", error);
+    console.error("Error bulk inserting sensor readings:", error);
     throw error;
   }
 
-  return reading;
+  return data || [];
+};
+
+// Which of these room ids exist. A reading for a missing room would fail the
+// foreign key and take the whole batch down with it.
+exports.getExistingRoomIds = async (roomIds) => {
+  if (roomIds.length === 0) return new Set();
+
+  const { data, error } = await supabase
+    .from("rooms")
+    .select("room_id")
+    .in("room_id", roomIds);
+
+  if (error) throw error;
+  return new Set((data || []).map((row) => row.room_id));
 };
 
 exports.getRoomTemperature = async (roomId) => {

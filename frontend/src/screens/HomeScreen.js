@@ -22,6 +22,7 @@ export default function HomeScreen() {
     roomData,
     bilik,
     notifications,
+    unreadCount,
     systemStatus,
     user,
     realtimeError,
@@ -165,7 +166,7 @@ export default function HomeScreen() {
                 />
                 <Text style={styles.statCardTitle}> {t("home.warnings")}</Text>
               </View>
-              <Text style={styles.statCardVal}>2</Text>
+              <Text style={styles.statCardVal}>{unreadCount ?? 0}</Text>
             </TouchableOpacity>
           </View>
         </TutorialTarget>

@@ -34,32 +34,16 @@ function reading(roomId = 1, timestamp = new Date().toISOString()) {
     smoke: 4, co: 2, humidity: 65, flame_detected: false };
 }
 
-test("saved Pi timestamps use Malaysian time before reaching the event streams", async () => {
-  let inserted;
-  const model = load("../src/models/SensorReading.js", {
-    "../utils/sensorTimestamp": require("../src/utils/sensorTimestamp"),
-    "../config/supabase": { from: () => ({
-      insert: (row) => {
-        inserted = row;
-        return { select: () => ({ single: async () => ({ data: row }) }) };
-      },
-    }) },
-  });
-  const saved = await model.insertSensorReading({ roomId: 1,
-    reading_timestamp: "2026-10-21T14:05:00", temperature: 32 });
-  assert.equal(inserted.timestamp, "2026-10-21T06:05:00.000Z");
-  assert.equal(saved.timestamp, inserted.timestamp);
-  await assert.rejects(model.insertSensorReading({ roomId: 1,
-    reading_timestamp: "invalid" }), /Invalid sensor reading timestamp/);
-});
-
 test("successful sync publishes saved readings to independent frontend and twin subscribers", async () => {
   const saved = reading();
   const twin = response(), frontend = response();
   const unsubscribe = twinStream.subscribe(twin);
   const unsubscribeFrontend = frontendStream.subscribeToRoom(1, frontend);
   const controller = load("../src/controller/syncController.js", {
-    "../models/SensorReading": { insertSensorReading: async () => saved },
+    "../models/SensorReading": {
+      getExistingRoomIds: async () => new Set([1]),
+      insertSensorReadings: async () => [saved],
+    },
     "../models/AlertNotification": {}, "../models/SensorAggregate": {},
     "../services/sensorAggregateStream": {},
     "../utils/sensorTimestamp": require("../src/utils/sensorTimestamp"),
@@ -68,8 +52,11 @@ test("successful sync publishes saved readings to independent frontend and twin 
   });
   try {
     const res = response();
-    await controller.insertSensorReading({ body: { room_id: 1 } }, res);
-    assert.equal(res.body.readingId, saved.reading_id);
+    await controller.insertSensorReadingsBulk({ body: { readings: [{
+      reading_id: 7, room_id: 1, reading_timestamp: saved.timestamp,
+      flame_detected: 0, temperature: 32 }] },
+      device: { id: "PI001", roomIds: new Set([1]) } }, res);
+    assert.deepEqual([...res.body.synced], [7]);
     assert.match(twin.messages[0], /^event: sensor-reading\n/);
     assert.deepEqual(JSON.parse(twin.messages[0].split("data: ")[1]), saved);
     assert.equal(frontend.messages.length, 1);
